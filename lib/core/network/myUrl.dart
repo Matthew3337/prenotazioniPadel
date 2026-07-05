@@ -47,7 +47,7 @@ class MyUrl {
 
   static Future<MyUrl> loadUrl() async 
   {
-    String json = await rootBundle.loadString('assets/json/api_endpoints.json');
+    String json = await rootBundle.loadString('assets/json/api-endpoints.json');
     return MyUrl.fromJsom( jsonDecode(json) as Map<String, dynamic> );
   }
 

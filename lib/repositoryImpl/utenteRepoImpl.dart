@@ -15,7 +15,7 @@ class UtenteRepoImpl implements UtenteRepo{
   }
 
   @override
-  int registrazione(UtenteModel utente) {
+  int registrazione() {
     // TODO: implement registrazione
     throw UnimplementedError();
   }

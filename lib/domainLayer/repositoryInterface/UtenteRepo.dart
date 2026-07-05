@@ -1,10 +1,12 @@
 
+import 'package:thepadel/domainLayer/enetity/utente.dart';
+
 abstract class UtenteRepo {
 
-  void login(String telefono, String Password);
+  Utente login(String telefono, String Password);
 
-  void registrazione();
+  int registrazione();
 
-  void logout();
+  int logout();
 
 }
