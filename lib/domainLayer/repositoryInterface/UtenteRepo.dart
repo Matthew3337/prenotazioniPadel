@@ -1,11 +1,10 @@
-import 'package:thepadel/dataLayer/model/utenteModel.dart';
 
 abstract class UtenteRepo {
 
-  UtenteModel login(String telefono, String Password);
+  void login(String telefono, String Password);
 
-  int registrazione(UtenteModel utente);
+  void registrazione();
 
-  int logout();
+  void logout();
 
 }

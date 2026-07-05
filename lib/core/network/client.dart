@@ -16,9 +16,9 @@ class Client {
     return _handleRequest(()=> c.get(Uri.parse(url)));
   }
 
-  Future<dynamic> post(String url, String body)
+  Future<dynamic> post(String url, Map<String, dynamic> body)
   {
-    return _handleRequest(()=> c.post(Uri.parse(url), body: body));
+    return _handleRequest(()=> c.post(Uri.parse(url), body: jsonEncode(body)));
   }
 
   Future<dynamic> _handleRequest(Future<http.Response> Function() request) async{
