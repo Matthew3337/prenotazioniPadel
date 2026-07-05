@@ -1,0 +1,18 @@
+{
+  "BaseUrl": "http://localhost:8080",
+
+  "AuthRegister": "/api/auth/register",
+  "AuthLogin": "/api/auth/login",
+
+  "CampiGetAll": "/api/campi",
+  "CampiGetById": "/api/campi/{id}",
+  "CampiCreate": "/api/campi",
+  "CampiUpdate": "/api/campi/{id}",
+  "CampiDelete": "/api/campi/{id}",
+
+  "PrenotazioniSlotDisponibili": "/api/prenotazioni/slot-disponibili",
+  "PrenotazioniCreate": "/api/prenotazioni",
+  "PrenotazioniCancel": "/api/prenotazioni/{id}",
+  "PrenotazioniMie": "/api/prenotazioni/mie",
+  "PrenotazioniByUtente": "/api/prenotazioni/utente/{idUtente}"
+}
