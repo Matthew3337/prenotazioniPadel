@@ -2,7 +2,7 @@ import 'package:thepadel/domainLayer/enetity/utente.dart';
 
 class UtenteModel extends Utente{
 
-  UtenteModel({required super.cognome, required super.dataNasctia, required super.id, required super.isAdmin, required super.nome, required super.password, required super.telefono});
+  UtenteModel({required super.cognome, required super.dataNasctia, required super.id, required super.isAdmin, required super.nome, required super.password, required super.telefono, required super.livello});
 
   factory UtenteModel.fromJson(Map<String, dynamic> json)
   {
@@ -13,7 +13,8 @@ class UtenteModel extends Utente{
       telefono : json['telefono'] as String,
       password : json['password'] as String,
       isAdmin : json['isAdmin'] as bool,
-      dataNasctia : DateTime.parse(json['dataNasctia'])
+      dataNasctia : DateTime.parse(json['dataNasctia']),
+      livello : json['livello'] as double
     );
   }
 }

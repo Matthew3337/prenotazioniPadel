@@ -8,7 +8,8 @@ class Utente {
   final String password;
   final DateTime dataNasctia;
   final bool isAdmin;
+  final double livello;
 
-  Utente({required this.id, required this.telefono, required this.nome, required this.cognome, required this.password, required this.dataNasctia, required this.isAdmin});
+  Utente({required this.id, required this.telefono, required this.nome, required this.cognome, required this.password, required this.dataNasctia, required this.isAdmin, required this.livello});
 
 }

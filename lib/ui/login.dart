@@ -57,6 +57,12 @@ class _LoginFormState extends State<_LoginForm>
           padding: EdgeInsets.all(24.0),
           child: Column(
             children: [
+              Container(
+                width: MediaQuery.of(context).size.width * 0.80,
+                height: MediaQuery.of(context).size.width * 0.50,
+                child: Image.asset("assets/icon/logoHome.png"),
+              ),
+              const SizedBox(height: 16,),
               TextField(
                 controller: _telefonoController,
                 enabled: !isLoading,
