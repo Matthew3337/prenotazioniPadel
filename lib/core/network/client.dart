@@ -18,13 +18,14 @@ class Client {
 
   Future<dynamic> post(String url, Map<String, dynamic> body)
   {
-    return _handleRequest(()=> c.post(Uri.parse(url), body: jsonEncode(body)));
+    return _handleRequest(()=> c.post(Uri.parse(url), body: jsonEncode(body), headers: {'Content-Type': 'application/json'}));
   }
 
   Future<dynamic> _handleRequest(Future<http.Response> Function() request) async{
    
     final resp = await request().timeout(timeout);
     String bodyResp = resp.body;
+    print(bodyResp); //DEBUG !!!!
     return bodyResp.isNotEmpty ? jsonDecode(bodyResp) : null;
    
   }

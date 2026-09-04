@@ -1,5 +1,5 @@
 {
-  "BaseUrl": "http://localhost:8080",
+  "BaseUrl": "http://79.72.44.247:8080",
 
   "AuthRegister": "/api/auth/register",
   "AuthLogin": "/api/auth/login",

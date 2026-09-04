@@ -5,6 +5,7 @@ import 'package:thepadel/bloc/autenticazione/authevent.dart';
 import 'package:thepadel/bloc/autenticazione/authState.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/utente.dart';
+import 'package:thepadel/useCase/eccezioniUseCase.dart';
 import 'package:thepadel/useCase/utenteUseCase/loginUseCase.dart';
 
 
@@ -24,12 +25,16 @@ Future<void> _onLoginRichiesto(LoginRichiesto evento, Emitter<AuthState> emit) a
   try{
     final utenteRetrived = await loginUseCase.call(evento.telefono, evento.password);
      emit(LoginSuccess(utente: utenteRetrived));
+  }on PwMancante catch (e){
+    emit(AuthErrore(messaggio: e.message));
+  } on FormatoTelefonoNonValido catch(e) {
+      emit(AuthErrore(messaggio: e.message));
   } on TelefonoDuplicatoException catch (e) {
       emit(AuthErrore(messaggio : e.messaggio));
+  } on TelOPasswordErrata catch(e) {
+    emit(AuthErrore(messaggio : e.messaggio));
   } on ErroreGenericoServer catch (e) {
       emit(AuthErrore(messaggio : e.messaggio));
-  } catch (e) {
-    emit(AuthErrore(messaggio : 'Errore imprevisto, riprova'));
-  }
+  } 
 }
 }
