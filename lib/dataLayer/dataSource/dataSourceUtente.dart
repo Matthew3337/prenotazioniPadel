@@ -22,6 +22,7 @@ class DataSourceUtente{
     if(res.containsKey("id")) //BUON FINE
     {
       await sl<SharedPreferences>().setBool('isLogged', true);
+      await sl<SharedPreferences>().setBool('isAdmin', UtenteModel.fromJson(res).isAdmin);   
       return UtenteModel.fromJson(res);
     } 
     else if(res.containsKey("errore") && (res['status'] as int) == 401) //telefono o password sbagliata 
@@ -36,8 +37,9 @@ class DataSourceUtente{
 
   Future<int> registrazione(String nome, String cognome, String telefono, DateTime dataNascita, String password) async
   {
-    Map<String, dynamic> body = {"nome" : nome, "cognome" : cognome, "telefono" : telefono, "dataNascita" : dataNascita, "password" : password};
-    Map<String, dynamic> res = await c.post(elencoUrl.BaseUrl + elencoUrl.AuthLogin, body);
+    String dataFormattata = "${dataNascita.year.toString().padLeft(4,'0')}-${dataNascita.month.toString().padLeft(2,'0')}-${dataNascita.day.toString().padLeft(2,'0')}";
+    Map<String, dynamic> body = {"nome" : nome, "cognome" : cognome, "telefono" : telefono, "dataNascita" : dataFormattata, "password" : password};
+    Map<String, dynamic> res = await c.post(elencoUrl.BaseUrl + elencoUrl.AuthRegister, body);
 
     if(res.containsKey("id")) //BUON FINE
     {

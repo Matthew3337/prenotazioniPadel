@@ -34,7 +34,7 @@ class RegistrazioneUseCase {
     {
       throw CognomeMancante();
     }
-    if(dataNascita.toString().isEmpty)
+    if(dataNascita.isAtSameMomentAs(DateTime(0)))
     {
       throw DataNascitaMancante();
     }

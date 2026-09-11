@@ -5,40 +5,81 @@ import 'package:thepadel/bloc/autenticazione/authState.dart';
 import 'package:thepadel/bloc/autenticazione/authevent.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 
-import 'home.dart';
-import 'registrazione.dart';
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class RegistrazionePage extends StatefulWidget {
+  const RegistrazionePage({super.key});
   @override
-  State<LoginPage> createState() => LoginPageState();
+  State<RegistrazionePage> createState() => RegistrazionePageState();
 }
-class LoginPageState extends State<LoginPage> {
+
+class RegistrazionePageState extends State<RegistrazionePage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<AuthBloc>(),
       child: const Scaffold(
         backgroundColor: Color(0xFFF7F8FC),
-        body: _LoginForm(),
+        body: _RegistrazioneForm(),
       ),
     );
   }
 }
-class _LoginForm extends StatefulWidget {
-  const _LoginForm();
+
+class _RegistrazioneForm extends StatefulWidget {
+  const _RegistrazioneForm();
   @override
-  State<_LoginForm> createState() => _LoginFormState();
+  State<_RegistrazioneForm> createState() => _RegistrazioneFormState();
 }
-class _LoginFormState extends State<_LoginForm> {
+
+class _RegistrazioneFormState extends State<_RegistrazioneForm> {
+  final _nomeController = TextEditingController();
+  final _cognomeController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _passwordController = TextEditingController();
+  DateTime? _dataNascita;
   bool _nascondiPassword = true;
+
   @override
   void dispose() {
+    _nomeController.dispose();
+    _cognomeController.dispose();
     _telefonoController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
+
+  Future<void> _selezionaData(BuildContext context, double width) async {
+    final now = DateTime.now();
+    final data = await showDatePicker(
+      context: context,
+      initialDate: _dataNascita ?? DateTime(now.year - 18, now.month, now.day),
+      firstDate: DateTime(now.year - 100),
+      lastDate: now,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF3F5DA8),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF1E2432),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (data != null) {
+      setState(() {
+        _dataNascita = data;
+      });
+    }
+  }
+
+  String _formattaData(DateTime data) {
+    final gg = data.day.toString().padLeft(2, '0');
+    final mm = data.month.toString().padLeft(2, '0');
+    return "$gg/$mm/${data.year}";
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -47,7 +88,7 @@ class _LoginFormState extends State<_LoginForm> {
     // Dimensione massima del contenuto sui dispositivi grandi
     final contentWidth = width > 500 ? 420.0 : width * 0.88;
     // Dimensione adattiva del logo
-    final logoSize = width * 0.38 > 180 ? 180.0 : width * 0.38;
+    final logoSize = width * 0.28 > 140 ? 140.0 : width * 0.28;
     return SafeArea(
       child: Center(
         child: SingleChildScrollView(
@@ -61,10 +102,21 @@ class _LoginFormState extends State<_LoginForm> {
             ),
             child: BlocConsumer<AuthBloc, AuthState>(
               listener: (context, state) {
-                if (state is LoginSuccess) {
-                  Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-                  builder: (BuildContext context) => const MyHomePage(title: "home",),
-                ));
+                if (state is RegistrazioneSuccess) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text("Registrazione avvenuta con successo, effettua il login"),
+                      behavior: SnackBarBehavior.floating,
+                      margin: EdgeInsets.symmetric(
+                        horizontal: width * 0.05,
+                        vertical: height * 0.02,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  );
+                  Navigator.of(context).pop();
                 }
                 if (state is AuthErrore) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -87,18 +139,31 @@ class _LoginFormState extends State<_LoginForm> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // LOGO
+                    // BOTTONE INDIETRO
                     SizedBox(
-                      height: height * 0.04,
+                      height: height * 0.02,
                     ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        onPressed: isLoading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFF353B48),
+                        ),
+                      ),
+                    ),
+                    // LOGO
                     Center(
                       child: Container(
                         width: logoSize,
                         height: logoSize,
-                        padding: EdgeInsets.all(width * 0.04),
+                        padding: EdgeInsets.all(width * 0.03),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.07),
@@ -108,7 +173,7 @@ class _LoginFormState extends State<_LoginForm> {
                           ],
                         ),
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(18),
                           child: Image.asset(
                             "assets/icon/logoHome.png",
                             fit: BoxFit.contain,
@@ -117,11 +182,11 @@ class _LoginFormState extends State<_LoginForm> {
                       ),
                     ),
                     SizedBox(
-                      height: height * 0.035,
+                      height: height * 0.03,
                     ),
                     // TITOLO
                     Text(
-                      "Bentornato!",
+                      "Crea il tuo account",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: width * 0.075,
@@ -134,7 +199,7 @@ class _LoginFormState extends State<_LoginForm> {
                       height: height * 0.008,
                     ),
                     Text(
-                      "Accedi al tuo account per continuare",
+                      "Registrati per iniziare a prenotare",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: width * 0.038,
@@ -143,7 +208,184 @@ class _LoginFormState extends State<_LoginForm> {
                       ),
                     ),
                     SizedBox(
-                      height: height * 0.045,
+                      height: height * 0.04,
+                    ),
+                    // NOME
+                    Text(
+                      "Nome",
+                      style: TextStyle(
+                        fontSize: width * 0.035,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF353B48),
+                      ),
+                    ),
+                    SizedBox(
+                      height: height * 0.01,
+                    ),
+                    TextField(
+                      controller: _nomeController,
+                      enabled: !isLoading,
+                      keyboardType: TextInputType.name,
+                      textCapitalization: TextCapitalization.words,
+                      style: TextStyle(
+                        fontSize: width * 0.04,
+                        color: const Color(0xFF252A35),
+                      ),
+                      decoration: InputDecoration(
+                        hintText: "Inserisci il tuo nome",
+                        hintStyle: const TextStyle(
+                          color: Color(0xFFA0A5AF),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.person_outline,
+                          color: Color(0xFF3F5DA8),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: width * 0.045,
+                          vertical: height * 0.021,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE3E6ED),
+                            width: 1,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF3F5DA8),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: height * 0.025,
+                    ),
+                    // COGNOME
+                    Text(
+                      "Cognome",
+                      style: TextStyle(
+                        fontSize: width * 0.035,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF353B48),
+                      ),
+                    ),
+                    SizedBox(
+                      height: height * 0.01,
+                    ),
+                    TextField(
+                      controller: _cognomeController,
+                      enabled: !isLoading,
+                      keyboardType: TextInputType.name,
+                      textCapitalization: TextCapitalization.words,
+                      style: TextStyle(
+                        fontSize: width * 0.04,
+                        color: const Color(0xFF252A35),
+                      ),
+                      decoration: InputDecoration(
+                        hintText: "Inserisci il tuo cognome",
+                        hintStyle: const TextStyle(
+                          color: Color(0xFFA0A5AF),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.person_outline,
+                          color: Color(0xFF3F5DA8),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: width * 0.045,
+                          vertical: height * 0.021,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE3E6ED),
+                            width: 1,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF3F5DA8),
+                            width: 1.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: height * 0.025,
+                    ),
+                    // DATA DI NASCITA
+                    Text(
+                      "Data di nascita",
+                      style: TextStyle(
+                        fontSize: width * 0.035,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF353B48),
+                      ),
+                    ),
+                    SizedBox(
+                      height: height * 0.01,
+                    ),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: isLoading
+                          ? null
+                          : () => _selezionaData(context, width),
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          hintText: "Seleziona la data",
+                          hintStyle: const TextStyle(
+                            color: Color(0xFFA0A5AF),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.calendar_today_outlined,
+                            color: Color(0xFF3F5DA8),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: width * 0.045,
+                            vertical: height * 0.021,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(
+                              color: Color(0xFFE3E6ED),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          _dataNascita == null
+                              ? ""
+                              : _formattaData(_dataNascita!),
+                          style: TextStyle(
+                            fontSize: width * 0.04,
+                            color: const Color(0xFF252A35),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: height * 0.025,
                     ),
                     // TELEFONO
                     Text(
@@ -224,7 +466,7 @@ class _LoginFormState extends State<_LoginForm> {
                         color: const Color(0xFF252A35),
                       ),
                       decoration: InputDecoration(
-                        hintText: "Inserisci la password",
+                        hintText: "Crea una password",
                         hintStyle: const TextStyle(
                           color: Color(0xFFA0A5AF),
                         ),
@@ -277,7 +519,7 @@ class _LoginFormState extends State<_LoginForm> {
                     SizedBox(
                       height: height * 0.04,
                     ),
-                    // BOTTONE LOGIN
+                    // BOTTONE REGISTRATI
                     SizedBox(
                       height: height * 0.065,
                       child: ElevatedButton(
@@ -285,11 +527,13 @@ class _LoginFormState extends State<_LoginForm> {
                             ? null
                             : () {
                                 context.read<AuthBloc>().add(
-                                  LoginRichiesto(
-                                    telefono:
-                                        _telefonoController.text,
-                                    password:
-                                        _passwordController.text,
+                                  RegistrazioneRichiesta(
+                                    nome: _nomeController.text,
+                                    cognome: _cognomeController.text,
+                                    telefono: _telefonoController.text,
+                                    dataNascita:
+                                        _dataNascita ?? DateTime(0),
+                                    pw: _passwordController.text,
                                   ),
                                 );
                               },
@@ -317,7 +561,7 @@ class _LoginFormState extends State<_LoginForm> {
                                 ),
                               )
                             : Text(
-                                "ACCEDI",
+                                "REGISTRATI",
                                 style: TextStyle(
                                   fontSize: width * 0.04,
                                   fontWeight: FontWeight.w700,
@@ -327,43 +571,7 @@ class _LoginFormState extends State<_LoginForm> {
                       ),
                     ),
                     SizedBox(
-                      height: height * 0.02,
-                    ),
-                    // LINK REGISTRAZIONE
-                    Center(
-                      child: TextButton(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (BuildContext context) =>
-                                        const RegistrazionePage(),
-                                  ),
-                                );
-                              },
-                        child: RichText(
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontSize: width * 0.036,
-                              color: const Color(0xFF7A8190),
-                            ),
-                            children: const [
-                              TextSpan(text: "Non hai un account? "),
-                              TextSpan(
-                                text: "Registrati",
-                                style: TextStyle(
-                                  color: Color(0xFF3F5DA8),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.015,
+                      height: height * 0.025,
                     ),
                   ],
                 );
