@@ -7,7 +7,7 @@ import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourceUtente.dart';
 import 'package:thepadel/repositoryImpl/utenteRepoImpl.dart';
-import 'package:thepadel/useCase/utenteUseCase/loginUseCase.dart';
+import 'package:thepadel/useCase/utenteUseCase/authUseCase.dart';
 
 final sl = GetIt.instance;
 
@@ -25,7 +25,9 @@ void init()
 
   sl.registerSingletonAsync( () =>  SharedPreferences.getInstance());
 
-  sl.registerLazySingleton<LoginUseCase>(() => LoginUseCase(repo: sl()) );
+  sl.registerLazySingleton<LoginUseCase>(() => LoginUseCase(repo: sl()));
 
-  sl.registerFactory(() => AuthBloc(loginUseCase: sl())); //registro solo il bloc non gli eventi o gli stati 
+  sl.registerLazySingleton<RegistrazioneUseCase>(() => RegistrazioneUseCase(repo: sl()));
+
+  sl.registerFactory(() => AuthBloc(loginUseCase: sl(), registrazioneUseCase: sl())); //registro solo il bloc non gli eventi o gli stati 
 }

@@ -24,14 +24,34 @@ class DataSourceUtente{
       await sl<SharedPreferences>().setBool('isLogged', true);
       return UtenteModel.fromJson(res);
     } 
-    else if(res.containsKey("errore") && (res['status'] as int) == 409 ) //TELEFONO GIA REGISTRATO 
+    else if(res.containsKey("errore") && (res['status'] as int) == 401) //telefono o password sbagliata 
+    {
+      throw TelOPasswordErrata();
+    } 
+    else 
+    { //ALTRI ERRORI 
+      throw ErroreGenericoServer();
+    }
+  }
+
+  Future<int> registrazione(String nome, String cognome, String telefono, DateTime dataNascita, String password) async
+  {
+    Map<String, dynamic> body = {"nome" : nome, "cognome" : cognome, "telefono" : telefono, "dataNascita" : dataNascita, "password" : password};
+    Map<String, dynamic> res = await c.post(elencoUrl.BaseUrl + elencoUrl.AuthLogin, body);
+
+    if(res.containsKey("id")) //BUON FINE
+    {
+      return 1;
+    }
+    else if(res.containsKey("errore") && (res['status'] as int) == 400 ) //DATA DI NASCITA NON VALIDA 
+    {
+      throw DataNonValida();
+    }
+    else if(res.containsKey("errore") && (res['status'] as int) == 409 ) //TELEFONO GIA REGISTRATO
     {
       throw TelefonoDuplicatoException();
     }
-    else if((res['status'] as int) == 401) //telefono o password sbagliata 
-    {
-      throw TelOPasswordErrata();
-    } else 
+    else 
     { //ALTRI ERRORI 
       throw ErroreGenericoServer();
     }

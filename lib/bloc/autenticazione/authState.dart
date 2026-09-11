@@ -13,8 +13,6 @@ class LoginSuccess extends AuthState {
 }
 
 class RegistrazioneSuccess extends AuthState {
-  final Utente utente;
-  RegistrazioneSuccess(this.utente);
 }
 
 class LogoutSuccess extends AuthState {}

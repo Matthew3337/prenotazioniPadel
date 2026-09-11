@@ -5,7 +5,7 @@ abstract class UtenteRepo {
 
   Future<Utente> login(String telefono, String Password);
 
-  int registrazione();
+  Future<int> registrazione(String nome, String cognome, String telefono, DateTime dataNascita, String password);
 
   int logout();
 

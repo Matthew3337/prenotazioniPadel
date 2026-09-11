@@ -21,9 +21,8 @@ class UtenteRepoImpl implements UtenteRepo{
   }
 
   @override
-  int registrazione() {
-    // TODO: implement registrazione
-    throw UnimplementedError();
+  Future<int> registrazione(String nome, String cognome, String telefono, DateTime dataNascita, String password) {
+    return dsUtente.registrazione(nome, cognome, telefono, dataNascita, password);
   }
   
 }

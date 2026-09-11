@@ -11,3 +11,7 @@ class ErroreGenericoServer implements Exception{
 class TelOPasswordErrata implements Exception{
   final String messaggio = "telefono o password errati";
 }
+
+class DataNonValida implements Exception{
+  final String messaggio = "la data di nascita non è valida";
+}

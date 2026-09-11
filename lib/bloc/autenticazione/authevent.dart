@@ -9,7 +9,12 @@ class LoginRichiesto extends AuthEvent {
 
 class RegistrazioneRichiesta extends AuthEvent {
   //parametri della form di registrazione
-  RegistrazioneRichiesta();
+  final String nome;
+  final String cognome;
+  final String telefono;
+  final DateTime dataNascita;
+  final String pw;
+  RegistrazioneRichiesta({required this.cognome, required this.dataNascita, required this.nome, required this.telefono, required this.pw});
 }
 
 class LogoutRichiesto extends AuthEvent {}
