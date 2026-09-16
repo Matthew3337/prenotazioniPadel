@@ -6,7 +6,7 @@ import 'package:thepadel/bloc/autenticazione/authState.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/utente.dart';
 import 'package:thepadel/useCase/eccezioniUseCase.dart';
-import 'package:thepadel/useCase/utenteUseCase/authUseCase.dart';
+import 'package:thepadel/useCase/authUseCase.dart';
 
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {

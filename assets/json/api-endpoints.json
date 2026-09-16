@@ -13,6 +13,6 @@
   "PrenotazioniSlotDisponibili": "/api/prenotazioni/slot-disponibili",
   "PrenotazioniCreate": "/api/prenotazioni",
   "PrenotazioniCancel": "/api/prenotazioni/{id}",
-  "PrenotazioniMie": "/api/prenotazioni/mie",
+  "PrenotazioniProssima": "/api/prenotazioni/prossima?telefono=",
   "PrenotazioniByUtente": "/api/prenotazioni/utente/{idUtente}"
 }

@@ -7,7 +7,7 @@ import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourceUtente.dart';
 import 'package:thepadel/repositoryImpl/utenteRepoImpl.dart';
-import 'package:thepadel/useCase/utenteUseCase/authUseCase.dart';
+import 'package:thepadel/useCase/authUseCase.dart';
 
 final sl = GetIt.instance;
 

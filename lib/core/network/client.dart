@@ -11,14 +11,29 @@ class Client {
 
   //metodi 
 
-  Future<dynamic> get(String url)
+  Future<dynamic> get(String url, {String? token})
   {
-    return _handleRequest(()=> c.get(Uri.parse(url)));
+     if(token != null)
+    {
+      return _handleRequest(()=> c.get(Uri.parse(url), headers: {'Authorization': 'Bearer $token'}));
+    }
+    else 
+    {
+      return _handleRequest(()=> c.get(Uri.parse(url)));
+    } 
   }
 
-  Future<dynamic> post(String url, Map<String, dynamic> body)
+  Future<dynamic> post(String url, Map<String, dynamic> body,{String? token})
   {
-    return _handleRequest(()=> c.post(Uri.parse(url), body: jsonEncode(body), headers: {'Content-Type': 'application/json'}));
+    if(token != null)
+    {
+      return _handleRequest(()=> c.post(Uri.parse(url), body: jsonEncode(body), headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'}));
+    }
+    else 
+    {
+      return _handleRequest(()=> c.post(Uri.parse(url), body: jsonEncode(body), headers: {'Content-Type': 'application/json'}));
+    } 
+  
   }
 
   Future<dynamic> _handleRequest(Future<http.Response> Function() request) async{

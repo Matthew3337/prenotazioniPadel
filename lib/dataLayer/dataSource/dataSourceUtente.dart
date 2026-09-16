@@ -22,7 +22,10 @@ class DataSourceUtente{
     if(res.containsKey("id")) //BUON FINE
     {
       await sl<SharedPreferences>().setBool('isLogged', true);
-      await sl<SharedPreferences>().setBool('isAdmin', UtenteModel.fromJson(res).isAdmin);   
+      await sl<SharedPreferences>().setBool('isAdmin', UtenteModel.fromJson(res).isAdmin);  
+      await sl<SharedPreferences>().setString('telefono', UtenteModel.fromJson(res).telefono); 
+      await sl<SharedPreferences>().setString('jwt', res['token']); 
+
       return UtenteModel.fromJson(res);
     } 
     else if(res.containsKey("errore") && (res['status'] as int) == 401) //telefono o password sbagliata 
