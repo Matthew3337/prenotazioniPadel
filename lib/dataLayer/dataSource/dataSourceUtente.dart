@@ -19,7 +19,7 @@ class DataSourceUtente{
     Map<String, String> body = {"telefono" : telefono, "password" : password};
     Map<String, dynamic> res = await c.post(elencoUrl.BaseUrl + elencoUrl.AuthLogin, body );
 
-    if(res.containsKey("id")) //BUON FINE
+    if(res.containsKey("telefono")) //BUON FINE
     {
       await sl<SharedPreferences>().setBool('isLogged', true);
       await sl<SharedPreferences>().setBool('isAdmin', UtenteModel.fromJson(res).isAdmin);  
@@ -44,7 +44,7 @@ class DataSourceUtente{
     Map<String, dynamic> body = {"nome" : nome, "cognome" : cognome, "telefono" : telefono, "dataNascita" : dataFormattata, "password" : password};
     Map<String, dynamic> res = await c.post(elencoUrl.BaseUrl + elencoUrl.AuthRegister, body);
 
-    if(res.containsKey("id")) //BUON FINE
+    if(res.containsKey("telefono")) //BUON FINE
     {
       return 1;
     }

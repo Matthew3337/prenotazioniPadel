@@ -1,87 +1,736 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+import 'package:thepadel/bloc/homePage/homeBloc.dart';
+import 'package:thepadel/bloc/homePage/homeEvent.dart';
+import 'package:thepadel/bloc/homePage/homeState.dart';
+import 'package:thepadel/core/di/depInjection.dart';
+import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    return BlocProvider<HomeBloc>(
+      create: (_) => sl<HomeBloc>()
+        ..add(const HomeProssimaPartitaRequested()),
+      child: const _HomeView(),
+    );
+  }
+}
+
+/// Helper responsive: calcola una dimensione proporzionale alla larghezza
+/// dello schermo, con un minimo e un massimo per evitare che diventi
+/// troppo piccola su schermi stretti o eccessiva su tablet/desktop.
+class _Responsive {
+  final BuildContext context;
+  final double width;
+  final double height;
+  final bool isTablet;
+  final double textScale;
+
+  _Responsive(this.context)
+      : width = MediaQuery.sizeOf(context).width,
+        height = MediaQuery.sizeOf(context).height,
+        isTablet = MediaQuery.sizeOf(context).width >= 600,
+        // scala i font in base alla larghezza, ancorata a un iPhone
+        // standard (~390px) e clampata per non esagerare su tablet
+        // o rimpicciolire troppo su telefoni piccoli (iPhone SE ~375px)
+        textScale =
+            (MediaQuery.sizeOf(context).width / 390).clamp(0.8, 1.1);
+
+  double font(double base) => base * textScale;
+
+  // Padding orizzontale: percentuale della larghezza, clampata
+  double get horizontalPadding => (width * 0.06).clamp(20.0, 48.0);
+
+  double get cardBorderRadius => isTablet ? 32 : 26;
+
+  // Larghezza massima del contenuto su schermi larghi (tablet/desktop)
+  double get maxContentWidth => isTablet ? 640 : double.infinity;
+}
+
+class _HomeView extends StatelessWidget {
+  const _HomeView();
+
+  static const Color backgroundColor = Color(0xFFF7F8FC);
+  static const Color primaryColor = Color(0xFF4564B1);
+  static const Color darkText = Color(0xFF252B3A);
+  static const Color greyText = Color(0xFF7D8597);
+  static const Color borderColor = Color(0xFFE0E3EA);
+
+  @override
+  Widget build(BuildContext context) {
+    final r = _Responsive(context);
+
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+      backgroundColor: backgroundColor,
+      body: Column(
+        children: [
+          Expanded(
+            child: SafeArea(
+              bottom: false,
+              child: SingleChildScrollView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: r.maxContentWidth,
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        r.horizontalPadding,
+                        16,
+                        r.horizontalPadding,
+                        16,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(r),
+                          const SizedBox(height: 22),
+                          _buildCreaPartitaButton(r),
+                          const SizedBox(height: 18),
+                          _buildProssimaPartita(context, r),
+                          const SizedBox(height: 18),
+                          _buildCampiLiberi(r),
+                          const SizedBox(height: 18),
+                          _buildClassifica(r),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _buildBottomNavigation(context, r),
+        ],
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+    );
+  }
+
+  // =====================================================================
+  // HEADER
+  // =====================================================================
+
+  Widget _buildHeader(_Responsive r) {
+    final avatarSize = (r.width * 0.13).clamp(48.0, 60.0);
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ciao,',
+                style: TextStyle(
+                  fontSize: r.font(17),
+                  fontWeight: FontWeight.w500,
+                  color: greyText,
+                ),
+              ),
+              Text(
+                'Matteo',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: r.font(26),
+                  height: 1.1,
+                  fontWeight: FontWeight.w700,
+                  color: darkText,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          width: avatarSize,
+          height: avatarSize,
+          decoration: const BoxDecoration(
+            color: primaryColor,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            Icons.person_outline,
+            color: Colors.white,
+            size: avatarSize * 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =====================================================================
+  // CREA PARTITA
+  // =====================================================================
+
+  Widget _buildCreaPartitaButton(_Responsive r) {
+    return SizedBox(
+      width: double.infinity,
+      height: (r.height * 0.065).clamp(52.0, 60.0),
+      child: ElevatedButton(
+        onPressed: () {
+          // TODO: apertura pagina crea partita
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, size: r.font(22)),
+              const SizedBox(width: 10),
+              Text(
+                'Crea partita',
+                style: TextStyle(
+                  fontSize: r.font(17),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // =====================================================================
+  // PROSSIMA PARTITA
+  // =====================================================================
+
+  Widget _buildProssimaPartita(BuildContext context, _Responsive r) {
+    return BlocBuilder<HomeBloc, HomeState>(
+      builder: (context, state) {
+        final sectionState = state.prossimaPartita;
+
+        if (sectionState is SectionLoading) {
+          return _buildCard(
+            r: r,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Center(
+                child: CircularProgressIndicator(color: primaryColor),
+              ),
+            ),
+          );
+        }
+
+        if (sectionState is SectionError<Prenotazione>) {
+          return _buildCard(
+            r: r,
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Colors.redAccent,
+                    size: r.font(26),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    sectionState.message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: greyText, fontSize: r.font(14)),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () {
+                      context
+                          .read<HomeBloc>()
+                          .add(const HomeProssimaPartitaRequested());
+                    },
+                    child: Text(
+                      'Riprova',
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: r.font(15),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (sectionState is SectionEmpty) {
+          return _buildCard(
+            r: r,
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Prossima partita',
+                    style: TextStyle(
+                      fontSize: r.font(17),
+                      fontWeight: FontWeight.w500,
+                      color: greyText,
+                    ),
+                  ),
+                  SizedBox(height: 18),
+                  Row(
+                    children: [
+                      _iconBox(r, Icons.calendar_month_outlined),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Text(
+                          'Non hai ancora una partita prenotata',
+                          style: TextStyle(
+                            fontSize: r.font(17),
+                            fontWeight: FontWeight.w500,
+                            color: darkText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (sectionState is SectionSuccess<Prenotazione>) {
+          return _buildPartitaCard(sectionState.data, r);
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  // =====================================================================
+  // CARD PARTITA
+  // =====================================================================
+
+  Widget _buildPartitaCard(Prenotazione partita, _Responsive r) {
+    final String giorno = _giornoSettimana(partita.dataPrenotazione);
+    final String data = _formatData(partita.dataPrenotazione);
+    final String oraInizio = _formatTime(partita.oraInizio);
+    final String oraFine = _formatTime(partita.oraFine);
+
+    final List<String?> giocatori = [
+      partita.telefonoGiocatore1,
+      partita.telefonoGiocatore2,
+      partita.telefonoGiocatore3,
+      partita.telefonoGiocatore4,
+    ];
+    final int numeroGiocatori = giocatori.where((id) => id != null).length;
+
+    return _buildCard(
+      r: r,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
             Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Prossima partita',
+              style: TextStyle(
+                fontSize: r.font(17),
+                fontWeight: FontWeight.w500,
+                color: greyText,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _iconBox(r, Icons.calendar_month_outlined),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Campo ${partita.idCampo} · $giorno $oraInizio',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: r.font(16),
+                          fontWeight: FontWeight.w600,
+                          color: darkText,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$data · $oraInizio - $oraFine',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: r.font(13),
+                          fontWeight: FontWeight.w500,
+                          color: greyText,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$numeroGiocatori giocatori',
+                        style: TextStyle(
+                          fontSize: r.font(12),
+                          color: greyText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  // =====================================================================
+  // CAMPI LIBERI
+  // =====================================================================
+
+  Widget _buildCampiLiberi(_Responsive r) {
+    return _buildCard(
+      r: r,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Campi liberi oggi',
+                  style: TextStyle(
+                    fontSize: r.font(17),
+                    fontWeight: FontWeight.w500,
+                    color: greyText,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    // TODO
+                  },
+                  child: Text(
+                    'Vedi tutti',
+                    style: TextStyle(
+                      fontSize: r.font(14),
+                      fontWeight: FontWeight.w500,
+                      color: primaryColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            // Row scorrevole orizzontalmente: gli slot non vanno mai a
+            // capo, si scorre con lo swipe se non entrano tutti a video.
+            SizedBox(
+              height: (r.width * 0.11).clamp(40.0, 48.0),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: 3,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  const slots = ['17:00', '19:30', '21:00'];
+                  final isLast = index == 2;
+                  return _timeChip(
+                    r,
+                    slots[index],
+                    isLast ? const Color(0xFFF0EEE8) : const Color(0xFFE0F4EE),
+                    isLast ? const Color(0xFF625F59) : const Color(0xFF075E50),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _timeChip(
+    _Responsive r,
+    String text,
+    Color background,
+    Color textColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Center(
+        child: Text(
+          text,
+          style: TextStyle(
+            color: textColor,
+            fontSize: r.font(14),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // =====================================================================
+  // CLASSIFICA
+  // =====================================================================
+
+  Widget _buildClassifica(_Responsive r) {
+    final badgeSize = (r.width * 0.12).clamp(44.0, 54.0);
+
+    return _buildCard(
+      r: r,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'La tua posizione',
+                  style: TextStyle(
+                    fontSize: r.font(17),
+                    fontWeight: FontWeight.w500,
+                    color: greyText,
+                  ),
+                ),
+                Flexible(
+                  child: GestureDetector(
+                    onTap: () {
+                      // TODO
+                    },
+                    child: Text(
+                      'Classifica completa',
+                      textAlign: TextAlign.right,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: r.font(14),
+                        fontWeight: FontWeight.w500,
+                        color: primaryColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  width: badgeSize,
+                  height: badgeSize,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFFF0D9),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '4',
+                      style: TextStyle(
+                        fontSize: r.font(18),
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF92530B),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Text(
+                  'Punteggio: 1240',
+                  style: TextStyle(
+                    fontSize: r.font(15),
+                    fontWeight: FontWeight.w500,
+                    color: darkText,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =====================================================================
+  // BOTTOM NAVIGATION
+  // =====================================================================
+
+Widget _buildBottomNavigation(BuildContext context, _Responsive r) {
+  return SafeArea(
+    top: false,
+    left: false,
+    right: false,
+    minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+    child: Container(
+      height: 76,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(
+          color: borderColor,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _navItem(
+            r,
+            icon: Icons.home_outlined,
+            label: 'Home',
+            selected: true,
+          ),
+          _navItem(
+            r,
+            icon: Icons.calendar_month_outlined,
+            label: 'Prenota',
+            selected: false,
+          ),
+          _navItem(
+            r,
+            icon: Icons.history,
+            label: 'Storico',
+            selected: false,
+          ),
+          _navItem(
+            r,
+            icon: Icons.bar_chart_outlined,
+            label: 'Classifica',
+            selected: false,
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _navItem(_Responsive r, {required IconData icon, required String label, required bool selected,}) {
+  return Expanded(
+    child: InkWell(
+      borderRadius: BorderRadius.circular(28),
+      onTap: () {
+        // TODO: cambio pagina
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            size: r.font(26),
+            color: selected
+                ? primaryColor
+                : const Color(0xFFA6ACB9),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: r.font(12),
+              fontWeight: selected
+                  ? FontWeight.w600
+                  : FontWeight.w500,
+              color: selected
+                  ? primaryColor
+                  : const Color(0xFFA6ACB9),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+  // =====================================================================
+  // CARD GENERICA
+  // =====================================================================
+
+  Widget _iconBox(_Responsive r, IconData icon) {
+    final size = (r.width * 0.19).clamp(58.0, 76.0);
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE7F1FC),
+        borderRadius: BorderRadius.circular(size * 0.26),
+      ),
+      child: Icon(icon, color: const Color(0xFF2168B4), size: size * 0.5),
+    );
+  }
+
+  Widget _buildCard({
+    required _Responsive r,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(r.cardBorderRadius),
+        border: Border.all(color: borderColor, width: 1),
+      ),
+      child: child,
+    );
+  }
+
+  // =====================================================================
+  // DATE / TIME
+  // =====================================================================
+
+  String _giornoSettimana(DateTime date) {
+    const giorni = [
+      'lunedì',
+      'martedì',
+      'mercoledì',
+      'giovedì',
+      'venerdì',
+      'sabato',
+      'domenica',
+    ];
+    return giorni[date.weekday - 1];
+  }
+
+  String _formatData(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.year}';
+  }
+
+  String _formatTime(TimeOfDay time) {
+    return '${time.hour.toString().padLeft(2, '0')}:'
+        '${time.minute.toString().padLeft(2, '0')}';
   }
 }

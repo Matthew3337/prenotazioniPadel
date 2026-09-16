@@ -3,7 +3,7 @@ import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 
 class PrenotazioneModel extends Prenotazione{
   
-  PrenotazioneModel({required super.dataPrenotazione, required super.id, required super.idCampo, required super.idGiocatore1, required super.idGiocatore2, required super.idGiocatore3, required super.idGiocatore4, required super.oraFine, required super.oraInizio});
+  PrenotazioneModel({required super.dataPrenotazione, required super.id, required super.idCampo, required super.telefonoGiocatore1, required super.telefonoGiocatore2, required super.telefonoGiocatore3, required super.telefonoGiocatore4, required super.oraFine, required super.oraInizio, required super.stato});
 
   factory PrenotazioneModel.fromJson(Map<String, dynamic> json)
   {
@@ -11,12 +11,13 @@ class PrenotazioneModel extends Prenotazione{
       dataPrenotazione: DateTime.parse(json['dataPrenotazione']), 
       id: json['id'] as int, 
       idCampo: json['idCampo'] as int, 
-      idGiocatore1: json['idGiocatore1'] as int, 
-      idGiocatore2: json['idGiocatore2'] as int?, 
-      idGiocatore3: json['idGiocatore3'] as int?, 
-      idGiocatore4: json['idGiocatore4'] as int?, 
+      telefonoGiocatore1: json['telefonoGiocatore1'] as String, 
+      telefonoGiocatore2: json['telefonoGiocatore2'] as String?, 
+      telefonoGiocatore3: json['telefonoGiocatore3'] as String?, 
+      telefonoGiocatore4: json['telefonoGiocatore4'] as String?, 
       oraFine: _parseTimeOfDay(json['oraFine']), 
-      oraInizio: _parseTimeOfDay(json['oraInizio']));
+      oraInizio: _parseTimeOfDay(json['oraInizio']),
+      stato: json['stato'] as String);
   }
 
   Map<String, dynamic> toJson()
@@ -25,12 +26,13 @@ class PrenotazioneModel extends Prenotazione{
       'dataPrenotazione' : dataPrenotazione.toIso8601String(),
       'id' : id,
       'idCampo' : idCampo,
-      'idGiocatore1' : idGiocatore1,
-      'idGiocatore2' : idGiocatore2,
-      'idGiocatore3' : idGiocatore3,
-      'idGiocatore4' : idGiocatore4,
+      'telefonoGiocatore1' : telefonoGiocatore1,
+      'telefonoGiocatore2' : telefonoGiocatore2,
+      'telefonoGiocatore3' : telefonoGiocatore3,
+      'telefonoGiocatore4' : telefonoGiocatore4,
       'oraFine' : oraFine.toString(),
-      'oraInizio' : oraInizio.toString()
+      'oraInizio' : oraInizio.toString(),
+      'stato' : stato
     };
   }
 

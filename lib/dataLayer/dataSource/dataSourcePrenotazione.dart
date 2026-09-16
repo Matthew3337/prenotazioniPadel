@@ -19,7 +19,7 @@ class DataSourcePrenotazione{
     String telefono =  sl<SharedPreferences>().getString("telefono")!;
     String token = sl<SharedPreferences>().getString("jwt")!;
 
-    Map<String, dynamic> res = await  c.get(elencoUrl.BaseUrl + elencoUrl.PrenotazioniProssima + telefono);
+    Map<String, dynamic> res = await  c.get(elencoUrl.BaseUrl + elencoUrl.PrenotazioniProssima + telefono, token: token);
 
     if(res.containsKey("id")) //SUCCESSO PRENOTAZIONE TROVATA 
     {

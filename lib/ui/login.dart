@@ -63,7 +63,7 @@ class _LoginFormState extends State<_LoginForm> {
               listener: (context, state) {
                 if (state is LoginSuccess) {
                   Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-                  builder: (BuildContext context) => const MyHomePage(title: "home",),
+                  builder: (BuildContext context) => const HomePage(),
                 ));
                 }
                 if (state is AuthErrore) {
