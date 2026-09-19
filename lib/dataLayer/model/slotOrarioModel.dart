@@ -1,7 +1,7 @@
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 
 class SlotOrarioModel extends SlotOrario{
-  SlotOrarioModel({required super.idCampo, required super.oraInizio, required super.oraFine, required super.disponibile});
+  SlotOrarioModel({required super.idCampo, required super.oraInizio, required super.oraFine, required super.disponibile, required super.nomeCampo});
 
   factory SlotOrarioModel.fromJson(Map<String, dynamic> json) {
     return SlotOrarioModel(
@@ -9,6 +9,7 @@ class SlotOrarioModel extends SlotOrario{
       oraInizio: json['oraInizio'],
       oraFine: json['oraFine'],
       disponibile: json['disponibile'],
+      nomeCampo: json['nomeCampo']
     );
   }
   
