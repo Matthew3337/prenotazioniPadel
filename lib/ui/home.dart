@@ -6,6 +6,7 @@ import 'package:thepadel/bloc/homePage/homeEvent.dart';
 import 'package:thepadel/bloc/homePage/homeState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
+import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -14,7 +15,8 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider<HomeBloc>(
       create: (_) => sl<HomeBloc>()
-        ..add(const HomeProssimaPartitaRequested()),
+        ..add(const HomeProssimaPartitaRequested())
+        ..add(const HomeSlotOggiRequested()),
       child: const _HomeView(),
     );
   }
@@ -89,8 +91,6 @@ class _HomeView extends StatelessWidget {
                         children: [
                           _buildHeader(r),
                           const SizedBox(height: 22),
-                          _buildCreaPartitaButton(r),
-                          const SizedBox(height: 18),
                           _buildProssimaPartita(context, r),
                           const SizedBox(height: 18),
                           _buildCampiLiberi(r),
@@ -162,47 +162,6 @@ class _HomeView extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  // =====================================================================
-  // CREA PARTITA
-  // =====================================================================
-
-  Widget _buildCreaPartitaButton(_Responsive r) {
-    return SizedBox(
-      width: double.infinity,
-      height: (r.height * 0.065).clamp(52.0, 60.0),
-      child: ElevatedButton(
-        onPressed: () {
-          // TODO: apertura pagina crea partita
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add, size: r.font(22)),
-              const SizedBox(width: 10),
-              Text(
-                'Crea partita',
-                style: TextStyle(
-                  fontSize: r.font(17),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -402,7 +361,7 @@ class _HomeView extends StatelessWidget {
   }
 
   // =====================================================================
-  // CAMPI LIBERI
+  // SLOT DISPONIBILI
   // =====================================================================
 
   Widget _buildCampiLiberi(_Responsive r) {
@@ -418,7 +377,7 @@ class _HomeView extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Campi liberi oggi',
+                  'Slot disponibili oggi',
                   style: TextStyle(
                     fontSize: r.font(17),
                     fontWeight: FontWeight.w500,
@@ -427,10 +386,10 @@ class _HomeView extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () {
-                    // TODO
+                    // TODO: apertura selezione data
                   },
                   child: Text(
-                    'Vedi tutti',
+                    'Vedi altri giorni',
                     style: TextStyle(
                       fontSize: r.font(14),
                       fontWeight: FontWeight.w500,
@@ -441,51 +400,166 @@ class _HomeView extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            // Row scorrevole orizzontalmente: gli slot non vanno mai a
-            // capo, si scorre con lo swipe se non entrano tutti a video.
-            SizedBox(
-              height: (r.width * 0.11).clamp(40.0, 48.0),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                itemCount: 3,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) {
-                  const slots = ['17:00', '19:30', '21:00'];
-                  final isLast = index == 2;
-                  return _timeChip(
-                    r,
-                    slots[index],
-                    isLast ? const Color(0xFFF0EEE8) : const Color(0xFFE0F4EE),
-                    isLast ? const Color(0xFF625F59) : const Color(0xFF075E50),
-                  );
-                },
-              ),
-            ),
+            _buildSlotSection(r),
           ],
         ),
       ),
     );
   }
 
-  Widget _timeChip(
-    _Responsive r,
-    String text,
-    Color background,
-    Color textColor,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Center(
+  Widget _buildSlotSection(_Responsive r) {
+    return BlocBuilder<HomeBloc, HomeState>(
+      builder: (context, state) {
+        final sectionState = state.slotOggi;
+
+        if (sectionState is SectionLoading) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: CircularProgressIndicator(color: primaryColor),
+            ),
+          );
+        }
+
+        if (sectionState is SectionError<List<SlotOrario>>) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  color: Colors.redAccent,
+                  size: r.font(26),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  sectionState.message,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: greyText, fontSize: r.font(14)),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () {
+                    context.read<HomeBloc>().add(const HomeSlotOggiRequested());
+                  },
+                  child: Text(
+                    'Riprova',
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: r.font(15),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        if (sectionState is SectionEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              'Nessuno slot disponibile per oggi',
+              style: TextStyle(fontSize: r.font(14), color: greyText),
+            ),
+          );
+        }
+
+        if (sectionState is SectionSuccess<List<SlotOrario>>) {
+          final slotPerCampo = _raggruppaPerCampo(sectionState.data);
+
+          if (slotPerCampo.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'Nessuno slot disponibile per oggi',
+                style: TextStyle(fontSize: r.font(14), color: greyText),
+              ),
+            );
+          }
+
+          final ultimoCampo = slotPerCampo.keys.last;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: slotPerCampo.entries.map((entry) {
+              final isLast = entry.key == ultimoCampo;
+              return Padding(
+                padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      entry.key, // nome del campo, es. "Campo 1"
+                      style: TextStyle(
+                        fontSize: r.font(15),
+                        fontWeight: FontWeight.w600,
+                        color: darkText,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: (r.width * 0.11).clamp(40.0, 48.0),
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        itemCount: entry.value.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 10),
+                        itemBuilder: (context, index) =>
+                            _slotChip(r, entry.value[index]),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  // Raggruppa gli slot per nome campo mantenendo l'ordine con cui arrivano
+  // dal repository (che gia' li ordina per orario crescente).
+  Map<String, List<SlotOrario>> _raggruppaPerCampo(List<SlotOrario> slots) {
+    final Map<String, List<SlotOrario>> risultato = {};
+    for (final slot in slots) {
+      risultato.putIfAbsent(slot.nomeCampo, () => []).add(slot);
+    }
+    return risultato;
+  }
+
+  Widget _slotChip(_Responsive r, SlotOrario slot) {
+    final Color background = slot.disponibile
+        ? const Color(0xFFE0F4EE) // verde chiaro
+        : const Color(0xFFFBE3E3); // rosso chiaro
+    final Color textColor = slot.disponibile
+        ? const Color(0xFF075E50)
+        : const Color(0xFFA33A3A);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        // TODO: avvio flusso creazione prenotazione per questo slot
+        // (slot.idCampo, slot.oraInizio, slot.oraFine)
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Text(
-          text,
+          '${slot.oraInizio} - ${slot.oraFine}',
           style: TextStyle(
             color: textColor,
-            fontSize: r.font(14),
+            fontSize: r.font(13),
             fontWeight: FontWeight.w600,
           ),
         ),
