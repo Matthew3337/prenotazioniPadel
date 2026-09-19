@@ -10,7 +10,7 @@
   "CampiUpdate": "/api/campi/{id}",
   "CampiDelete": "/api/campi/{id}",
 
-  "PrenotazioniSlotDisponibili": "/api/prenotazioni/slot-disponibili",
+  "PrenotazioniSlotDisponibili": "/api/prenotazioni/slot-disponibili?idCampo={id}&data={data}",
   "PrenotazioniCreate": "/api/prenotazioni",
   "PrenotazioniCancel": "/api/prenotazioni/{id}",
   "PrenotazioniProssima": "/api/prenotazioni/prossima?telefono=",

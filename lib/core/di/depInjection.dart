@@ -6,8 +6,10 @@ import 'package:thepadel/bloc/autenticazione/authBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
+import 'package:thepadel/dataLayer/dataSource/dataSourceCampo.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourcePrenotazione.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourceUtente.dart';
+import 'package:thepadel/repositoryImpl/campoRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/prenotazioneRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/utenteRepoImpl.dart';
 import 'package:thepadel/useCase/authUseCase.dart';
@@ -41,5 +43,11 @@ void init()
 
   sl.registerLazySingleton<ProssimaPartitaUseCase>(() => ProssimaPartitaUseCase(repo: sl()));
 
-  sl.registerFactory<HomeBloc>(()=> HomeBloc(prossimaPartitaUseCase: sl()));
+  sl.registerSingletonWithDependencies<DataSourceCampo>(() => DataSourceCampo(c: sl(), elencoUrl: sl()), dependsOn: [MyUrl]);
+
+  sl.registerLazySingleton<CampoRepoImpl>(() => CampoRepoImpl(dsCampo: sl()));
+
+  sl.registerLazySingleton<SlotDisponibiliUseCase>(() => SlotDisponibiliUseCase(repo: sl()));
+
+  sl.registerFactory<HomeBloc>(()=> HomeBloc(prossimaPartitaUseCase: sl(), slotUseCase: sl()));
 }

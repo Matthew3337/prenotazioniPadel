@@ -8,10 +8,12 @@ import 'package:thepadel/useCase/homeUseCase.dart';
 class HomeBloc extends Bloc<HomeEvent, HomeState>{
   //attrubuti 
   ProssimaPartitaUseCase prossimaPartitaUseCase;
+  SlotDisponibiliUseCase slotUseCase;
 
   //metodi 
-  HomeBloc({required this.prossimaPartitaUseCase}) : super(HomeState.initial()) {//dichiaro lo stato iniziale 
+  HomeBloc({required this.prossimaPartitaUseCase, required this.slotUseCase}) : super(HomeState.initial()) {//dichiaro lo stato iniziale 
     on<HomeProssimaPartitaRequested>(_onPPartitaDownload);
+    on<HomeSlotOggiRequested>(_onSlotDownload);
   }
 
   Future<void> _onPPartitaDownload(HomeProssimaPartitaRequested event, Emitter<HomeState> emit ) async
@@ -35,5 +37,23 @@ class HomeBloc extends Bloc<HomeEvent, HomeState>{
     {
       emit(state.copyWith(prossimaPartita: SectionError(e.messaggio)));
     }
+  }
+
+  Future<void> _onSlotDownload(HomeSlotOggiRequested event, Emitter<HomeState> emit) async
+  {
+    emit(state.copyWith(slotOggi: SectionLoading()));
+
+    try
+    {
+      //use case 
+      final slots = await slotUseCase.call(DateTime.now());
+      emit(state.copyWith(slotOggi: SectionSuccess(slots)));
+    }
+    on ErroreGenericoServer catch (e)
+    {
+      emit(state.copyWith(slotOggi: SectionError(e.messaggio)));
+    }
+
+
   }
 }
