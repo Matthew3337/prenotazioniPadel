@@ -9,6 +9,7 @@ import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourcePartita.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/dataLayer/model/dettaglioPartitaModel.dart';
+import 'package:thepadel/dataLayer/model/partitaPubblicaModel.dart';
 
 import '../../fake/fakePrenotazioneRepo.dart';
 
@@ -48,6 +49,23 @@ String rispostaDettaglio(num livelloCreatore)
 String erroreServer(int status, String errore)
 {
   return jsonEncode({"timestamp": "2026-11-01T10:00:00", "status": status, "errore": errore});
+}
+
+//una partita della bacheca come da contratto T4
+Map<String, dynamic> partitaPubblicaJson(int id, num livelloCreatore, int postiLiberi)
+{
+  return {
+    "id": id,
+    "idCampo": 1,
+    "nomeCampo": "Campo $id",
+    "dataPartita": "2026-11-05",
+    "oraInizio": "18:00:00",
+    "oraFine": "19:30:00",
+    "nomeCreatore": "Mario",
+    "cognomeCreatore": "Rossi",
+    "livelloCreatore": livelloCreatore,
+    "postiLiberi": postiLiberi,
+  };
 }
 
 void main()
@@ -151,5 +169,136 @@ void main()
     final ds = creaDataSource(401, "", richieste);
 
     await expectLater(ds.getDettaglioPartita(7), throwsA(isA<ErroreGenericoServer>()));
+  });
+
+  group("getPartitePubbliche", ()
+  {
+    test("200 con lista: restituisce le partite nell'ordine del server e chiama l'url giusto col token", () async
+    {
+      final body = jsonEncode([partitaPubblicaJson(7, 2.5, 2), partitaPubblicaJson(8, 3, 1)]);
+      final ds = creaDataSource(200, body, richieste);
+
+      final partite = await ds.getPartitePubbliche();
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "GET");
+      expect(richieste.first.url.toString(), "http://test/api/partite/pubbliche");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+
+      expect(partite.length, 2);
+      expect(partite[0], isA<PartitaPubblicaModel>());
+      expect(partite[0].id, 7);
+      expect(partite[0].idCampo, 1);
+      expect(partite[0].nomeCampo, "Campo 7");
+      expect(partite[0].dataPartita, DateTime(2026, 11, 5));
+      expect(partite[0].oraInizio.hour, 18);
+      expect(partite[0].oraInizio.minute, 0);
+      expect(partite[0].oraFine.hour, 19);
+      expect(partite[0].oraFine.minute, 30);
+      expect(partite[0].nomeCreatore, "Mario");
+      expect(partite[0].cognomeCreatore, "Rossi");
+      expect(partite[0].livelloCreatore, 2.5);
+      expect(partite[0].postiLiberi, 2);
+      expect(partite[1].id, 8);
+      expect(partite[1].postiLiberi, 1);
+    });
+
+    test("200 con livelloCreatore intero: viene convertito in double", () async
+    {
+      final ds = creaDataSource(200, jsonEncode([partitaPubblicaJson(8, 3, 1)]), richieste);
+
+      final partite = await ds.getPartitePubbliche();
+
+      expect(partite[0].livelloCreatore, isA<double>());
+      expect(partite[0].livelloCreatore, 3.0);
+    });
+
+    test("200 con lista vuota: restituisce una lista vuota", () async
+    {
+      final ds = creaDataSource(200, "[]", richieste);
+
+      final partite = await ds.getPartitePubbliche();
+
+      expect(partite, isEmpty);
+    });
+
+    test("errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.getPartitePubbliche(), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("risposta senza body (401): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.getPartitePubbliche(), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("entraInPartita", ()
+  {
+    test("200: POST all'url con l'id, body vuoto e token, restituisce il dettaglio aggiornato", () async
+    {
+      final ds = creaDataSource(200, rispostaDettaglio(2.5), richieste);
+
+      final dettaglio = await ds.entraInPartita(7);
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "POST");
+      expect(richieste.first.url.toString(), "http://test/api/partite/7/entra");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+      expect(richieste.first.body, "{}");
+
+      expect(dettaglio, isA<DettaglioPartitaModel>());
+      expect(dettaglio.id, 7);
+      expect(dettaglio.posti.length, 2);
+      expect(dettaglio.azioni.puoInvitare, true);
+    });
+
+    test("409: lancia IngressoRifiutato col messaggio della regola violata", () async
+    {
+      final ds = creaDataSource(409, erroreServer(409, "La partita è al completo"), richieste);
+
+      await expectLater(
+        ds.entraInPartita(7),
+        throwsA(isA<IngressoRifiutato>().having((e) => e.messaggio, "messaggio", "La partita è al completo")),
+      );
+    });
+
+    test("409 per ingresso chiuso: il messaggio arriva intatto", () async
+    {
+      final ds = creaDataSource(409, erroreServer(409, "L'ingresso è chiuso: mancano meno di 24 ore all'inizio"), richieste);
+
+      await expectLater(
+        ds.entraInPartita(7),
+        throwsA(isA<IngressoRifiutato>().having((e) => e.messaggio, "messaggio", "L'ingresso è chiuso: mancano meno di 24 ore all'inizio")),
+      );
+    });
+
+    test("404: lancia PartitaNonTrovata col messaggio del server", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Partita non trovata"), richieste);
+
+      await expectLater(
+        ds.entraInPartita(99),
+        throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Partita non trovata")),
+      );
+    });
+
+    test("403 senza body (admin): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(403, "", richieste);
+
+      await expectLater(ds.entraInPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("altro errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.entraInPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
   });
 }

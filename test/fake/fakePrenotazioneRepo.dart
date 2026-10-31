@@ -28,6 +28,8 @@ MyUrl urlDiTest()
     PrenotazioniProssima: "/api/prenotazioni/prossima?telefono=",
     PrenotazioniByUtente: "/api/prenotazioni/utente/{idUtente}",
     PartiteDettaglio: "/api/partite/{id}",
+    PartitePubbliche: "/api/partite/pubbliche",
+    PartiteEntra: "/api/partite/{id}/entra",
   );
 }
 

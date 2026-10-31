@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/bloc/autenticazione/authBloc.dart';
+import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
@@ -17,6 +18,7 @@ import 'package:thepadel/repositoryImpl/partitaRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/prenotazioneRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/utenteRepoImpl.dart';
 import 'package:thepadel/useCase/authUseCase.dart';
+import 'package:thepadel/useCase/bachecaPubblicheUseCase.dart';
 import 'package:thepadel/useCase/creaPartitaUseCase.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
@@ -68,4 +70,10 @@ void init()
   sl.registerLazySingleton<DettaglioPartitaUseCase>(() => DettaglioPartitaUseCase(repo: sl()));
 
   sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: sl()));
+
+  sl.registerLazySingleton<PartitePubblicheUseCase>(() => PartitePubblicheUseCase(repo: sl()));
+
+  sl.registerLazySingleton<EntraInPartitaUseCase>(() => EntraInPartitaUseCase(repo: sl()));
+
+  sl.registerFactory<BachecaPubblicheBloc>(() => BachecaPubblicheBloc(partitePubblicheUseCase: sl(), entraInPartitaUseCase: sl()));
 }

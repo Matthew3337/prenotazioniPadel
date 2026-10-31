@@ -4,6 +4,7 @@ import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/dataLayer/model/dettaglioPartitaModel.dart';
+import 'package:thepadel/dataLayer/model/partitaPubblicaModel.dart';
 
 class DataSourcePartita{
 
@@ -33,6 +34,49 @@ class DataSourcePartita{
     }
     else
     { //ALTRI ERRORI
+      throw ErroreGenericoServer();
+    }
+  }
+
+  Future<List<PartitaPubblicaModel>> getPartitePubbliche() async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    dynamic res = await c.get(elencoUrl.BaseUrl + elencoUrl.PartitePubbliche, token: token);
+
+    if(res is List) //BUON FINE, se non ci sono partite arriva una lista vuota
+    {
+      return res.map((e) => PartitaPubblicaModel.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    else
+    { //se c'e un errore arriva una mappa (o niente), non c'e un caso specifico da gestire
+      throw ErroreGenericoServer();
+    }
+  }
+
+  Future<DettaglioPartitaModel> entraInPartita(int idPartita) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    //l'endpoint non vuole un body, ma il nostro Client.post lo richiede: passo una mappa vuota
+    dynamic res = await c.post(elencoUrl.BaseUrl + elencoUrl.PartiteEntra.replaceFirst("{id}", idPartita.toString()), {}, token: token);
+
+    if(res == null) //risposta senza body (es. token scaduto), non c'e niente da leggere
+    {
+      throw ErroreGenericoServer();
+    }
+    else if(res.containsKey("posti")) //BUON FINE, il server restituisce il dettaglio gia aggiornato
+    {
+      return DettaglioPartitaModel.fromJson(res);
+    }
+    else if(res.containsKey("errore") && (res['status'] as int) == 404) //PARTITA INESISTENTE O NON PIU VISIBILE
+    {
+      throw PartitaNonTrovata(messaggio: res['errore']);
+    }
+    else if(res.containsKey("errore") && (res['status'] as int) == 409) //INGRESSO RIFIUTATO, il messaggio dice quale regola e stata violata
+    {
+      throw IngressoRifiutato(messaggio: res['errore']);
+    }
+    else
+    { //ALTRI ERRORI, compreso il 403 dell'admin che non puo entrare
       throw ErroreGenericoServer();
     }
   }

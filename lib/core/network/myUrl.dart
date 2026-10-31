@@ -23,10 +23,12 @@ class MyUrl {
   final String PrenotazioniByUtente;
 
   final String PartiteDettaglio;
+  final String PartitePubbliche;
+  final String PartiteEntra;
 
   //metodi
 
-  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio});
+  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio, required this.PartitePubbliche, required this.PartiteEntra});
 
   factory MyUrl.fromJsom(Map<String, dynamic> json)
   {
@@ -44,7 +46,9 @@ class MyUrl {
       PrenotazioniCreate: json['PrenotazioniCreate'], 
       PrenotazioniProssima: json['PrenotazioniProssima'], 
       PrenotazioniSlotDisponibili: json['PrenotazioniSlotDisponibili'],
-      PartiteDettaglio: json['PartiteDettaglio']
+      PartiteDettaglio: json['PartiteDettaglio'],
+      PartitePubbliche: json['PartitePubbliche'],
+      PartiteEntra: json['PartiteEntra']
     );
   }
 
