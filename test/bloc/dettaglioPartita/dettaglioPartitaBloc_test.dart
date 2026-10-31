@@ -12,6 +12,11 @@ Matcher erroreCon(String messaggio)
   return isA<DettaglioPartitaErrore>().having((s) => s.messaggio, "messaggio", messaggio);
 }
 
+Matcher operazioneErroreCon(String messaggio)
+{
+  return isA<OperazioneErrore>().having((s) => s.messaggio, "messaggio", messaggio).having((s) => s.dettaglio.id, "id", 10);
+}
+
 void main()
 {
   late FakePartitaRepo repo;
@@ -20,7 +25,7 @@ void main()
   setUp(()
   {
     repo = FakePartitaRepo();
-    bloc = DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo));
+    bloc = DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo));
   });
 
   tearDown(() async
@@ -65,5 +70,163 @@ void main()
       isA<DettaglioPartitaLoading>(),
       erroreCon(ErroreGenericoServer().messaggio),
     ]));
+  });
+
+  //carica il dettaglio e aspetta che arrivi, come succede quando la pagina e a schermo
+  Future<void> caricaDettaglio() async
+  {
+    bloc.add(const DettaglioPartitaRichiesto(idPartita: 10));
+    await expectLater(bloc.stream, emitsInOrder([
+      isA<DettaglioPartitaLoading>(),
+      isA<DettaglioPartitaCaricato>(),
+    ]));
+  }
+
+  group("elimina partita", ()
+  {
+    test("successo: OperazioneInCorso col dettaglio poi PartitaEliminata, senza ricaricare", () async
+    {
+      await caricaDettaglio();
+
+      bloc.add(const EliminaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>().having((s) => s.dettaglio.id, "id", 10),
+        isA<PartitaEliminata>(),
+      ]));
+      expect(repo.chiamateElimina, 1);
+      expect(repo.idEliminaRicevuto, 10);
+      expect(repo.chiamateEsci, 0);
+      //il dettaglio era stato chiesto solo una volta, al caricamento
+      expect(repo.chiamate, 1);
+    });
+
+    test("409: OperazioneInCorso, OperazioneErrore col messaggio, poi Caricato senza Loading", () async
+    {
+      await caricaDettaglio();
+      repo.erroreElimina = OperazioneRifiutata(messaggio: "La partita non è più aperta");
+
+      bloc.add(const EliminaPartitaRichiesta(idPartita: 10));
+
+      //emitsInOrder vuole gli stati uno dopo l'altro: un Loading in mezzo farebbe fallire il test
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon("La partita non è più aperta"),
+        isA<DettaglioPartitaCaricato>(),
+      ]));
+      expect(repo.chiamate, 2);
+    });
+
+    test("404: OperazioneErrore col messaggio di PartitaNonTrovata, poi ricarica", () async
+    {
+      await caricaDettaglio();
+      repo.erroreElimina = PartitaNonTrovata(messaggio: "Partita non trovata");
+
+      bloc.add(const EliminaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon("Partita non trovata"),
+        isA<DettaglioPartitaCaricato>(),
+      ]));
+    });
+
+    test("errore generico seguito da una ricarica fallita: si arriva a DettaglioPartitaErrore", () async
+    {
+      await caricaDettaglio();
+      repo.erroreElimina = ErroreGenericoServer();
+      //anche la ricarica del dettaglio fallisce
+      repo.errore = PartitaNonTrovata(messaggio: "Partita non trovata");
+
+      bloc.add(const EliminaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon(ErroreGenericoServer().messaggio),
+        erroreCon("Partita non trovata"),
+      ]));
+    });
+
+    test("senza un dettaglio caricato l'evento viene ignorato", () async
+    {
+      bloc.add(const EliminaPartitaRichiesta(idPartita: 10));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bloc.state, isA<DettaglioPartitaInitial>());
+      expect(repo.chiamateElimina, 0);
+    });
+  });
+
+  group("esci dalla partita", ()
+  {
+    test("successo: OperazioneInCorso col dettaglio poi UscitaCompletata, senza ricaricare", () async
+    {
+      await caricaDettaglio();
+
+      bloc.add(const EsciDaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>().having((s) => s.dettaglio.id, "id", 10),
+        isA<UscitaCompletata>(),
+      ]));
+      expect(repo.chiamateEsci, 1);
+      expect(repo.idEsciRicevuto, 10);
+      expect(repo.chiamateElimina, 0);
+      expect(repo.chiamate, 1);
+    });
+
+    test("409: OperazioneInCorso, OperazioneErrore col messaggio, poi Caricato senza Loading", () async
+    {
+      await caricaDettaglio();
+      repo.erroreEsci = OperazioneRifiutata(messaggio: "L'uscita è chiusa: mancano meno di 24 ore all'inizio");
+
+      bloc.add(const EsciDaPartitaRichiesta(idPartita: 10));
+
+      //emitsInOrder vuole gli stati uno dopo l'altro: un Loading in mezzo farebbe fallire il test
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon("L'uscita è chiusa: mancano meno di 24 ore all'inizio"),
+        isA<DettaglioPartitaCaricato>(),
+      ]));
+      expect(repo.chiamate, 2);
+    });
+
+    test("errore generico: OperazioneErrore col messaggio di ErroreGenericoServer, poi ricarica", () async
+    {
+      await caricaDettaglio();
+      repo.erroreEsci = ErroreGenericoServer();
+
+      bloc.add(const EsciDaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon(ErroreGenericoServer().messaggio),
+        isA<DettaglioPartitaCaricato>(),
+      ]));
+    });
+
+    test("errore seguito da una ricarica fallita: si arriva a DettaglioPartitaErrore", () async
+    {
+      await caricaDettaglio();
+      repo.erroreEsci = OperazioneRifiutata(messaggio: "Non partecipi a questa partita");
+      repo.errore = ErroreGenericoServer();
+
+      bloc.add(const EsciDaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon("Non partecipi a questa partita"),
+        erroreCon(ErroreGenericoServer().messaggio),
+      ]));
+    });
+
+    test("senza un dettaglio caricato l'evento viene ignorato", () async
+    {
+      bloc.add(const EsciDaPartitaRichiesta(idPartita: 10));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bloc.state, isA<DettaglioPartitaInitial>());
+      expect(repo.chiamateEsci, 0);
+    });
   });
 }

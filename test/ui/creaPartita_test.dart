@@ -3,30 +3,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
-import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 import 'package:thepadel/ui/creaPartita.dart';
 import 'package:thepadel/useCase/creaPartitaUseCase.dart';
-import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 
-import '../fake/fakePartitaRepo.dart';
 import '../fake/fakePrenotazioneRepo.dart';
 
 void main()
 {
   late FakePrenotazioneRepo repo;
-  late FakePartitaRepo repoPartita;
 
   setUp(() async
   {
     await sl.reset();
     repo = FakePrenotazioneRepo();
-    repoPartita = FakePartitaRepo();
     sl.registerFactory<CreaPartitaBloc>(() => CreaPartitaBloc(creaPartitaUseCase: CreaPartitaUseCase(repo: repo)));
-    //dopo la creazione la pagina viene sostituita dal dettaglio, che ha bisogno del suo bloc
-    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repoPartita)));
   });
 
   tearDown(() async
@@ -35,23 +28,23 @@ void main()
   });
 
   //apre la pagina sopra una schermata finta, cosi si puo controllare cosa restituisce con il pop
-  Future<List<bool?>> apriPagina(WidgetTester tester) async
+  Future<List<int?>> apriPagina(WidgetTester tester) async
   {
     //schermo da telefono (390x844): con la superficie di default 800x600 l'opzione Privata finisce fuori vista
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
-    final risultati = <bool?>[];
+    final risultati = <int?>[];
     await tester.pumpWidget(MaterialApp(
       home: Builder(
         builder: (context) => Scaffold(
           body: TextButton(
             onPressed: () async
             {
-              final r = await Navigator.push<bool>(
+              final r = await Navigator.push<int>(
                 context,
-                MaterialPageRoute<bool>(builder: (_) => CreaPartitaPage(slot: slotDiTest(), data: DateTime(2026, 11, 2))),
+                MaterialPageRoute<int>(builder: (_) => CreaPartitaPage(slot: slotDiTest(), data: DateTime(2026, 11, 2))),
               );
               risultati.add(r);
             },
@@ -122,7 +115,7 @@ void main()
     await tester.pumpAndSettle();
   });
 
-  testWidgets("successo: la pagina viene sostituita dal dettaglio della partita creata e la home riceve true", (tester) async
+  testWidgets("successo: la pagina si chiude restituendo l'id della partita creata e compare Partita creata", (tester) async
   {
     final risultati = await apriPagina(tester);
 
@@ -131,13 +124,10 @@ void main()
     await tester.tap(find.text("Prenota"));
     await tester.pumpAndSettle();
 
-    //la home riceve true subito, mentre l'utente e ancora sul dettaglio
-    expect(risultati, [true]);
+    //la home riceve l'id della partita appena creata (10 di prenotazioneDiTest) e aprira lei il dettaglio
+    expect(risultati, [10]);
     expect(find.text("Riepilogo partita"), findsNothing);
-    expect(find.text("Dettaglio partita"), findsOneWidget);
-    //il dettaglio chiede proprio la partita appena creata (id 10 di prenotazioneDiTest)
-    expect(repoPartita.idRicevuto, 10);
-    expect(find.text("Mario Rossi"), findsOneWidget);
+    expect(find.text("apri"), findsOneWidget);
     expect(find.widgetWithText(SnackBar, "Partita creata"), findsOneWidget);
   });
 

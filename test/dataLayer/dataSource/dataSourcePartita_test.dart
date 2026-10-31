@@ -301,4 +301,164 @@ void main()
       await expectLater(ds.entraInPartita(7), throwsA(isA<ErroreGenericoServer>()));
     });
   });
+
+  group("eliminaPartita", ()
+  {
+    test("204: DELETE all'url con l'id e il token, termina senza errori", () async
+    {
+      final ds = creaDataSource(204, "", richieste);
+
+      await ds.eliminaPartita(7);
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "DELETE");
+      expect(richieste.first.url.toString(), "http://test/api/partite/7");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+    });
+
+    test("403 partecipante non creatore: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(403, erroreServer(403, "Solo il creatore può eliminare la partita"), richieste);
+
+      await expectLater(
+        ds.eliminaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "Solo il creatore può eliminare la partita")),
+      );
+    });
+
+    test("403 admin: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(403, erroreServer(403, "L'amministratore non può eliminare le partite da qui"), richieste);
+
+      await expectLater(
+        ds.eliminaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "L'amministratore non può eliminare le partite da qui")),
+      );
+    });
+
+    test("409 partita non piu aperta: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(409, erroreServer(409, "La partita non è più aperta"), richieste);
+
+      await expectLater(
+        ds.eliminaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "La partita non è più aperta")),
+      );
+    });
+
+    test("409 meno di 24 ore: il messaggio arriva intatto", () async
+    {
+      const messaggio = "L'eliminazione è chiusa: mancano meno di 24 ore all'inizio. Solo l'amministratore può annullare la partita";
+      final ds = creaDataSource(409, erroreServer(409, messaggio), richieste);
+
+      await expectLater(
+        ds.eliminaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", messaggio)),
+      );
+    });
+
+    test("404: lancia PartitaNonTrovata col messaggio del server", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Partita non trovata"), richieste);
+
+      await expectLater(
+        ds.eliminaPartita(99),
+        throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Partita non trovata")),
+      );
+    });
+
+    test("risposta senza body (401 col token scaduto): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.eliminaPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("altro errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.eliminaPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("esciDaPartita", ()
+  {
+    test("204: POST all'url con l'id, body vuoto e token, termina senza errori", () async
+    {
+      final ds = creaDataSource(204, "", richieste);
+
+      await ds.esciDaPartita(7);
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "POST");
+      expect(richieste.first.url.toString(), "http://test/api/partite/7/esci");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+      expect(richieste.first.body, "{}");
+    });
+
+    test("403 admin: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(403, erroreServer(403, "L'amministratore non può uscire dalle partite"), richieste);
+
+      await expectLater(
+        ds.esciDaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "L'amministratore non può uscire dalle partite")),
+      );
+    });
+
+    test("409 creatore: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(409, erroreServer(409, "Il creatore non può uscire dalla partita: può eliminarla"), richieste);
+
+      await expectLater(
+        ds.esciDaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "Il creatore non può uscire dalla partita: può eliminarla")),
+      );
+    });
+
+    test("409 non partecipa: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(409, erroreServer(409, "Non partecipi a questa partita"), richieste);
+
+      await expectLater(
+        ds.esciDaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "Non partecipi a questa partita")),
+      );
+    });
+
+    test("409 meno di 24 ore: il messaggio arriva intatto", () async
+    {
+      final ds = creaDataSource(409, erroreServer(409, "L'uscita è chiusa: mancano meno di 24 ore all'inizio"), richieste);
+
+      await expectLater(
+        ds.esciDaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "L'uscita è chiusa: mancano meno di 24 ore all'inizio")),
+      );
+    });
+
+    test("404: lancia PartitaNonTrovata col messaggio del server", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Partita non trovata"), richieste);
+
+      await expectLater(
+        ds.esciDaPartita(99),
+        throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Partita non trovata")),
+      );
+    });
+
+    test("risposta senza body (401 col token scaduto): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.esciDaPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("altro errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.esciDaPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
 }
