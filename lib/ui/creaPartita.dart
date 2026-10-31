@@ -7,6 +7,8 @@ import 'package:thepadel/bloc/creaPartita/creaPartitaState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 
+import 'dettaglioPartita.dart';
+
 class CreaPartitaPage extends StatelessWidget {
   final SlotOrario slot;
   final DateTime data;
@@ -81,8 +83,19 @@ class _CreaPartitaViewState extends State<_CreaPartitaView> {
           listener: (context, state) {
             if (state is CreaPartitaSuccess) {
               _mostraSnackBar(context, r, 'Partita creata');
-              // true dice alla home di ricaricare prossima partita e slot
-              Navigator.pop(context, true);
+              // al posto del riepilogo si apre il dettaglio della partita
+              // appena creata. result: true arriva subito alla home, che
+              // cosi' ricarica prossima partita e slot mentre l'utente e'
+              // ancora sul dettaglio
+              Navigator.pushReplacement<void, bool>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => DettaglioPartitaPage(
+                    idPartita: state.prenotazione.id,
+                  ),
+                ),
+                result: true,
+              );
             }
             if (state is CreaPartitaErrore) {
               _mostraSnackBar(context, r, state.messaggio);

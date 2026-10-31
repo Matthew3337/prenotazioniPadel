@@ -27,6 +27,7 @@ MyUrl urlDiTest()
     PrenotazioniCancel: "/api/prenotazioni/{id}",
     PrenotazioniProssima: "/api/prenotazioni/prossima?telefono=",
     PrenotazioniByUtente: "/api/prenotazioni/utente/{idUtente}",
+    PartiteDettaglio: "/api/partite/{id}",
   );
 }
 
