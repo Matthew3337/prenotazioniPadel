@@ -22,3 +22,8 @@ class DataNascitaMancante implements Exception{
   final String message = "compilare il campo data di nascita";
 
 }
+
+class TipoPartitaMancante implements Exception{
+  final String message = "scegliere se la partita è pubblica o privata";
+
+}

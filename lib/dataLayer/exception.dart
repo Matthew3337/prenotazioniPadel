@@ -15,3 +15,21 @@ class TelOPasswordErrata implements Exception{
 class DataNonValida implements Exception{
   final String messaggio = "la data di nascita non è valida";
 }
+
+//PRENOTAZIONE EXCEPTION
+//qui il messaggio non e fisso ma arriva dal campo "errore" del server, cosi l'utente vede la regola violata
+
+class PrenotazioneNonValida implements Exception{ //400
+  final String messaggio;
+  PrenotazioneNonValida({required this.messaggio});
+}
+
+class CampoInesistente implements Exception{ //404
+  final String messaggio;
+  CampoInesistente({required this.messaggio});
+}
+
+class SlotNonDisponibile implements Exception{ //409: slot occupato, fuori orario o data/ora gia passata
+  final String messaggio;
+  SlotNonDisponibile({required this.messaggio});
+}

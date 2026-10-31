@@ -12,6 +12,7 @@ class Prenotazione {
   final TimeOfDay oraInizio;
   final TimeOfDay oraFine;
   final String stato;
+  final String? tipo; //PUBBLICA o PRIVATA, nullable perche le prenotazioni create prima di questo campo non ce l'hanno
 
-  Prenotazione({required this.dataPrenotazione, required this.id, required this.idCampo, required this.telefonoGiocatore1, required this.telefonoGiocatore2, required this.telefonoGiocatore3, required this.telefonoGiocatore4, required this.oraFine, required this.oraInizio, required this.stato});
+  Prenotazione({required this.dataPrenotazione, required this.id, required this.idCampo, required this.telefonoGiocatore1, required this.telefonoGiocatore2, required this.telefonoGiocatore3, required this.telefonoGiocatore4, required this.oraFine, required this.oraInizio, required this.stato, required this.tipo});
 }

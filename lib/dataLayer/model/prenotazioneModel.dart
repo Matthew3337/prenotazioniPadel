@@ -3,7 +3,7 @@ import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 
 class PrenotazioneModel extends Prenotazione{
   
-  PrenotazioneModel({required super.dataPrenotazione, required super.id, required super.idCampo, required super.telefonoGiocatore1, required super.telefonoGiocatore2, required super.telefonoGiocatore3, required super.telefonoGiocatore4, required super.oraFine, required super.oraInizio, required super.stato});
+  PrenotazioneModel({required super.dataPrenotazione, required super.id, required super.idCampo, required super.telefonoGiocatore1, required super.telefonoGiocatore2, required super.telefonoGiocatore3, required super.telefonoGiocatore4, required super.oraFine, required super.oraInizio, required super.stato, required super.tipo});
 
   factory PrenotazioneModel.fromJson(Map<String, dynamic> json)
   {
@@ -17,7 +17,8 @@ class PrenotazioneModel extends Prenotazione{
       telefonoGiocatore4: json['telefonoGiocatore4'] as String?, 
       oraFine: _parseTimeOfDay(json['oraFine']), 
       oraInizio: _parseTimeOfDay(json['oraInizio']),
-      stato: json['stato'] as String);
+      stato: json['stato'] as String,
+      tipo: json['tipo'] as String?);
   }
 
   Map<String, dynamic> toJson()
@@ -32,7 +33,8 @@ class PrenotazioneModel extends Prenotazione{
       'telefonoGiocatore4' : telefonoGiocatore4,
       'oraFine' : oraFine.toString(),
       'oraInizio' : oraInizio.toString(),
-      'stato' : stato
+      'stato' : stato,
+      'tipo' : tipo
     };
   }
 

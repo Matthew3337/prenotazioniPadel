@@ -8,6 +8,8 @@ import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 
+import 'creaPartita.dart';
+
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -510,7 +512,7 @@ class _HomeView extends StatelessWidget {
                         itemCount: entry.value.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 10),
                         itemBuilder: (context, index) =>
-                            _slotChip(r, entry.value[index]),
+                            _slotChip(context, r, entry.value[index]),
                       ),
                     ),
                   ],
@@ -535,7 +537,7 @@ class _HomeView extends StatelessWidget {
     return risultato;
   }
 
-  Widget _slotChip(_Responsive r, SlotOrario slot) {
+  Widget _slotChip(BuildContext context, _Responsive r, SlotOrario slot) {
     final Color background = slot.disponibile
         ? const Color(0xFFE0F4EE) // verde chiaro
         : const Color(0xFFFBE3E3); // rosso chiaro
@@ -545,10 +547,10 @@ class _HomeView extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: () {
-        // TODO: avvio flusso creazione prenotazione per questo slot
-        // (slot.idCampo, slot.oraInizio, slot.oraFine)
-      },
+      // gli slot occupati non si possono toccare
+      onTap: slot.disponibile
+          ? () => _apriCreaPartita(context, slot)
+          : null,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
@@ -565,6 +567,24 @@ class _HomeView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _apriCreaPartita(BuildContext context, SlotOrario slot) async {
+    // la home mostra gli slot di oggi, quindi la data e' quella odierna
+    final risultato = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute<bool>(
+        builder: (_) => CreaPartitaPage(slot: slot, data: DateTime.now()),
+      ),
+    );
+
+    // true arriva solo se la partita e' stata creata: ricarichiamo le
+    // sezioni che cambiano dopo una nuova prenotazione
+    if (risultato == true && context.mounted) {
+      context.read<HomeBloc>()
+        ..add(const HomeProssimaPartitaRequested())
+        ..add(const HomeSlotOggiRequested());
+    }
   }
 
   // =====================================================================
