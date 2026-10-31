@@ -33,3 +33,10 @@ class SlotNonDisponibile implements Exception{ //409: slot occupato, fuori orari
   final String messaggio;
   SlotNonDisponibile({required this.messaggio});
 }
+
+//PARTITA EXCEPTION
+
+class PartitaNonTrovata implements Exception{ //404: la partita non esiste o l'utente non puo vederla
+  final String messaggio;
+  PartitaNonTrovata({required this.messaggio});
+}

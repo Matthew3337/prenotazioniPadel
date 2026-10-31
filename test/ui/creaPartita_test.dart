@@ -3,23 +3,30 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
+import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 import 'package:thepadel/ui/creaPartita.dart';
 import 'package:thepadel/useCase/creaPartitaUseCase.dart';
+import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 
+import '../fake/fakePartitaRepo.dart';
 import '../fake/fakePrenotazioneRepo.dart';
 
 void main()
 {
   late FakePrenotazioneRepo repo;
+  late FakePartitaRepo repoPartita;
 
   setUp(() async
   {
     await sl.reset();
     repo = FakePrenotazioneRepo();
+    repoPartita = FakePartitaRepo();
     sl.registerFactory<CreaPartitaBloc>(() => CreaPartitaBloc(creaPartitaUseCase: CreaPartitaUseCase(repo: repo)));
+    //dopo la creazione la pagina viene sostituita dal dettaglio, che ha bisogno del suo bloc
+    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repoPartita)));
   });
 
   tearDown(() async
@@ -115,7 +122,7 @@ void main()
     await tester.pumpAndSettle();
   });
 
-  testWidgets("successo: chiude la pagina restituendo true e mostra Partita creata", (tester) async
+  testWidgets("successo: la pagina viene sostituita dal dettaglio della partita creata e la home riceve true", (tester) async
   {
     final risultati = await apriPagina(tester);
 
@@ -124,8 +131,13 @@ void main()
     await tester.tap(find.text("Prenota"));
     await tester.pumpAndSettle();
 
+    //la home riceve true subito, mentre l'utente e ancora sul dettaglio
     expect(risultati, [true]);
     expect(find.text("Riepilogo partita"), findsNothing);
+    expect(find.text("Dettaglio partita"), findsOneWidget);
+    //il dettaglio chiede proprio la partita appena creata (id 10 di prenotazioneDiTest)
+    expect(repoPartita.idRicevuto, 10);
+    expect(find.text("Mario Rossi"), findsOneWidget);
     expect(find.widgetWithText(SnackBar, "Partita creata"), findsOneWidget);
   });
 

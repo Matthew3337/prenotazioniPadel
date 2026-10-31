@@ -9,6 +9,7 @@ import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 
 import 'creaPartita.dart';
+import 'dettaglioPartita.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -270,7 +271,7 @@ class _HomeView extends StatelessWidget {
         }
 
         if (sectionState is SectionSuccess<Prenotazione>) {
-          return _buildPartitaCard(sectionState.data, r);
+          return _buildPartitaCard(context, sectionState.data, r);
         }
 
         return const SizedBox.shrink();
@@ -282,7 +283,11 @@ class _HomeView extends StatelessWidget {
   // CARD PARTITA
   // =====================================================================
 
-  Widget _buildPartitaCard(Prenotazione partita, _Responsive r) {
+  Widget _buildPartitaCard(
+    BuildContext context,
+    Prenotazione partita,
+    _Responsive r,
+  ) {
     final String giorno = _giornoSettimana(partita.dataPrenotazione);
     final String data = _formatData(partita.dataPrenotazione);
     final String oraInizio = _formatTime(partita.oraInizio);
@@ -296,67 +301,78 @@ class _HomeView extends StatelessWidget {
     ];
     final int numeroGiocatori = giocatori.where((id) => id != null).length;
 
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Prossima partita',
-              style: TextStyle(
-                fontSize: r.font(17),
-                fontWeight: FontWeight.w500,
-                color: greyText,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _iconBox(r, Icons.calendar_month_outlined),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Campo ${partita.idCampo} · $giorno $oraInizio',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: r.font(16),
-                          fontWeight: FontWeight.w600,
-                          color: darkText,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '$data · $oraInizio - $oraFine',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: r.font(13),
-                          fontWeight: FontWeight.w500,
-                          color: greyText,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '$numeroGiocatori giocatori',
-                        style: TextStyle(
-                          fontSize: r.font(12),
-                          color: greyText,
-                        ),
-                      ),
-                    ],
-                  ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(r.cardBorderRadius),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DettaglioPartitaPage(idPartita: partita.id),
+          ),
+        );
+      },
+      child: _buildCard(
+        r: r,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Prossima partita',
+                style: TextStyle(
+                  fontSize: r.font(17),
+                  fontWeight: FontWeight.w500,
+                  color: greyText,
                 ),
-              ],
-            ),
-          ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _iconBox(r, Icons.calendar_month_outlined),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Campo ${partita.idCampo} · $giorno $oraInizio',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: r.font(16),
+                            fontWeight: FontWeight.w600,
+                            color: darkText,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '$data · $oraInizio - $oraFine',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: r.font(13),
+                            fontWeight: FontWeight.w500,
+                            color: greyText,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$numeroGiocatori giocatori',
+                          style: TextStyle(
+                            fontSize: r.font(12),
+                            color: greyText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

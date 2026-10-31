@@ -4,17 +4,21 @@ import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/bloc/autenticazione/authBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
+import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourceCampo.dart';
+import 'package:thepadel/dataLayer/dataSource/dataSourcePartita.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourcePrenotazione.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourceUtente.dart';
 import 'package:thepadel/repositoryImpl/campoRepoImpl.dart';
+import 'package:thepadel/repositoryImpl/partitaRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/prenotazioneRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/utenteRepoImpl.dart';
 import 'package:thepadel/useCase/authUseCase.dart';
 import 'package:thepadel/useCase/creaPartitaUseCase.dart';
+import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
 
 final sl = GetIt.instance;
@@ -56,4 +60,12 @@ void init()
   sl.registerLazySingleton<CreaPartitaUseCase>(() => CreaPartitaUseCase(repo: sl()));
 
   sl.registerFactory<CreaPartitaBloc>(() => CreaPartitaBloc(creaPartitaUseCase: sl()));
+
+  sl.registerSingletonWithDependencies<DataSourcePartita>(() => DataSourcePartita(c: sl(), elencoUrl: sl()), dependsOn: [MyUrl]);
+
+  sl.registerLazySingleton<PartitaRepoImpl>(() => PartitaRepoImpl(dsPartita: sl()));
+
+  sl.registerLazySingleton<DettaglioPartitaUseCase>(() => DettaglioPartitaUseCase(repo: sl()));
+
+  sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: sl()));
 }
