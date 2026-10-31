@@ -86,17 +86,66 @@ class _DettaglioPartitaView extends StatelessWidget {
                 ),
                 Expanded(
                   child:
-                      BlocBuilder<DettaglioPartitaBloc, DettaglioPartitaState>(
+                      BlocConsumer<DettaglioPartitaBloc, DettaglioPartitaState>(
+                        listener: (context, state) {
+                          // true dice alla pagina precedente di ricaricarsi,
+                          // perche' la partita non e' piu' la stessa
+                          if (state is PartitaEliminata) {
+                            _mostraSnackBar(context, r, 'Partita eliminata');
+                            Navigator.pop(context, true);
+                          }
+                          if (state is UscitaCompletata) {
+                            _mostraSnackBar(
+                              context,
+                              r,
+                              'Sei uscito dalla partita',
+                            );
+                            Navigator.pop(context, true);
+                          }
+                          if (state is OperazioneErrore) {
+                            _mostraSnackBar(context, r, state.messaggio);
+                          }
+                        },
                         builder: (context, state) {
                           if (state is DettaglioPartitaErrore) {
                             return _buildErrore(context, r, state.messaggio);
                           }
 
                           if (state is DettaglioPartitaCaricato) {
-                            return _buildContenuto(context, r, state.dettaglio);
+                            return _buildContenuto(
+                              context,
+                              r,
+                              state.dettaglio,
+                              false,
+                            );
                           }
 
-                          // DettaglioPartitaInitial e DettaglioPartitaLoading
+                          // durante l'operazione il dettaglio resta a
+                          // schermo, ma con i bottoni bloccati
+                          if (state is OperazioneInCorso) {
+                            return _buildContenuto(
+                              context,
+                              r,
+                              state.dettaglio,
+                              true,
+                            );
+                          }
+
+                          // dopo l'errore il BLoC ricarica da solo il
+                          // dettaglio, intanto mostriamo quello che avevamo
+                          if (state is OperazioneErrore) {
+                            return _buildContenuto(
+                              context,
+                              r,
+                              state.dettaglio,
+                              false,
+                            );
+                          }
+
+                          // PartitaEliminata e UscitaCompletata durano solo
+                          // il tempo del pop, quindi basta lo spinner
+
+                          // e lo stesso vale per Initial e Loading
                           return const Center(
                             child: CircularProgressIndicator(
                               color: primaryColor,
@@ -209,6 +258,7 @@ class _DettaglioPartitaView extends StatelessWidget {
     BuildContext context,
     _Responsive r,
     DettaglioPartita dettaglio,
+    bool operazioneInCorso,
   ) {
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
@@ -224,7 +274,7 @@ class _DettaglioPartitaView extends StatelessWidget {
           const SizedBox(height: 18),
           _buildGiocatori(r, dettaglio),
           const SizedBox(height: 18),
-          _buildAzioni(context, r, dettaglio),
+          _buildAzioni(context, r, dettaglio, operazioneInCorso),
         ],
       ),
     );
@@ -550,41 +600,211 @@ class _DettaglioPartitaView extends StatelessWidget {
   // =====================================================================
 
   // i bottoni compaiono solo se il server dice che l'utente puo' usarli.
-  // Per ora mostrano soltanto un avviso: le azioni vere arrivano dopo
+  // Invita, Conferma e Registra risultato per ora mostrano solo un avviso
   Widget _buildAzioni(
     BuildContext context,
     _Responsive r,
     DettaglioPartita dettaglio,
+    bool operazioneInCorso,
   ) {
     final List<Widget> bottoni = [];
 
+    void funzioneInArrivo() {
+      _mostraSnackBar(context, r, 'Funzione in arrivo');
+    }
+
     if (dettaglio.azioni.puoInvitare) {
-      bottoni.add(_bottoneAzione(context, r, 'Invita', false));
+      bottoni.add(
+        _bottoneAzione(
+          r,
+          testo: 'Invita',
+          distruttivo: false,
+          disabilitato: operazioneInCorso,
+          caricamento: false,
+          onPressed: funzioneInArrivo,
+        ),
+      );
     }
     if (dettaglio.azioni.puoConfermare) {
-      bottoni.add(_bottoneAzione(context, r, 'Conferma', false));
+      bottoni.add(
+        _bottoneAzione(
+          r,
+          testo: 'Conferma',
+          distruttivo: false,
+          disabilitato: operazioneInCorso,
+          caricamento: false,
+          onPressed: funzioneInArrivo,
+        ),
+      );
     }
     if (dettaglio.azioni.puoRegistrareRisultato) {
-      bottoni.add(_bottoneAzione(context, r, 'Registra risultato', false));
+      bottoni.add(
+        _bottoneAzione(
+          r,
+          testo: 'Registra risultato',
+          distruttivo: false,
+          disabilitato: operazioneInCorso,
+          caricamento: false,
+          onPressed: funzioneInArrivo,
+        ),
+      );
     }
+    // lo stato OperazioneInCorso non dice quale operazione e' partita:
+    // lo spinner va su Esci ed Elimina, che sono gli unici bottoni che la
+    // fanno partire (di solito se ne vede solo uno dei due)
     if (dettaglio.azioni.puoUscire) {
-      bottoni.add(_bottoneAzione(context, r, 'Esci dalla partita', false));
+      bottoni.add(
+        _bottoneAzione(
+          r,
+          testo: 'Esci dalla partita',
+          distruttivo: false,
+          disabilitato: operazioneInCorso,
+          caricamento: operazioneInCorso,
+          onPressed: () {
+            _confermaEsci(context, dettaglio.id);
+          },
+        ),
+      );
     }
     if (dettaglio.azioni.puoEliminare) {
-      bottoni.add(_bottoneAzione(context, r, 'Elimina partita', true));
+      bottoni.add(
+        _bottoneAzione(
+          r,
+          testo: 'Elimina partita',
+          distruttivo: true,
+          disabilitato: operazioneInCorso,
+          caricamento: operazioneInCorso,
+          onPressed: () {
+            _confermaElimina(context, dettaglio.id);
+          },
+        ),
+      );
     }
 
     return Column(mainAxisSize: MainAxisSize.min, children: bottoni);
   }
 
+  Future<void> _confermaElimina(BuildContext context, int idPartita) async {
+    final bool confermato = await _chiediConferma(
+      context,
+      titolo: 'Eliminare la partita?',
+      testo: 'La partita verrà annullata per tutti i partecipanti.',
+    );
+
+    if (confermato && context.mounted) {
+      context.read<DettaglioPartitaBloc>().add(
+        EliminaPartitaRichiesta(idPartita: idPartita),
+      );
+    }
+  }
+
+  Future<void> _confermaEsci(BuildContext context, int idPartita) async {
+    final bool confermato = await _chiediConferma(
+      context,
+      titolo: 'Uscire dalla partita?',
+      testo: 'Il tuo posto tornerà libero.',
+    );
+
+    if (confermato && context.mounted) {
+      context.read<DettaglioPartitaBloc>().add(
+        EsciDaPartitaRichiesta(idPartita: idPartita),
+      );
+    }
+  }
+
+  // restituisce true solo se l'utente tocca Conferma; con Annulla o
+  // toccando fuori dal dialog non succede niente
+  Future<bool> _chiediConferma(
+    BuildContext context, {
+    required String titolo,
+    required String testo,
+  }) async {
+    final r = _Responsive(context);
+
+    final bool? risposta = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(r.cardBorderRadius),
+          ),
+          title: Text(
+            titolo,
+            style: TextStyle(
+              fontSize: r.font(20),
+              fontWeight: FontWeight.w700,
+              color: darkText,
+            ),
+          ),
+          content: Text(
+            testo,
+            style: TextStyle(fontSize: r.font(15), color: greyText),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: Text(
+                'Annulla',
+                style: TextStyle(
+                  color: greyText,
+                  fontWeight: FontWeight.w600,
+                  fontSize: r.font(15),
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              child: Text(
+                'Conferma',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: r.font(15),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return risposta == true;
+  }
+
   Widget _bottoneAzione(
-    BuildContext context,
-    _Responsive r,
-    String testo,
-    bool distruttivo,
-  ) {
+    _Responsive r, {
+    required String testo,
+    required bool distruttivo,
+    required bool disabilitato,
+    required bool caricamento,
+    required VoidCallback onPressed,
+  }) {
     final double altezza = (r.height * 0.065).clamp(48.0, 60.0);
     const Color rosso = Color(0xFFA33A3A);
+
+    Widget contenuto = Text(
+      testo,
+      style: TextStyle(
+        fontSize: r.font(16),
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.5,
+      ),
+    );
+    if (caricamento) {
+      contenuto = SizedBox(
+        width: r.font(22),
+        height: r.font(22),
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          color: distruttivo ? rosso : Colors.white,
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -592,14 +812,20 @@ class _DettaglioPartitaView extends StatelessWidget {
         width: double.infinity,
         height: altezza,
         child: ElevatedButton(
-          onPressed: () {
-            _mostraSnackBar(context, r, 'Funzione in arrivo');
-          },
+          // con onPressed a null il bottone si disabilita da solo
+          onPressed: disabilitato ? null : onPressed,
           // il bottone distruttivo e' bianco con bordo e testo rossi,
-          // cosi' si distingue subito dagli altri
+          // cosi' si distingue subito dagli altri. I colori da disabilitato
+          // restano quasi gli stessi, cosi' lo spinner si vede bene
           style: ElevatedButton.styleFrom(
             backgroundColor: distruttivo ? Colors.white : primaryColor,
             foregroundColor: distruttivo ? rosso : Colors.white,
+            disabledBackgroundColor:
+                distruttivo
+                    ? Colors.white
+                    : primaryColor.withValues(alpha: 0.6),
+            disabledForegroundColor:
+                distruttivo ? rosso.withValues(alpha: 0.6) : Colors.white,
             elevation: distruttivo ? 0 : 3,
             shadowColor: primaryColor.withValues(alpha: 0.3),
             shape: RoundedRectangleBorder(
@@ -610,14 +836,7 @@ class _DettaglioPartitaView extends StatelessWidget {
                       : BorderSide.none,
             ),
           ),
-          child: Text(
-            testo,
-            style: TextStyle(
-              fontSize: r.font(16),
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.5,
-            ),
-          ),
+          child: contenuto,
         ),
       ),
     );
