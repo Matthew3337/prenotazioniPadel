@@ -12,5 +12,10 @@ class PrenotazioneRepoImpl implements PrenotazioneRepo {
   Future<Prenotazione?> getProssimaPartita() {
     return dsPrenotazione.getProssimaPartita();
   }
+
+  @override
+  Future<Prenotazione> creaPartita(int idCampo, DateTime data, String oraInizio, String tipo) {
+    return dsPrenotazione.creaPartita(idCampo, data, oraInizio, tipo);
+  }
  
 }

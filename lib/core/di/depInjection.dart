@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/bloc/autenticazione/authBloc.dart';
+import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
@@ -13,6 +14,7 @@ import 'package:thepadel/repositoryImpl/campoRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/prenotazioneRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/utenteRepoImpl.dart';
 import 'package:thepadel/useCase/authUseCase.dart';
+import 'package:thepadel/useCase/creaPartitaUseCase.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
 
 final sl = GetIt.instance;
@@ -50,4 +52,8 @@ void init()
   sl.registerLazySingleton<SlotDisponibiliUseCase>(() => SlotDisponibiliUseCase(repo: sl()));
 
   sl.registerFactory<HomeBloc>(()=> HomeBloc(prossimaPartitaUseCase: sl(), slotUseCase: sl()));
+
+  sl.registerLazySingleton<CreaPartitaUseCase>(() => CreaPartitaUseCase(repo: sl()));
+
+  sl.registerFactory<CreaPartitaBloc>(() => CreaPartitaBloc(creaPartitaUseCase: sl()));
 }
