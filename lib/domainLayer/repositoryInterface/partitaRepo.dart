@@ -8,4 +8,8 @@ abstract class PartitaRepo {
   Future<List<PartitaPubblica>> getPartitePubbliche();
 
   Future<DettaglioPartita> entraInPartita(int idPartita);
+
+  Future<void> eliminaPartita(int idPartita);
+
+  Future<void> esciDaPartita(int idPartita);
 }

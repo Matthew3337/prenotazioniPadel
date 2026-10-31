@@ -80,6 +80,17 @@ class FakePartitaRepo extends PartitaRepoImpl
   int chiamateEntra = 0;
   int? idEntraRicevuto;
 
+  //eliminazione e uscita: se l'errore e null l'operazione riesce
+  Exception? erroreElimina;
+  Completer<void>? attesaElimina;
+  int chiamateElimina = 0;
+  int? idEliminaRicevuto;
+
+  Exception? erroreEsci;
+  Completer<void>? attesaEsci;
+  int chiamateEsci = 0;
+  int? idEsciRicevuto;
+
   //metodi
   FakePartitaRepo() : super(dsPartita: DataSourcePartita(c: Client(c: MockClient((_) async => http.Response('', 500))), elencoUrl: urlDiTest()));
 
@@ -127,5 +138,37 @@ class FakePartitaRepo extends PartitaRepoImpl
       throw erroreEntra!;
     }
     return rispostaEntra ?? dettaglioDiTest();
+  }
+
+  @override
+  Future<void> eliminaPartita(int idPartita) async
+  {
+    chiamateElimina++;
+    idEliminaRicevuto = idPartita;
+
+    if(attesaElimina != null)
+    {
+      return attesaElimina!.future;
+    }
+    if(erroreElimina != null)
+    {
+      throw erroreElimina!;
+    }
+  }
+
+  @override
+  Future<void> esciDaPartita(int idPartita) async
+  {
+    chiamateEsci++;
+    idEsciRicevuto = idPartita;
+
+    if(attesaEsci != null)
+    {
+      return attesaEsci!.future;
+    }
+    if(erroreEsci != null)
+    {
+      throw erroreEsci!;
+    }
   }
 }

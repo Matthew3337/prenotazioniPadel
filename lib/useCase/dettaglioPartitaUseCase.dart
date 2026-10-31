@@ -12,3 +12,27 @@ class DettaglioPartitaUseCase {
     return repo.getDettaglioPartita(idPartita);
   }
 }
+
+class EliminaPartitaUseCase {
+
+  final PartitaRepoImpl repo;
+
+  EliminaPartitaUseCase({required this.repo});
+
+  Future<void> call(int idPartita)
+  {
+    return repo.eliminaPartita(idPartita);
+  }
+}
+
+class EsciDaPartitaUseCase {
+
+  final PartitaRepoImpl repo;
+
+  EsciDaPartitaUseCase({required this.repo});
+
+  Future<void> call(int idPartita)
+  {
+    return repo.esciDaPartita(idPartita);
+  }
+}

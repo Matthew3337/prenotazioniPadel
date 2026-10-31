@@ -307,12 +307,7 @@ class _HomeView extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(r.cardBorderRadius),
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DettaglioPartitaPage(idPartita: partita.id),
-          ),
-        );
+        _apriDettaglio(context, partita.id);
       },
       child: _buildCard(
         r: r,
@@ -683,15 +678,33 @@ class _HomeView extends StatelessWidget {
 
   Future<void> _apriCreaPartita(BuildContext context, SlotOrario slot) async {
     // la home mostra gli slot di oggi, quindi la data e' quella odierna
-    final risultato = await Navigator.push<bool>(
+    final int? idPartita = await Navigator.push<int>(
       context,
-      MaterialPageRoute<bool>(
+      MaterialPageRoute<int>(
         builder: (_) => CreaPartitaPage(slot: slot, data: DateTime.now()),
       ),
     );
 
-    // true arriva solo se la partita e' stata creata: ricarichiamo le
-    // sezioni che cambiano dopo una nuova prenotazione
+    // l'id arriva solo se la partita e' stata creata: ricarichiamo le
+    // sezioni che cambiano e apriamo subito il dettaglio della nuova partita
+    if (idPartita != null && context.mounted) {
+      context.read<HomeBloc>()
+        ..add(const HomeProssimaPartitaRequested())
+        ..add(const HomeSlotOggiRequested());
+      await _apriDettaglio(context, idPartita);
+    }
+  }
+
+  Future<void> _apriDettaglio(BuildContext context, int idPartita) async {
+    final risultato = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute<bool>(
+        builder: (_) => DettaglioPartitaPage(idPartita: idPartita),
+      ),
+    );
+
+    // true arriva se la partita e' stata eliminata o se l'utente ne e'
+    // uscito: prossima partita e slot liberi sono cambiati
     if (risultato == true && context.mounted) {
       context.read<HomeBloc>()
         ..add(const HomeProssimaPartitaRequested())

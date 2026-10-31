@@ -81,4 +81,59 @@ class DataSourcePartita{
     }
   }
 
+  Future<void> eliminaPartita(int idPartita) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    dynamic res = await c.delete(elencoUrl.BaseUrl + elencoUrl.PartiteElimina.replaceFirst("{id}", idPartita.toString()), token: token);
+
+    if(res == null) //risposta senza body (es. token scaduto), non c'e niente da leggere
+    {
+      throw ErroreGenericoServer();
+    }
+    else if(!res.containsKey("errore") && (res['status'] as int) == 204) //BUON FINE, il server non manda nessun body
+    {
+      return;
+    }
+    else if(res.containsKey("errore") && (res['status'] as int) == 404) //PARTITA INESISTENTE O NON VISIBILE
+    {
+      throw PartitaNonTrovata(messaggio: res['errore']);
+    }
+    else if(res.containsKey("errore") && ((res['status'] as int) == 403 || (res['status'] as int) == 409)) //NON E IL CREATORE, E L'ADMIN, PARTITA NON PIU APERTA O MENO DI 24 ORE ALL'INIZIO
+    {
+      throw OperazioneRifiutata(messaggio: res['errore']);
+    }
+    else
+    { //ALTRI ERRORI
+      throw ErroreGenericoServer();
+    }
+  }
+
+  Future<void> esciDaPartita(int idPartita) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    //come per entra, l'endpoint non vuole un body: passo una mappa vuota
+    dynamic res = await c.post(elencoUrl.BaseUrl + elencoUrl.PartiteEsci.replaceFirst("{id}", idPartita.toString()), {}, token: token);
+
+    if(res == null) //risposta senza body (es. token scaduto), non c'e niente da leggere
+    {
+      throw ErroreGenericoServer();
+    }
+    else if(!res.containsKey("errore") && (res['status'] as int) == 204) //BUON FINE, il server non manda nessun body
+    {
+      return;
+    }
+    else if(res.containsKey("errore") && (res['status'] as int) == 404) //PARTITA INESISTENTE O NON VISIBILE
+    {
+      throw PartitaNonTrovata(messaggio: res['errore']);
+    }
+    else if(res.containsKey("errore") && ((res['status'] as int) == 403 || (res['status'] as int) == 409)) //E L'ADMIN, E IL CREATORE, NON PARTECIPA, PARTITA NON PIU APERTA O MENO DI 24 ORE ALL'INIZIO
+    {
+      throw OperazioneRifiutata(messaggio: res['errore']);
+    }
+    else
+    { //ALTRI ERRORI
+      throw ErroreGenericoServer();
+    }
+  }
+
 }

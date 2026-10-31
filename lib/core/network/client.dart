@@ -36,9 +36,27 @@ class Client {
   
   }
 
+  Future<dynamic> delete(String url, {String? token})
+  {
+    if(token != null)
+    {
+      return _handleRequest(()=> c.delete(Uri.parse(url), headers: {'Authorization': 'Bearer $token'}));
+    }
+    else 
+    {
+      return _handleRequest(()=> c.delete(Uri.parse(url)));
+    } 
+  }
+
   Future<dynamic> _handleRequest(Future<http.Response> Function() request) async{
    
     final resp = await request().timeout(timeout);
+    //il 204 arriva senza body: restituisco una mappa con lo status, cosi chi chiama riesce a distinguerlo
+    //dagli altri casi senza body (es. token scaduto) che continuano a restituire null
+    if(resp.statusCode == 204)
+    {
+      return {"status": 204};
+    }
     String bodyResp = resp.body;
     print(bodyResp); //DEBUG !!!!
     return bodyResp.isNotEmpty ? jsonDecode(bodyResp) : null;

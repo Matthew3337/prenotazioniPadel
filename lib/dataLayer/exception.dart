@@ -45,3 +45,8 @@ class IngressoRifiutato implements Exception{ //409: partita al completo, ingres
   final String messaggio;
   IngressoRifiutato({required this.messaggio});
 }
+
+class OperazioneRifiutata implements Exception{ //403 o 409 su elimina ed esci: il messaggio spiega perche l'operazione non e permessa
+  final String messaggio;
+  OperazioneRifiutata({required this.messaggio});
+}

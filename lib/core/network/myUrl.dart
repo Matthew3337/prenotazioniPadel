@@ -25,10 +25,12 @@ class MyUrl {
   final String PartiteDettaglio;
   final String PartitePubbliche;
   final String PartiteEntra;
+  final String PartiteElimina;
+  final String PartiteEsci;
 
   //metodi
 
-  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio, required this.PartitePubbliche, required this.PartiteEntra});
+  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio, required this.PartitePubbliche, required this.PartiteEntra, required this.PartiteElimina, required this.PartiteEsci});
 
   factory MyUrl.fromJsom(Map<String, dynamic> json)
   {
@@ -48,7 +50,9 @@ class MyUrl {
       PrenotazioniSlotDisponibili: json['PrenotazioniSlotDisponibili'],
       PartiteDettaglio: json['PartiteDettaglio'],
       PartitePubbliche: json['PartitePubbliche'],
-      PartiteEntra: json['PartiteEntra']
+      PartiteEntra: json['PartiteEntra'],
+      PartiteElimina: json['PartiteElimina'],
+      PartiteEsci: json['PartiteEsci']
     );
   }
 

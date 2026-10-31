@@ -24,4 +24,14 @@ class PartitaRepoImpl implements PartitaRepo {
     return dsPartita.entraInPartita(idPartita);
   }
 
+  @override
+  Future<void> eliminaPartita(int idPartita) {
+    return dsPartita.eliminaPartita(idPartita);
+  }
+
+  @override
+  Future<void> esciDaPartita(int idPartita) {
+    return dsPartita.esciDaPartita(idPartita);
+  }
+
 }
