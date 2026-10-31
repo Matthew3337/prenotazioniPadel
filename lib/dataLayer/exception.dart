@@ -40,3 +40,8 @@ class PartitaNonTrovata implements Exception{ //404: la partita non esiste o l'u
   final String messaggio;
   PartitaNonTrovata({required this.messaggio});
 }
+
+class IngressoRifiutato implements Exception{ //409: partita al completo, ingresso chiuso, gia partecipante o partita non piu aperta
+  final String messaggio;
+  IngressoRifiutato({required this.messaggio});
+}

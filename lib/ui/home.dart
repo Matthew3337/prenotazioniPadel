@@ -8,6 +8,7 @@ import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 
+import 'bachecaPubbliche.dart';
 import 'creaPartita.dart';
 import 'dettaglioPartita.dart';
 
@@ -95,6 +96,8 @@ class _HomeView extends StatelessWidget {
                           _buildHeader(r),
                           const SizedBox(height: 22),
                           _buildProssimaPartita(context, r),
+                          const SizedBox(height: 18),
+                          _buildBacheche(context, r),
                           const SizedBox(height: 18),
                           _buildCampiLiberi(r),
                           const SizedBox(height: 18),
@@ -374,6 +377,99 @@ class _HomeView extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // =====================================================================
+  // BACHECHE
+  // =====================================================================
+
+  // per ora c'e' solo la bacheca delle partite pubbliche; quando arrivera'
+  // quella degli inviti bastera' aggiungere un'altra _rigaBacheca qui sotto
+  Widget _buildBacheche(BuildContext context, _Responsive r) {
+    return _buildCard(
+      r: r,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Bacheche',
+              style: TextStyle(
+                fontSize: r.font(17),
+                fontWeight: FontWeight.w500,
+                color: greyText,
+              ),
+            ),
+            const SizedBox(height: 14),
+            _rigaBacheca(
+              r,
+              icona: Icons.public,
+              titolo: 'Partite pubbliche',
+              sottotitolo: 'Trova una partita a cui unirti',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const BachecaPubblichePage(),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _rigaBacheca(
+    _Responsive r, {
+    required IconData icona,
+    required String titolo,
+    required String sottotitolo,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Row(
+        children: [
+          _iconBox(r, icona),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titolo,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: r.font(16),
+                    fontWeight: FontWeight.w600,
+                    color: darkText,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  sottotitolo,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: r.font(13),
+                    fontWeight: FontWeight.w500,
+                    color: greyText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.chevron_right, color: greyText, size: r.font(26)),
+        ],
       ),
     );
   }
