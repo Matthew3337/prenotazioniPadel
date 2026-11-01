@@ -8,6 +8,7 @@ import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 
+import 'bachecaInviti.dart';
 import 'bachecaPubbliche.dart';
 import 'creaPartita.dart';
 import 'dettaglioPartita.dart';
@@ -381,8 +382,6 @@ class _HomeView extends StatelessWidget {
   // BACHECHE
   // =====================================================================
 
-  // per ora c'e' solo la bacheca delle partite pubbliche; quando arrivera'
-  // quella degli inviti bastera' aggiungere un'altra _rigaBacheca qui sotto
   Widget _buildBacheche(BuildContext context, _Responsive r) {
     return _buildCard(
       r: r,
@@ -407,7 +406,17 @@ class _HomeView extends StatelessWidget {
               titolo: 'Partite pubbliche',
               sottotitolo: 'Trova una partita a cui unirti',
               onTap: () {
-                _apriBacheca(context);
+                _apriBacheca(context, const BachecaPubblichePage());
+              },
+            ),
+            const SizedBox(height: 14),
+            _rigaBacheca(
+              r,
+              icona: Icons.mail_outline,
+              titolo: 'Inviti ricevuti',
+              sottotitolo: 'Le partite a cui ti hanno invitato',
+              onTap: () {
+                _apriBacheca(context, const BachecaInvitiPage());
               },
             ),
           ],
@@ -465,10 +474,11 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  Future<void> _apriBacheca(BuildContext context) async {
+  // serve per tutte e due le bacheche, cambia solo la pagina da aprire
+  Future<void> _apriBacheca(BuildContext context, Widget bacheca) async {
     await Navigator.push(
       context,
-      MaterialPageRoute<void>(builder: (_) => const BachecaPubblichePage()),
+      MaterialPageRoute<void>(builder: (_) => bacheca),
     );
 
     // dalla bacheca l'utente puo' essere entrato in una partita (o esserne
