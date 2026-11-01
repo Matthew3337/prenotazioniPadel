@@ -1,6 +1,7 @@
 import 'package:thepadel/dataLayer/dataSource/dataSourcePartita.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/partitaPubblica.dart';
+import 'package:thepadel/domainLayer/enetity/partitaStorico.dart';
 import 'package:thepadel/domainLayer/repositoryInterface/partitaRepo.dart';
 
 class PartitaRepoImpl implements PartitaRepo {
@@ -32,6 +33,11 @@ class PartitaRepoImpl implements PartitaRepo {
   @override
   Future<void> esciDaPartita(int idPartita) {
     return dsPartita.esciDaPartita(idPartita);
+  }
+
+  @override
+  Future<List<PartitaStorico>> getStorico() {
+    return dsPartita.getStorico();
   }
 
 }
