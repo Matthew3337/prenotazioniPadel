@@ -24,7 +24,7 @@ AzioniPartita azioniDiTest({bool puoInvitare = false, bool puoEliminare = false,
 }
 
 //partita con il creatore (Mario Rossi) e un giocatore del campo: restano 2 posti liberi
-DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti})
+DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata"})
 {
   return DettaglioPartita(
     id: 10,
@@ -33,7 +33,7 @@ DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? pos
     dataPartita: DateTime(2026, 11, 2),
     oraInizio: const TimeOfDay(hour: 18, minute: 30),
     oraFine: const TimeOfDay(hour: 20, minute: 0),
-    stato: "creata",
+    stato: stato,
     tipo: "PUBBLICA",
     telefonoCreatore: "3331234567",
     posti: posti ?? [
@@ -187,6 +187,13 @@ class FakePartitaRepo extends PartitaRepoImpl
   Exception? erroreInviti;
   int chiamateInviti = 0;
 
+  //conferma: se rispostaConferma e null restituisce dettaglioDiTest
+  DettaglioPartita? rispostaConferma;
+  Exception? erroreConferma;
+  Completer<DettaglioPartita>? attesaConferma;
+  int chiamateConferma = 0;
+  int? idConfermaRicevuto;
+
   //metodi
   FakePartitaRepo() : super(dsPartita: DataSourcePartita(c: Client(c: MockClient((_) async => http.Response('', 500))), elencoUrl: urlDiTest()));
 
@@ -322,5 +329,22 @@ class FakePartitaRepo extends PartitaRepoImpl
       throw erroreInviti!;
     }
     return partiteInviti ?? [partitaInvitoDiTest()];
+  }
+
+  @override
+  Future<DettaglioPartita> confermaPartita(int idPartita) async
+  {
+    chiamateConferma++;
+    idConfermaRicevuto = idPartita;
+
+    if(attesaConferma != null)
+    {
+      return attesaConferma!.future;
+    }
+    if(erroreConferma != null)
+    {
+      throw erroreConferma!;
+    }
+    return rispostaConferma ?? dettaglioDiTest();
   }
 }

@@ -36,3 +36,15 @@ class EsciDaPartitaUseCase {
     return repo.esciDaPartita(idPartita);
   }
 }
+
+class ConfermaPartitaUseCase {
+
+  final PartitaRepoImpl repo;
+
+  ConfermaPartitaUseCase({required this.repo});
+
+  Future<DettaglioPartita> call(int idPartita)
+  {
+    return repo.confermaPartita(idPartita);
+  }
+}

@@ -6,6 +6,7 @@ import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
+import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/ui/dettaglioPartita.dart';
 import 'package:thepadel/ui/invitaUtenti.dart';
@@ -22,7 +23,7 @@ void main()
   {
     await sl.reset();
     repo = FakePartitaRepo();
-    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo)));
+    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo)));
     //serve per l'apertura della pagina degli inviti dal bottone Invita
     sl.registerFactory<InvitaUtentiBloc>(() => InvitaUtentiBloc(invitabiliUseCase: InvitabiliUseCase(repo: repo), invitaUtenteUseCase: InvitaUtenteUseCase(repo: repo), dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo)));
   });
@@ -121,10 +122,10 @@ void main()
 
   testWidgets("il tocco su un bottone mostra Funzione in arrivo", (tester) async
   {
-    repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoConfermare: true));
+    repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoRegistrareRisultato: true));
     await apriPagina(tester);
 
-    await tester.tap(find.text("Conferma"));
+    await tester.tap(find.text("Registra risultato"));
     await tester.pump();
 
     expect(find.widgetWithText(SnackBar, "Funzione in arrivo"), findsOneWidget);
@@ -295,7 +296,7 @@ void main()
       final risultati = await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Elimina partita");
-      await tester.tap(find.text("Conferma"));
+      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
       await tester.pumpAndSettle();
 
       expect(repo.chiamateElimina, 1);
@@ -313,7 +314,7 @@ void main()
       await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Elimina partita");
-      await tester.tap(find.text("Conferma"));
+      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
       await tester.pump();
       await tester.pump();
 
@@ -340,7 +341,7 @@ void main()
       final risultati = await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Elimina partita");
-      await tester.tap(find.text("Conferma"));
+      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(SnackBar, messaggio), findsOneWidget);
@@ -394,7 +395,7 @@ void main()
       final risultati = await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Esci dalla partita");
-      await tester.tap(find.text("Conferma"));
+      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
       await tester.pumpAndSettle();
 
       expect(repo.chiamateEsci, 1);
@@ -411,7 +412,7 @@ void main()
       await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Esci dalla partita");
-      await tester.tap(find.text("Conferma"));
+      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
       await tester.pump();
       await tester.pump();
 
@@ -430,7 +431,7 @@ void main()
       final risultati = await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Esci dalla partita");
-      await tester.tap(find.text("Conferma"));
+      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(SnackBar, "L'uscita è chiusa: mancano meno di 24 ore all'inizio"), findsOneWidget);
@@ -447,13 +448,122 @@ void main()
       repo.errore = PartitaNonTrovata(messaggio: "Partita non trovata");
 
       await toccaAzione(tester, "Esci dalla partita");
-      await tester.tap(find.text("Conferma"));
+      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(SnackBar, ErroreGenericoServer().messaggio), findsOneWidget);
       expect(find.text("Partita non trovata"), findsOneWidget);
       expect(find.text("Riprova"), findsOneWidget);
       expect(find.text("Mario Rossi"), findsNothing);
+    });
+  });
+
+  group("conferma partecipazione", ()
+  {
+    setUp(()
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoConfermare: true, puoRegistrareRisultato: true));
+    });
+
+    //dopo la conferma il server restituisce Mario confermato e il bottone non c'e piu
+    List<PostoPartita> postiConMarioConfermato()
+    {
+      return [
+        PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true),
+        PostoPartita(tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false),
+      ];
+    }
+
+    testWidgets("un solo tocco su Conferma chiama il server senza aprire dialog", (tester) async
+    {
+      repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato());
+      await apriPagina(tester);
+
+      await toccaAzione(tester, "Conferma");
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(repo.chiamateConferma, 1);
+      expect(repo.idConfermaRicevuto, 10);
+      expect(repo.chiamateElimina, 0);
+      expect(repo.chiamateEsci, 0);
+    });
+
+    testWidgets("successo: SnackBar Partecipazione confermata e dettaglio aggiornato senza ricaricare", (tester) async
+    {
+      repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato());
+      await apriPagina(tester);
+      expect(find.text("Livello 2.5 · Da confermare"), findsOneWidget);
+
+      await toccaAzione(tester, "Conferma");
+
+      expect(find.widgetWithText(SnackBar, "Partecipazione confermata"), findsOneWidget);
+      expect(find.text("Partita confermata: ci sono tutti!"), findsNothing);
+      //il dettaglio a schermo e quello restituito dalla conferma
+      expect(find.text("Livello 2.5 · Confermato"), findsOneWidget);
+      expect(find.text("Creata"), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, "Conferma"), findsNothing);
+      expect(find.text("Dettaglio partita"), findsOneWidget);
+      expect(repo.chiamate, 1);
+    });
+
+    testWidgets("successo con partita al completo: SnackBar Partita confermata e stato Confermata", (tester) async
+    {
+      repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato(), stato: "confermata");
+      await apriPagina(tester);
+
+      await toccaAzione(tester, "Conferma");
+
+      expect(find.widgetWithText(SnackBar, "Partita confermata: ci sono tutti!"), findsOneWidget);
+      expect(find.text("Partecipazione confermata"), findsNothing);
+      expect(find.text("Confermata"), findsOneWidget);
+      expect(find.text("Creata"), findsNothing);
+    });
+
+    testWidgets("durante la conferma i bottoni sono disabilitati e Conferma mostra il caricamento", (tester) async
+    {
+      repo.attesaConferma = Completer<DettaglioPartita>();
+      await apriPagina(tester);
+
+      await tester.ensureVisible(find.text("Conferma"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Conferma"));
+      await tester.pump();
+      await tester.pump();
+
+      //il dettaglio resta a schermo
+      expect(find.text("Mario Rossi"), findsOneWidget);
+      final bottoni = tester.widgetList<ElevatedButton>(find.byType(ElevatedButton)).toList();
+      expect(bottoni.length, 2);
+      for (final bottone in bottoni)
+      {
+        expect(bottone.onPressed, isNull);
+      }
+      expect(find.text("Conferma"), findsNothing);
+      expect(find.widgetWithText(ElevatedButton, "Registra risultato"), findsOneWidget);
+      expect(find.descendant(of: find.byType(ElevatedButton), matching: find.byType(CircularProgressIndicator)), findsOneWidget);
+
+      repo.attesaConferma!.complete(dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato()));
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(SnackBar, "Partecipazione confermata"), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets("errore: SnackBar col messaggio del server, il dettaglio resta a schermo e viene ricaricato", (tester) async
+    {
+      const messaggio = "La conferma è possibile solo tra 24 e 12 ore prima dell'inizio";
+      repo.erroreConferma = OperazioneRifiutata(messaggio: messaggio);
+      await apriPagina(tester);
+
+      await toccaAzione(tester, "Conferma");
+
+      expect(find.widgetWithText(SnackBar, messaggio), findsOneWidget);
+      expect(find.text("Partecipazione confermata"), findsNothing);
+      expect(find.text("Mario Rossi"), findsOneWidget);
+      expect(repo.chiamate, 2);
+      //dopo la ricarica il bottone e di nuovo attivo
+      final bottone = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, "Conferma"));
+      expect(bottone.onPressed, isNotNull);
     });
   });
 }

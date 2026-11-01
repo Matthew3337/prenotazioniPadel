@@ -863,4 +863,79 @@ void main()
       await expectLater(ds.getInviti(), throwsA(isA<ErroreGenericoServer>()));
     });
   });
+
+  group("confermaPartita", ()
+  {
+    test("200: POST all'url con l'id, body vuoto e token, restituisce il dettaglio aggiornato", () async
+    {
+      final ds = creaDataSource(200, rispostaDettaglio(2.5), richieste);
+
+      final dettaglio = await ds.confermaPartita(7);
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "POST");
+      expect(richieste.first.url.toString(), "http://test/api/partite/7/conferma");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+      expect(richieste.first.body, "{}");
+
+      expect(dettaglio, isA<DettaglioPartitaModel>());
+      expect(dettaglio.id, 7);
+      expect(dettaglio.posti.length, 2);
+      expect(dettaglio.stato, "creata");
+    });
+
+    test("409: lancia OperazioneRifiutata col messaggio della regola violata", () async
+    {
+      final ds = creaDataSource(409, erroreServer(409, "La conferma è possibile solo tra 24 e 12 ore prima dell'inizio"), richieste);
+
+      await expectLater(
+        ds.confermaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "La conferma è possibile solo tra 24 e 12 ore prima dell'inizio")),
+      );
+    });
+
+    test("409 per conferma gia fatta: il messaggio arriva intatto", () async
+    {
+      final ds = creaDataSource(409, erroreServer(409, "Hai già confermato la partecipazione"), richieste);
+
+      await expectLater(
+        ds.confermaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "Hai già confermato la partecipazione")),
+      );
+    });
+
+    test("403 (admin): lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(403, erroreServer(403, "L'amministratore non conferma le partite"), richieste);
+
+      await expectLater(
+        ds.confermaPartita(7),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "L'amministratore non conferma le partite")),
+      );
+    });
+
+    test("404: lancia PartitaNonTrovata col messaggio del server", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Partita non trovata"), richieste);
+
+      await expectLater(
+        ds.confermaPartita(99),
+        throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Partita non trovata")),
+      );
+    });
+
+    test("altro errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.confermaPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("risposta senza body (401 col token scaduto): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.confermaPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
 }

@@ -79,7 +79,9 @@ void init()
 
   sl.registerLazySingleton<EsciDaPartitaUseCase>(() => EsciDaPartitaUseCase(repo: sl()));
 
-  sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: sl(), eliminaPartitaUseCase: sl(), esciDaPartitaUseCase: sl()));
+  sl.registerLazySingleton<ConfermaPartitaUseCase>(() => ConfermaPartitaUseCase(repo: sl()));
+
+  sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: sl(), eliminaPartitaUseCase: sl(), esciDaPartitaUseCase: sl(), confermaPartitaUseCase: sl()));
 
   sl.registerLazySingleton<PartitePubblicheUseCase>(() => PartitePubblicheUseCase(repo: sl()));
 

@@ -31,10 +31,11 @@ class MyUrl {
   final String PartiteInvitabili;
   final String PartiteInvita;
   final String PartiteInviti;
+  final String PartiteConferma;
 
   //metodi
 
-  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio, required this.PartitePubbliche, required this.PartiteEntra, required this.PartiteElimina, required this.PartiteEsci, required this.PartiteStorico, required this.PartiteInvitabili, required this.PartiteInvita, required this.PartiteInviti});
+  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio, required this.PartitePubbliche, required this.PartiteEntra, required this.PartiteElimina, required this.PartiteEsci, required this.PartiteStorico, required this.PartiteInvitabili, required this.PartiteInvita, required this.PartiteInviti, required this.PartiteConferma});
 
   factory MyUrl.fromJsom(Map<String, dynamic> json)
   {
@@ -60,7 +61,8 @@ class MyUrl {
       PartiteStorico: json['PartiteStorico'],
       PartiteInvitabili: json['PartiteInvitabili'],
       PartiteInvita: json['PartiteInvita'],
-      PartiteInviti: json['PartiteInviti']
+      PartiteInviti: json['PartiteInviti'],
+      PartiteConferma: json['PartiteConferma']
     );
   }
 

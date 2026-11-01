@@ -57,4 +57,9 @@ class PartitaRepoImpl implements PartitaRepo {
     return dsPartita.getInviti();
   }
 
+  @override
+  Future<DettaglioPartita> confermaPartita(int idPartita) {
+    return dsPartita.confermaPartita(idPartita);
+  }
+
 }
