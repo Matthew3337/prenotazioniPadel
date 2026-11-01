@@ -1,7 +1,9 @@
 import 'package:thepadel/dataLayer/dataSource/dataSourcePartita.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
+import 'package:thepadel/domainLayer/enetity/partitaInvito.dart';
 import 'package:thepadel/domainLayer/enetity/partitaPubblica.dart';
 import 'package:thepadel/domainLayer/enetity/partitaStorico.dart';
+import 'package:thepadel/domainLayer/enetity/utenteInvitabile.dart';
 import 'package:thepadel/domainLayer/repositoryInterface/partitaRepo.dart';
 
 class PartitaRepoImpl implements PartitaRepo {
@@ -38,6 +40,21 @@ class PartitaRepoImpl implements PartitaRepo {
   @override
   Future<List<PartitaStorico>> getStorico() {
     return dsPartita.getStorico();
+  }
+
+  @override
+  Future<List<UtenteInvitabile>> getInvitabili(int idPartita, String cerca) {
+    return dsPartita.getInvitabili(idPartita, cerca);
+  }
+
+  @override
+  Future<DettaglioPartita> invitaUtente(int idPartita, String telefono) {
+    return dsPartita.invitaUtente(idPartita, telefono);
+  }
+
+  @override
+  Future<List<PartitaInvito>> getInviti() {
+    return dsPartita.getInviti();
   }
 
 }

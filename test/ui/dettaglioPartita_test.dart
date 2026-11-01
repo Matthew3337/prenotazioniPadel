@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
+import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/ui/dettaglioPartita.dart';
+import 'package:thepadel/ui/invitaUtenti.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
+import 'package:thepadel/useCase/invitaUtentiUseCase.dart';
 
 import '../fake/fakePartitaRepo.dart';
 
@@ -20,6 +23,8 @@ void main()
     await sl.reset();
     repo = FakePartitaRepo();
     sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo)));
+    //serve per l'apertura della pagina degli inviti dal bottone Invita
+    sl.registerFactory<InvitaUtentiBloc>(() => InvitaUtentiBloc(invitabiliUseCase: InvitabiliUseCase(repo: repo), invitaUtenteUseCase: InvitaUtenteUseCase(repo: repo), dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo)));
   });
 
   tearDown(() async
@@ -116,12 +121,69 @@ void main()
 
   testWidgets("il tocco su un bottone mostra Funzione in arrivo", (tester) async
   {
+    repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoConfermare: true));
     await apriPagina(tester);
 
-    await tester.tap(find.text("Invita"));
+    await tester.tap(find.text("Conferma"));
     await tester.pump();
 
     expect(find.widgetWithText(SnackBar, "Funzione in arrivo"), findsOneWidget);
+  });
+
+  group("invita", ()
+  {
+    testWidgets("Invita apre la pagina degli inviti e al ritorno con la freccia il dettaglio si ricarica", (tester) async
+    {
+      await apriPagina(tester);
+      expect(repo.chiamate, 1);
+
+      await tester.tap(find.text("Invita"));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(InvitaUtentiPage), findsOneWidget);
+      expect(find.text("Invita giocatori"), findsOneWidget);
+      expect(repo.idInvitabiliRicevuto, 10);
+      //anche la pagina degli inviti legge il dettaglio per i posti liberi
+      expect(repo.chiamate, 2);
+
+      //intanto e entrato un invitato
+      repo.risposta = dettaglioDiTest(posti: [
+        PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false),
+        PostoPartita(tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false),
+        PostoPartita(tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: false),
+      ]);
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(InvitaUtentiPage), findsNothing);
+      expect(find.text("Dettaglio partita"), findsOneWidget);
+      expect(repo.chiamate, 3);
+      expect(repo.idRicevuto, 10);
+      expect(find.text("Luca Bianchi"), findsOneWidget);
+      expect(find.text("Posto libero"), findsOneWidget);
+    });
+
+    testWidgets("l'invito che riempie la partita chiude la pagina degli inviti e il dettaglio si ricarica", (tester) async
+    {
+      repo.risposta = dettaglioConInvitati(2);
+      await apriPagina(tester);
+
+      await tester.tap(find.text("Invita"));
+      await tester.pumpAndSettle();
+      expect(find.byType(InvitaUtentiPage), findsOneWidget);
+
+      repo.rispostaInvita = dettaglioConInvitati(3);
+      repo.risposta = dettaglioConInvitati(3);
+      await tester.tap(find.descendant(of: find.byType(InvitaUtentiPage), matching: find.text("Invita")).first);
+      await tester.pumpAndSettle();
+
+      expect(repo.chiamateInvita, 1);
+      expect(find.byType(InvitaUtentiPage), findsNothing);
+      expect(find.text("Dettaglio partita"), findsOneWidget);
+      expect(repo.chiamate, 3);
+      expect(find.text("Posto libero"), findsNothing);
+      expect(find.widgetWithText(SnackBar, "Utente invitato"), findsOneWidget);
+    });
   });
 
   testWidgets("errore: mostra il messaggio e Riprova rifa la richiesta", (tester) async

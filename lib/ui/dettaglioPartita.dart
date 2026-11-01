@@ -8,6 +8,8 @@ import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 
+import 'invitaUtenti.dart';
+
 class DettaglioPartitaPage extends StatelessWidget {
   final int idPartita;
 
@@ -600,7 +602,7 @@ class _DettaglioPartitaView extends StatelessWidget {
   // =====================================================================
 
   // i bottoni compaiono solo se il server dice che l'utente puo' usarli.
-  // Invita, Conferma e Registra risultato per ora mostrano solo un avviso
+  // Conferma e Registra risultato per ora mostrano solo un avviso
   Widget _buildAzioni(
     BuildContext context,
     _Responsive r,
@@ -621,7 +623,9 @@ class _DettaglioPartitaView extends StatelessWidget {
           distruttivo: false,
           disabilitato: operazioneInCorso,
           caricamento: false,
-          onPressed: funzioneInArrivo,
+          onPressed: () {
+            _apriInvita(context, dettaglio.id);
+          },
         ),
       );
     }
@@ -682,6 +686,23 @@ class _DettaglioPartitaView extends StatelessWidget {
     }
 
     return Column(mainAxisSize: MainAxisSize.min, children: bottoni);
+  }
+
+  Future<void> _apriInvita(BuildContext context, int idPartita) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<bool>(
+        builder: (_) => InvitaUtentiPage(idPartita: idPartita),
+      ),
+    );
+
+    // ricarichiamo sempre, non solo quando la pagina torna con true:
+    // anche un solo invito cambia i giocatori e i posti liberi
+    if (context.mounted) {
+      context.read<DettaglioPartitaBloc>().add(
+        DettaglioPartitaRichiesto(idPartita: idPartita),
+      );
+    }
   }
 
   Future<void> _confermaElimina(BuildContext context, int idPartita) async {
