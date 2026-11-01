@@ -23,4 +23,6 @@ abstract class PartitaRepo {
   Future<DettaglioPartita> invitaUtente(int idPartita, String telefono);
 
   Future<List<PartitaInvito>> getInviti();
+
+  Future<DettaglioPartita> confermaPartita(int idPartita);
 }

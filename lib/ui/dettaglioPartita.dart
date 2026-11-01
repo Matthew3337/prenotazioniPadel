@@ -104,6 +104,23 @@ class _DettaglioPartitaView extends StatelessWidget {
                             );
                             Navigator.pop(context, true);
                           }
+                          if (state is PartecipazioneConfermata) {
+                            // se con questa conferma ci sono tutti, la
+                            // partita passa a confermata e lo diciamo
+                            if (state.dettaglio.stato == "confermata") {
+                              _mostraSnackBar(
+                                context,
+                                r,
+                                'Partita confermata: ci sono tutti!',
+                              );
+                            } else {
+                              _mostraSnackBar(
+                                context,
+                                r,
+                                'Partecipazione confermata',
+                              );
+                            }
+                          }
                           if (state is OperazioneErrore) {
                             _mostraSnackBar(context, r, state.messaggio);
                           }
@@ -114,6 +131,17 @@ class _DettaglioPartitaView extends StatelessWidget {
                           }
 
                           if (state is DettaglioPartitaCaricato) {
+                            return _buildContenuto(
+                              context,
+                              r,
+                              state.dettaglio,
+                              false,
+                            );
+                          }
+
+                          // dopo la conferma il BLoC ci passa il dettaglio
+                          // aggiornato, quindi lo disegniamo come al solito
+                          if (state is PartecipazioneConfermata) {
                             return _buildContenuto(
                               context,
                               r,
@@ -602,7 +630,7 @@ class _DettaglioPartitaView extends StatelessWidget {
   // =====================================================================
 
   // i bottoni compaiono solo se il server dice che l'utente puo' usarli.
-  // Conferma e Registra risultato per ora mostrano solo un avviso
+  // Registra risultato per ora mostra solo un avviso
   Widget _buildAzioni(
     BuildContext context,
     _Responsive r,
@@ -636,8 +664,14 @@ class _DettaglioPartitaView extends StatelessWidget {
           testo: 'Conferma',
           distruttivo: false,
           disabilitato: operazioneInCorso,
-          caricamento: false,
-          onPressed: funzioneInArrivo,
+          caricamento: operazioneInCorso,
+          // la conferma parte subito, senza dialog: e' un'azione che non
+          // fa danni e deve bastare un tocco
+          onPressed: () {
+            context.read<DettaglioPartitaBloc>().add(
+              ConfermaPartitaRichiesta(idPartita: dettaglio.id),
+            );
+          },
         ),
       );
     }
@@ -654,8 +688,8 @@ class _DettaglioPartitaView extends StatelessWidget {
       );
     }
     // lo stato OperazioneInCorso non dice quale operazione e' partita:
-    // lo spinner va su Esci ed Elimina, che sono gli unici bottoni che la
-    // fanno partire (di solito se ne vede solo uno dei due)
+    // lo spinner va su Conferma, Esci ed Elimina, che sono gli unici bottoni
+    // che la fanno partire
     if (dettaglio.azioni.puoUscire) {
       bottoni.add(
         _bottoneAzione(

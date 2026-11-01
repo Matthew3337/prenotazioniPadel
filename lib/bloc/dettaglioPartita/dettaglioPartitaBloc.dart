@@ -11,15 +11,17 @@ class DettaglioPartitaBloc extends Bloc<DettaglioPartitaEvent, DettaglioPartitaS
   final DettaglioPartitaUseCase dettaglioPartitaUseCase;
   final EliminaPartitaUseCase eliminaPartitaUseCase;
   final EsciDaPartitaUseCase esciDaPartitaUseCase;
+  final ConfermaPartitaUseCase confermaPartitaUseCase;
 
-  //l'ultimo dettaglio caricato, serve agli stati di elimina ed esci per non far sparire la pagina
+  //l'ultimo dettaglio caricato, serve agli stati di elimina, esci e conferma per non far sparire la pagina
   DettaglioPartita? dettaglio;
 
   //metodi
-  DettaglioPartitaBloc({required this.dettaglioPartitaUseCase, required this.eliminaPartitaUseCase, required this.esciDaPartitaUseCase}) : super(DettaglioPartitaInitial()) {
+  DettaglioPartitaBloc({required this.dettaglioPartitaUseCase, required this.eliminaPartitaUseCase, required this.esciDaPartitaUseCase, required this.confermaPartitaUseCase}) : super(DettaglioPartitaInitial()) {
     on<DettaglioPartitaRichiesto>(_onDettaglioPartitaRichiesto);
     on<EliminaPartitaRichiesta>(_onEliminaPartitaRichiesta);
     on<EsciDaPartitaRichiesta>(_onEsciDaPartitaRichiesta);
+    on<ConfermaPartitaRichiesta>(_onConfermaPartitaRichiesta);
   }
 
   Future<void> _onDettaglioPartitaRichiesto(DettaglioPartitaRichiesto evento, Emitter<DettaglioPartitaState> emit) async
@@ -93,6 +95,40 @@ class DettaglioPartitaBloc extends Bloc<DettaglioPartitaEvent, DettaglioPartitaS
     }
 
     //come per l'eliminazione, ricarico il dettaglio aggiornato senza passare dal Loading
+    await _caricaDettaglio(evento.idPartita, emit);
+  }
+
+  Future<void> _onConfermaPartitaRichiesta(ConfermaPartitaRichiesta evento, Emitter<DettaglioPartitaState> emit) async
+  {
+    final dettaglioAttuale = dettaglio;
+    if(dettaglioAttuale == null)
+    {
+      return;
+    }
+
+    emit(OperazioneInCorso(dettaglio: dettaglioAttuale));
+
+    try
+    {
+      //il server risponde con il dettaglio aggiornato, lo salvo cosi le prossime operazioni partono da quello
+      dettaglio = await confermaPartitaUseCase.call(evento.idPartita);
+      emit(PartecipazioneConfermata(dettaglio: dettaglio!));
+      return;
+    }
+    on PartitaNonTrovata catch (e)
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on OperazioneRifiutata catch (e)
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on ErroreGenericoServer catch (e)
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+
+    //come per elimina ed esci, ricarico il dettaglio aggiornato senza passare dal Loading
     await _caricaDettaglio(evento.idPartita, emit);
   }
 

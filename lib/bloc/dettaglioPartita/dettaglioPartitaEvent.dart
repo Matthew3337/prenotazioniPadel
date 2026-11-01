@@ -16,3 +16,8 @@ class EsciDaPartitaRichiesta extends DettaglioPartitaEvent {
   final int idPartita;
   const EsciDaPartitaRichiesta({required this.idPartita});
 }
+
+class ConfermaPartitaRichiesta extends DettaglioPartitaEvent {
+  final int idPartita;
+  const ConfermaPartitaRichiesta({required this.idPartita});
+}
