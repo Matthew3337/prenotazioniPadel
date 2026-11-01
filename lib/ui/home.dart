@@ -11,6 +11,7 @@ import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 import 'bachecaPubbliche.dart';
 import 'creaPartita.dart';
 import 'dettaglioPartita.dart';
+import 'storico.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -406,12 +407,7 @@ class _HomeView extends StatelessWidget {
               titolo: 'Partite pubbliche',
               sottotitolo: 'Trova una partita a cui unirti',
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => const BachecaPubblichePage(),
-                  ),
-                );
+                _apriBacheca(context);
               },
             ),
           ],
@@ -467,6 +463,21 @@ class _HomeView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _apriBacheca(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => const BachecaPubblichePage()),
+    );
+
+    // dalla bacheca l'utente puo' essere entrato in una partita (o esserne
+    // uscito dal dettaglio), quindi al ritorno ricarichiamo le sezioni
+    if (context.mounted) {
+      context.read<HomeBloc>()
+        ..add(const HomeProssimaPartitaRequested())
+        ..add(const HomeSlotOggiRequested());
+    }
   }
 
   // =====================================================================
@@ -842,6 +853,9 @@ Widget _buildBottomNavigation(BuildContext context, _Responsive r) {
             icon: Icons.history,
             label: 'Storico',
             selected: false,
+            onTap: () {
+              _apriStorico(context);
+            },
           ),
           _navItem(
             r,
@@ -855,12 +869,31 @@ Widget _buildBottomNavigation(BuildContext context, _Responsive r) {
   );
 }
 
-Widget _navItem(_Responsive r, {required IconData icon, required String label, required bool selected,}) {
+Future<void> _apriStorico(BuildContext context) async {
+  await Navigator.push(
+    context,
+    MaterialPageRoute<void>(builder: (_) => const StoricoPage()),
+  );
+
+  // dallo storico si puo' aprire il dettaglio e uscire da una partita,
+  // quindi al ritorno prossima partita e slot vanno ricaricati
+  if (context.mounted) {
+    context.read<HomeBloc>()
+      ..add(const HomeProssimaPartitaRequested())
+      ..add(const HomeSlotOggiRequested());
+  }
+}
+
+// onTap e' facoltativo: solo le voci che hanno gia' una pagina lo passano
+Widget _navItem(_Responsive r, {required IconData icon, required String label, required bool selected, VoidCallback? onTap,}) {
   return Expanded(
     child: InkWell(
       borderRadius: BorderRadius.circular(28),
       onTap: () {
-        // TODO: cambio pagina
+        // TODO: cambio pagina per le voci che non hanno ancora una pagina
+        if (onTap != null) {
+          onTap();
+        }
       },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

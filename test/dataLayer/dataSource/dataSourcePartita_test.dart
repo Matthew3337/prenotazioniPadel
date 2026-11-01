@@ -10,6 +10,7 @@ import 'package:thepadel/dataLayer/dataSource/dataSourcePartita.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/dataLayer/model/dettaglioPartitaModel.dart';
 import 'package:thepadel/dataLayer/model/partitaPubblicaModel.dart';
+import 'package:thepadel/dataLayer/model/partitaStoricoModel.dart';
 
 import '../../fake/fakePrenotazioneRepo.dart';
 
@@ -65,6 +66,22 @@ Map<String, dynamic> partitaPubblicaJson(int id, num livelloCreatore, int postiL
     "cognomeCreatore": "Rossi",
     "livelloCreatore": livelloCreatore,
     "postiLiberi": postiLiberi,
+  };
+}
+
+//una partita dello storico come da contratto T6, col risultato passato dal test (anche null)
+Map<String, dynamic> partitaStoricoJson(int id, Map<String, dynamic>? risultato)
+{
+  return {
+    "id": id,
+    "idCampo": 1,
+    "nomeCampo": "Campo 1",
+    "dataPartita": "2026-11-05",
+    "oraInizio": "18:00:00",
+    "oraFine": "19:30:00",
+    "stato": "giocata",
+    "tipo": "PUBBLICA",
+    "risultato": risultato,
   };
 }
 
@@ -459,6 +476,122 @@ void main()
       final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
 
       await expectLater(ds.esciDaPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("getStorico", ()
+  {
+    test("200 con risultato null: restituisce la partita senza risultato e chiama l'url giusto col token", () async
+    {
+      final ds = creaDataSource(200, jsonEncode([partitaStoricoJson(7, null)]), richieste);
+
+      final partite = await ds.getStorico();
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "GET");
+      expect(richieste.first.url.toString(), "http://test/api/partite/storico");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+
+      expect(partite.length, 1);
+      expect(partite[0], isA<PartitaStoricoModel>());
+      expect(partite[0].id, 7);
+      expect(partite[0].idCampo, 1);
+      expect(partite[0].nomeCampo, "Campo 1");
+      expect(partite[0].dataPartita, DateTime(2026, 11, 5));
+      expect(partite[0].oraInizio.hour, 18);
+      expect(partite[0].oraInizio.minute, 0);
+      expect(partite[0].oraFine.hour, 19);
+      expect(partite[0].oraFine.minute, 30);
+      expect(partite[0].stato, "giocata");
+      expect(partite[0].tipo, "PUBBLICA");
+      expect(partite[0].risultato, isNull);
+    });
+
+    test("200 con risultato di 3 set e di 2 set: set nell'ordine del server, squadra, esito e punti", () async
+    {
+      final body = jsonEncode([
+        partitaStoricoJson(7, {
+          "set": [{"squadra1": 6, "squadra2": 4}, {"squadra1": 3, "squadra2": 6}, {"squadra1": 6, "squadra2": 2}],
+          "squadraUtente": 1,
+          "esito": "VINTA",
+          "puntiAssegnati": 12,
+        }),
+        partitaStoricoJson(8, {
+          "set": [{"squadra1": 6, "squadra2": 1}, {"squadra1": 6, "squadra2": 3}],
+          "squadraUtente": 2,
+          "esito": "PERSA",
+          "puntiAssegnati": -7,
+        }),
+      ]);
+      final ds = creaDataSource(200, body, richieste);
+
+      final partite = await ds.getStorico();
+
+      expect(partite.length, 2);
+      final tre = partite[0].risultato!;
+      expect(tre.set.length, 3);
+      expect(tre.set[0].squadra1, 6);
+      expect(tre.set[0].squadra2, 4);
+      expect(tre.set[1].squadra1, 3);
+      expect(tre.set[1].squadra2, 6);
+      expect(tre.set[2].squadra1, 6);
+      expect(tre.set[2].squadra2, 2);
+      expect(tre.squadraUtente, 1);
+      expect(tre.esito, "VINTA");
+      expect(tre.puntiAssegnati, 12);
+
+      final due = partite[1].risultato!;
+      expect(partite[1].id, 8);
+      expect(due.set.length, 2);
+      expect(due.set[1].squadra1, 6);
+      expect(due.set[1].squadra2, 3);
+      expect(due.squadraUtente, 2);
+      expect(due.esito, "PERSA");
+      expect(due.puntiAssegnati, -7);
+    });
+
+    test("200 con squadraUtente, esito e puntiAssegnati null: restano null", () async
+    {
+      final body = jsonEncode([
+        partitaStoricoJson(7, {
+          "set": [{"squadra1": 6, "squadra2": 4}, {"squadra1": 6, "squadra2": 4}],
+          "squadraUtente": null,
+          "esito": null,
+          "puntiAssegnati": null,
+        }),
+      ]);
+      final ds = creaDataSource(200, body, richieste);
+
+      final partite = await ds.getStorico();
+
+      final risultato = partite[0].risultato!;
+      expect(risultato.set.length, 2);
+      expect(risultato.squadraUtente, isNull);
+      expect(risultato.esito, isNull);
+      expect(risultato.puntiAssegnati, isNull);
+    });
+
+    test("200 con lista vuota (utente senza partite o admin): restituisce una lista vuota", () async
+    {
+      final ds = creaDataSource(200, "[]", richieste);
+
+      final partite = await ds.getStorico();
+
+      expect(partite, isEmpty);
+    });
+
+    test("errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.getStorico(), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("risposta senza body (403 senza token): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(403, "", richieste);
+
+      await expectLater(ds.getStorico(), throwsA(isA<ErroreGenericoServer>()));
     });
   });
 }

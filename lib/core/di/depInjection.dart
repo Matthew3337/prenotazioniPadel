@@ -7,6 +7,7 @@ import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
+import 'package:thepadel/bloc/storico/storicoBloc.dart';
 import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourceCampo.dart';
@@ -22,6 +23,7 @@ import 'package:thepadel/useCase/bachecaPubblicheUseCase.dart';
 import 'package:thepadel/useCase/creaPartitaUseCase.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
+import 'package:thepadel/useCase/storicoUseCase.dart';
 
 final sl = GetIt.instance;
 
@@ -80,4 +82,8 @@ void init()
   sl.registerLazySingleton<EntraInPartitaUseCase>(() => EntraInPartitaUseCase(repo: sl()));
 
   sl.registerFactory<BachecaPubblicheBloc>(() => BachecaPubblicheBloc(partitePubblicheUseCase: sl(), entraInPartitaUseCase: sl()));
+
+  sl.registerLazySingleton<StoricoUseCase>(() => StoricoUseCase(repo: sl()));
+
+  sl.registerFactory<StoricoBloc>(() => StoricoBloc(storicoUseCase: sl()));
 }

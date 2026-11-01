@@ -5,6 +5,7 @@ import 'package:thepadel/core/network/myUrl.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/dataLayer/model/dettaglioPartitaModel.dart';
 import 'package:thepadel/dataLayer/model/partitaPubblicaModel.dart';
+import 'package:thepadel/dataLayer/model/partitaStoricoModel.dart';
 
 class DataSourcePartita{
 
@@ -132,6 +133,21 @@ class DataSourcePartita{
     }
     else
     { //ALTRI ERRORI
+      throw ErroreGenericoServer();
+    }
+  }
+
+  Future<List<PartitaStoricoModel>> getStorico() async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    dynamic res = await c.get(elencoUrl.BaseUrl + elencoUrl.PartiteStorico, token: token);
+
+    if(res is List) //BUON FINE, se l'utente non ha partite (o e l'admin) arriva una lista vuota
+    {
+      return res.map((e) => PartitaStoricoModel.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    else
+    { //se c'e un errore arriva una mappa (o niente), non c'e un caso specifico da gestire
       throw ErroreGenericoServer();
     }
   }

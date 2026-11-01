@@ -32,6 +32,7 @@ MyUrl urlDiTest()
     PartiteEntra: "/api/partite/{id}/entra",
     PartiteElimina: "/api/partite/{id}",
     PartiteEsci: "/api/partite/{id}/esci",
+    PartiteStorico: "/api/partite/storico",
   );
 }
 
