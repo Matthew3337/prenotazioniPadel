@@ -3,6 +3,7 @@ import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaEvent.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaState.dart';
 import 'package:thepadel/dataLayer/exception.dart';
+import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 
 import '../../fake/fakePartitaRepo.dart';
@@ -227,6 +228,87 @@ void main()
 
       expect(bloc.state, isA<DettaglioPartitaInitial>());
       expect(repo.chiamateEsci, 0);
+    });
+  });
+
+  group("conferma partecipazione", ()
+  {
+    test("successo: OperazioneInCorso col dettaglio poi PartecipazioneConfermata col dettaglio del server, senza ricaricare", () async
+    {
+      await caricaDettaglio();
+      repo.rispostaConferma = dettaglioDiTest(posti: [
+        PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true),
+        PostoPartita(tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false),
+      ]);
+
+      bloc.add(const ConfermaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>().having((s) => s.dettaglio.id, "id", 10),
+        isA<PartecipazioneConfermata>().having((s) => s.dettaglio.posti.first.confermata, "confermata", true),
+      ]));
+      expect(repo.chiamateConferma, 1);
+      expect(repo.idConfermaRicevuto, 10);
+      expect(repo.chiamateElimina, 0);
+      expect(repo.chiamateEsci, 0);
+      //il dettaglio era stato chiesto solo una volta, al caricamento
+      expect(repo.chiamate, 1);
+      //il bloc tiene il dettaglio nuovo per le operazioni successive
+      expect(bloc.dettaglio!.posti.first.confermata, true);
+    });
+
+    test("409: OperazioneInCorso, OperazioneErrore col messaggio, poi Caricato senza Loading", () async
+    {
+      await caricaDettaglio();
+      repo.erroreConferma = OperazioneRifiutata(messaggio: "Hai già confermato la partecipazione");
+
+      bloc.add(const ConfermaPartitaRichiesta(idPartita: 10));
+
+      //emitsInOrder vuole gli stati uno dopo l'altro: un Loading in mezzo farebbe fallire il test
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon("Hai già confermato la partecipazione"),
+        isA<DettaglioPartitaCaricato>(),
+      ]));
+      expect(repo.chiamateConferma, 1);
+      expect(repo.chiamate, 2);
+    });
+
+    test("404: OperazioneErrore col messaggio di PartitaNonTrovata, poi ricarica", () async
+    {
+      await caricaDettaglio();
+      repo.erroreConferma = PartitaNonTrovata(messaggio: "Partita non trovata");
+
+      bloc.add(const ConfermaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon("Partita non trovata"),
+        isA<DettaglioPartitaCaricato>(),
+      ]));
+    });
+
+    test("errore generico: OperazioneErrore col messaggio di ErroreGenericoServer, poi ricarica", () async
+    {
+      await caricaDettaglio();
+      repo.erroreConferma = ErroreGenericoServer();
+
+      bloc.add(const ConfermaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon(ErroreGenericoServer().messaggio),
+        isA<DettaglioPartitaCaricato>(),
+      ]));
+    });
+
+    test("senza un dettaglio caricato l'evento viene ignorato", () async
+    {
+      bloc.add(const ConfermaPartitaRichiesta(idPartita: 10));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bloc.state, isA<DettaglioPartitaInitial>());
+      expect(repo.chiamateConferma, 0);
     });
   });
 }
