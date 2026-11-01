@@ -7,11 +7,13 @@ import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourcePartita.dart';
 import 'package:thepadel/domainLayer/enetity/azioniPartita.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
+import 'package:thepadel/domainLayer/enetity/partitaInvito.dart';
 import 'package:thepadel/domainLayer/enetity/partitaPubblica.dart';
 import 'package:thepadel/domainLayer/enetity/partitaStorico.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/setPartita.dart';
+import 'package:thepadel/domainLayer/enetity/utenteInvitabile.dart';
 import 'package:thepadel/repositoryImpl/partitaRepoImpl.dart';
 
 import 'fakePrenotazioneRepo.dart';
@@ -90,6 +92,41 @@ RisultatoPartita risultatoDiTest({int? squadraUtente = 1, String? esito = "VINTA
   );
 }
 
+UtenteInvitabile utenteInvitabileDiTest({String telefono = "3335550001", String nome = "Luca", String cognome = "Bianchi", double livello = 3.0})
+{
+  return UtenteInvitabile(telefono: telefono, nome: nome, cognome: cognome, livello: livello);
+}
+
+//partita della bacheca inviti: di default e quella di dettaglioDiTest, creata da Mario Rossi
+PartitaInvito partitaInvitoDiTest({int id = 10, String nomeCampo = "Campo Centrale", String stato = "creata", String tipo = "PRIVATA"})
+{
+  return PartitaInvito(
+    id: id,
+    idCampo: 3,
+    nomeCampo: nomeCampo,
+    dataPartita: DateTime(2026, 11, 2),
+    oraInizio: const TimeOfDay(hour: 18, minute: 30),
+    oraFine: const TimeOfDay(hour: 20, minute: 0),
+    stato: stato,
+    tipo: tipo,
+    nomeCreatore: "Mario",
+    cognomeCreatore: "Rossi",
+  );
+}
+
+//dettaglio con il creatore e tanti invitati quanti indicati: serve per avere i posti liberi voluti (4 - 1 - invitati)
+DettaglioPartita dettaglioConInvitati(int invitati)
+{
+  final posti = <PostoPartita>[
+    PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false),
+  ];
+  for (int i = 0; i < invitati; i++)
+  {
+    posti.add(PostoPartita(tipo: "UTENTE", telefono: "333555000$i", nome: "Invitato", cognome: "$i", livello: 3.0, confermata: false));
+  }
+  return dettaglioDiTest(posti: posti);
+}
+
 //repository finto: estende quello vero (lo use case dipende dalla classe concreta)
 //ma non passa mai dal data source, restituisce la risposta o lancia l'errore impostati dal test
 class FakePartitaRepo extends PartitaRepoImpl
@@ -129,6 +166,26 @@ class FakePartitaRepo extends PartitaRepoImpl
   List<PartitaStorico>? partiteStorico;
   Exception? erroreStorico;
   int chiamateStorico = 0;
+
+  //utenti invitabili: se invitabili e null restituisce due utenti di test
+  List<UtenteInvitabile>? invitabili;
+  Exception? erroreInvitabili;
+  int chiamateInvitabili = 0;
+  int? idInvitabiliRicevuto;
+  List<String> cercaRicevuti = [];
+
+  //invito: se rispostaInvita e null restituisce dettaglioDiTest
+  DettaglioPartita? rispostaInvita;
+  Exception? erroreInvita;
+  Completer<DettaglioPartita>? attesaInvita;
+  int chiamateInvita = 0;
+  int? idInvitaRicevuto;
+  String? telefonoInvitaRicevuto;
+
+  //bacheca inviti: se partiteInviti e null restituisce una sola partita di test
+  List<PartitaInvito>? partiteInviti;
+  Exception? erroreInviti;
+  int chiamateInviti = 0;
 
   //metodi
   FakePartitaRepo() : super(dsPartita: DataSourcePartita(c: Client(c: MockClient((_) async => http.Response('', 500))), elencoUrl: urlDiTest()));
@@ -221,5 +278,49 @@ class FakePartitaRepo extends PartitaRepoImpl
       throw erroreStorico!;
     }
     return partiteStorico ?? [partitaStoricoDiTest()];
+  }
+
+  @override
+  Future<List<UtenteInvitabile>> getInvitabili(int idPartita, String cerca) async
+  {
+    chiamateInvitabili++;
+    idInvitabiliRicevuto = idPartita;
+    cercaRicevuti.add(cerca);
+
+    if(erroreInvitabili != null)
+    {
+      throw erroreInvitabili!;
+    }
+    return invitabili ?? [utenteInvitabileDiTest(), utenteInvitabileDiTest(telefono: "3335550002", nome: "Anna", cognome: "Verdi", livello: 2.5)];
+  }
+
+  @override
+  Future<DettaglioPartita> invitaUtente(int idPartita, String telefono) async
+  {
+    chiamateInvita++;
+    idInvitaRicevuto = idPartita;
+    telefonoInvitaRicevuto = telefono;
+
+    if(attesaInvita != null)
+    {
+      return attesaInvita!.future;
+    }
+    if(erroreInvita != null)
+    {
+      throw erroreInvita!;
+    }
+    return rispostaInvita ?? dettaglioDiTest();
+  }
+
+  @override
+  Future<List<PartitaInvito>> getInviti() async
+  {
+    chiamateInviti++;
+
+    if(erroreInviti != null)
+    {
+      throw erroreInviti!;
+    }
+    return partiteInviti ?? [partitaInvitoDiTest()];
   }
 }

@@ -33,6 +33,9 @@ MyUrl urlDiTest()
     PartiteElimina: "/api/partite/{id}",
     PartiteEsci: "/api/partite/{id}/esci",
     PartiteStorico: "/api/partite/storico",
+    PartiteInvitabili: "/api/partite/{id}/invitabili?cerca={cerca}",
+    PartiteInvita: "/api/partite/{id}/inviti",
+    PartiteInviti: "/api/partite/inviti",
   );
 }
 

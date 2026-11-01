@@ -10,7 +10,9 @@ import 'package:thepadel/dataLayer/dataSource/dataSourcePartita.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/dataLayer/model/dettaglioPartitaModel.dart';
 import 'package:thepadel/dataLayer/model/partitaPubblicaModel.dart';
+import 'package:thepadel/dataLayer/model/partitaInvitoModel.dart';
 import 'package:thepadel/dataLayer/model/partitaStoricoModel.dart';
+import 'package:thepadel/dataLayer/model/utenteInvitabileModel.dart';
 
 import '../../fake/fakePrenotazioneRepo.dart';
 
@@ -82,6 +84,23 @@ Map<String, dynamic> partitaStoricoJson(int id, Map<String, dynamic>? risultato)
     "stato": "giocata",
     "tipo": "PUBBLICA",
     "risultato": risultato,
+  };
+}
+
+//una partita della bacheca inviti come da contratto T7
+Map<String, dynamic> partitaInvitoJson(int id, String stato, String tipo)
+{
+  return {
+    "id": id,
+    "idCampo": 1,
+    "nomeCampo": "Campo $id",
+    "dataPartita": "2026-11-05",
+    "oraInizio": "18:00:00",
+    "oraFine": "19:30:00",
+    "stato": stato,
+    "tipo": tipo,
+    "nomeCreatore": "Mario",
+    "cognomeCreatore": "Rossi",
   };
 }
 
@@ -592,6 +611,256 @@ void main()
       final ds = creaDataSource(403, "", richieste);
 
       await expectLater(ds.getStorico(), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("getInvitabili", ()
+  {
+    test("200 con lista: restituisce gli utenti nell'ordine del server e chiama l'url giusto col token", () async
+    {
+      final body = jsonEncode([
+        {"telefono": "3335550001", "nome": "Luca", "cognome": "Bianchi", "livello": 3},
+        {"telefono": "3335550002", "nome": "Anna", "cognome": "Verdi", "livello": 2.5},
+      ]);
+      final ds = creaDataSource(200, body, richieste);
+
+      final utenti = await ds.getInvitabili(7, "");
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "GET");
+      expect(richieste.first.url.path, "/api/partite/7/invitabili");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+
+      expect(utenti.length, 2);
+      expect(utenti[0], isA<UtenteInvitabileModel>());
+      expect(utenti[0].telefono, "3335550001");
+      expect(utenti[0].nome, "Luca");
+      expect(utenti[0].cognome, "Bianchi");
+      //il livello intero diventa double
+      expect(utenti[0].livello, isA<double>());
+      expect(utenti[0].livello, 3.0);
+      expect(utenti[1].telefono, "3335550002");
+      expect(utenti[1].livello, 2.5);
+    });
+
+    test("cerca vuoto: il parametro cerca c'e ma e vuoto", () async
+    {
+      final ds = creaDataSource(200, "[]", richieste);
+
+      await ds.getInvitabili(7, "");
+
+      expect(richieste.first.url.toString(), "http://test/api/partite/7/invitabili?cerca=");
+      expect(richieste.first.url.queryParameters['cerca'], "");
+    });
+
+    test("cerca con spazi, accenti e caratteri speciali: viene codificato e il server lo riceve intatto", () async
+    {
+      final ds = creaDataSource(200, "[]", richieste);
+
+      await ds.getInvitabili(7, "De Niccolò & co");
+
+      final url = richieste.first.url;
+      expect(url.queryParameters.length, 1);
+      expect(url.queryParameters['cerca'], "De Niccolò & co");
+      //nell'url non devono restare spazi o & non codificati
+      expect(url.query.contains(" "), false);
+      expect(url.query.split("&").length, 1);
+    });
+
+    test("200 con lista vuota (nessun utente corrisponde): restituisce una lista vuota", () async
+    {
+      final ds = creaDataSource(200, "[]", richieste);
+
+      final utenti = await ds.getInvitabili(7, "zzz");
+
+      expect(utenti, isEmpty);
+    });
+
+    test("404: lancia PartitaNonTrovata col messaggio del server", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Partita non trovata"), richieste);
+
+      await expectLater(
+        ds.getInvitabili(99, ""),
+        throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Partita non trovata")),
+      );
+    });
+
+    test("403: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(403, erroreServer(403, "Solo il creatore può invitare"), richieste);
+
+      await expectLater(
+        ds.getInvitabili(7, ""),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "Solo il creatore può invitare")),
+      );
+    });
+
+    test("risposta senza body (401 col token scaduto): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.getInvitabili(7, ""), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("altro errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.getInvitabili(7, ""), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("invitaUtente", ()
+  {
+    test("200: POST all'url con l'id, body col telefono e token, restituisce il dettaglio aggiornato", () async
+    {
+      final ds = creaDataSource(200, rispostaDettaglio(2.5), richieste);
+
+      final dettaglio = await ds.invitaUtente(7, "3335550001");
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "POST");
+      expect(richieste.first.url.toString(), "http://test/api/partite/7/inviti");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+      expect(jsonDecode(richieste.first.body), {"telefono": "3335550001"});
+
+      expect(dettaglio, isA<DettaglioPartitaModel>());
+      expect(dettaglio.id, 7);
+      expect(dettaglio.posti.length, 2);
+      expect(dettaglio.postiLiberi, 2);
+    });
+
+    test("409 partita al completo: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(409, erroreServer(409, "La partita è al completo"), richieste);
+
+      await expectLater(
+        ds.invitaUtente(7, "3335550001"),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "La partita è al completo")),
+      );
+    });
+
+    test("409 inviti chiusi: il messaggio arriva intatto", () async
+    {
+      const messaggio = "Gli inviti sono chiusi: mancano meno di 24 ore all'inizio";
+      final ds = creaDataSource(409, erroreServer(409, messaggio), richieste);
+
+      await expectLater(
+        ds.invitaUtente(7, "3335550001"),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", messaggio)),
+      );
+    });
+
+    test("400 telefono mancante: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(400, erroreServer(400, "Il telefono è obbligatorio"), richieste);
+
+      await expectLater(
+        ds.invitaUtente(7, ""),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "Il telefono è obbligatorio")),
+      );
+    });
+
+    test("403 non creatore: lancia OperazioneRifiutata col messaggio del server", () async
+    {
+      final ds = creaDataSource(403, erroreServer(403, "Solo il creatore può invitare"), richieste);
+
+      await expectLater(
+        ds.invitaUtente(7, "3335550001"),
+        throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "Solo il creatore può invitare")),
+      );
+    });
+
+    test("404 Utente non trovato: lancia PartitaNonTrovata col messaggio del server", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Utente non trovato"), richieste);
+
+      await expectLater(
+        ds.invitaUtente(7, "3330000000"),
+        throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Utente non trovato")),
+      );
+    });
+
+    test("404 partita: lancia PartitaNonTrovata col messaggio del server", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Partita non trovata"), richieste);
+
+      await expectLater(
+        ds.invitaUtente(99, "3335550001"),
+        throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Partita non trovata")),
+      );
+    });
+
+    test("risposta senza body (401 col token scaduto): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.invitaUtente(7, "3335550001"), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("altro errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.invitaUtente(7, "3335550001"), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("getInviti", ()
+  {
+    test("200 con lista: restituisce le partite nell'ordine del server e chiama l'url giusto col token", () async
+    {
+      final body = jsonEncode([partitaInvitoJson(7, "creata", "PRIVATA"), partitaInvitoJson(8, "confermata", "PUBBLICA")]);
+      final ds = creaDataSource(200, body, richieste);
+
+      final partite = await ds.getInviti();
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "GET");
+      expect(richieste.first.url.toString(), "http://test/api/partite/inviti");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+
+      expect(partite.length, 2);
+      expect(partite[0], isA<PartitaInvitoModel>());
+      expect(partite[0].id, 7);
+      expect(partite[0].idCampo, 1);
+      expect(partite[0].nomeCampo, "Campo 7");
+      expect(partite[0].dataPartita, DateTime(2026, 11, 5));
+      expect(partite[0].oraInizio.hour, 18);
+      expect(partite[0].oraInizio.minute, 0);
+      expect(partite[0].oraFine.hour, 19);
+      expect(partite[0].oraFine.minute, 30);
+      expect(partite[0].stato, "creata");
+      expect(partite[0].tipo, "PRIVATA");
+      expect(partite[0].nomeCreatore, "Mario");
+      expect(partite[0].cognomeCreatore, "Rossi");
+      expect(partite[1].id, 8);
+      expect(partite[1].stato, "confermata");
+      expect(partite[1].tipo, "PUBBLICA");
+    });
+
+    test("200 con lista vuota (nessun invito o admin): restituisce una lista vuota", () async
+    {
+      final ds = creaDataSource(200, "[]", richieste);
+
+      final partite = await ds.getInviti();
+
+      expect(partite, isEmpty);
+    });
+
+    test("errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.getInviti(), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("risposta senza body (401 col token scaduto): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.getInviti(), throwsA(isA<ErroreGenericoServer>()));
     });
   });
 }
