@@ -9,6 +9,7 @@ import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
+import 'package:thepadel/bloc/registraRisultato/registraRisultatoBloc.dart';
 import 'package:thepadel/bloc/storico/storicoBloc.dart';
 import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
@@ -27,6 +28,7 @@ import 'package:thepadel/useCase/creaPartitaUseCase.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
 import 'package:thepadel/useCase/invitaUtentiUseCase.dart';
+import 'package:thepadel/useCase/registraRisultatoUseCase.dart';
 import 'package:thepadel/useCase/storicoUseCase.dart';
 
 final sl = GetIt.instance;
@@ -102,4 +104,8 @@ void init()
   sl.registerLazySingleton<BachecaInvitiUseCase>(() => BachecaInvitiUseCase(repo: sl()));
 
   sl.registerFactory<BachecaInvitiBloc>(() => BachecaInvitiBloc(bachecaInvitiUseCase: sl()));
+
+  sl.registerLazySingleton<RegistraRisultatoUseCase>(() => RegistraRisultatoUseCase(repo: sl()));
+
+  sl.registerFactory<RegistraRisultatoBloc>(() => RegistraRisultatoBloc(registraRisultatoUseCase: sl()));
 }

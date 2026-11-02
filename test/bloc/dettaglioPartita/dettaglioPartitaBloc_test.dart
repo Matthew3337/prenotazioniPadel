@@ -237,8 +237,8 @@ void main()
     {
       await caricaDettaglio();
       repo.rispostaConferma = dettaglioDiTest(posti: [
-        PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true),
-        PostoPartita(tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false),
+        PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: null),
+        PostoPartita(idPosto: null, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null),
       ]);
 
       bloc.add(const ConfermaPartitaRichiesta(idPartita: 10));

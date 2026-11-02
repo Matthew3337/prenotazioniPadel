@@ -4,14 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
+import 'package:thepadel/bloc/registraRisultato/registraRisultatoBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
+import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 import 'package:thepadel/ui/dettaglioPartita.dart';
 import 'package:thepadel/ui/invitaUtenti.dart';
+import 'package:thepadel/ui/registraRisultato.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 import 'package:thepadel/useCase/invitaUtentiUseCase.dart';
+import 'package:thepadel/useCase/registraRisultatoUseCase.dart';
 
 import '../fake/fakePartitaRepo.dart';
 
@@ -26,6 +30,8 @@ void main()
     sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo)));
     //serve per l'apertura della pagina degli inviti dal bottone Invita
     sl.registerFactory<InvitaUtentiBloc>(() => InvitaUtentiBloc(invitabiliUseCase: InvitabiliUseCase(repo: repo), invitaUtenteUseCase: InvitaUtenteUseCase(repo: repo), dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo)));
+    //serve per l'apertura del form del risultato dal bottone Registra risultato
+    sl.registerFactory<RegistraRisultatoBloc>(() => RegistraRisultatoBloc(registraRisultatoUseCase: RegistraRisultatoUseCase(repo: repo)));
   });
 
   tearDown(() async
@@ -67,8 +73,8 @@ void main()
   testWidgets("un partecipante che non e il creatore non ha l'etichetta Organizzatore", (tester) async
   {
     repo.risposta = dettaglioDiTest(posti: [
-      PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true),
-      PostoPartita(tipo: "UTENTE", telefono: "3339999999", nome: "Luca", cognome: "Bianchi", livello: null, confermata: false),
+      PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: null),
+      PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3339999999", nome: "Luca", cognome: "Bianchi", livello: null, confermata: false, squadra: null),
     ]);
     await apriPagina(tester);
 
@@ -120,15 +126,17 @@ void main()
     expect(find.byType(ElevatedButton), findsNothing);
   });
 
-  testWidgets("il tocco su un bottone mostra Funzione in arrivo", (tester) async
+  testWidgets("Registra risultato apre la pagina del form con la partita a schermo", (tester) async
   {
-    repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoRegistrareRisultato: true));
+    repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoRegistrareRisultato: true), posti: quattroPostiDiTest(), stato: "confermata");
     await apriPagina(tester);
 
     await tester.tap(find.text("Registra risultato"));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(SnackBar, "Funzione in arrivo"), findsOneWidget);
+    expect(find.byType(RegistraRisultatoPage), findsOneWidget);
+    expect(tester.widget<RegistraRisultatoPage>(find.byType(RegistraRisultatoPage)).dettaglio.id, 10);
+    expect(find.text("Salva risultato"), findsOneWidget);
   });
 
   group("invita", ()
@@ -149,9 +157,9 @@ void main()
 
       //intanto e entrato un invitato
       repo.risposta = dettaglioDiTest(posti: [
-        PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false),
-        PostoPartita(tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false),
-        PostoPartita(tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: false),
+        PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false, squadra: null),
+        PostoPartita(idPosto: null, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null),
+        PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: false, squadra: null),
       ]);
       await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
@@ -469,8 +477,8 @@ void main()
     List<PostoPartita> postiConMarioConfermato()
     {
       return [
-        PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true),
-        PostoPartita(tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false),
+        PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: null),
+        PostoPartita(idPosto: null, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null),
       ];
     }
 
@@ -564,6 +572,143 @@ void main()
       //dopo la ricarica il bottone e di nuovo attivo
       final bottone = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, "Conferma"));
       expect(bottone.onPressed, isNotNull);
+    });
+  });
+
+  group("risultato", ()
+  {
+    //colore del testo a schermo, per controllare l'esito verde o rosso
+    Color? coloreDi(WidgetTester tester, String testo)
+    {
+      return tester.widget<Text>(find.text(testo)).style?.color;
+    }
+
+    testWidgets("senza risultato la card Risultato non compare e non ci sono badge", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(posti: quattroPostiDiTest());
+      await apriPagina(tester);
+
+      expect(find.text("Risultato"), findsNothing);
+      expect(find.text("Squadra 1"), findsNothing);
+      expect(find.text("Squadra 2"), findsNothing);
+    });
+
+    testWidgets("risultato senza set: la card non compare", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(risultato: RisultatoPartita(set: const [], squadraUtente: 1, esito: "VINTA", puntiAssegnati: 3));
+      await apriPagina(tester);
+
+      expect(find.text("Risultato"), findsNothing);
+    });
+
+    testWidgets("utente in squadra 1: set come arrivano dal server, Vinta in verde con +3 punti", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: 1, esito: "VINTA", puntiAssegnati: 3));
+      await apriPagina(tester);
+
+      expect(find.text("Risultato"), findsOneWidget);
+      expect(find.text("6-4 3-6 6-2"), findsOneWidget);
+      expect(find.text("Vinta · +3 punti"), findsOneWidget);
+      expect(coloreDi(tester, "Vinta · +3 punti"), const Color(0xFF075E50));
+    });
+
+    testWidgets("utente in squadra 2: set invertiti, Persa in rosso con -1 punti", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: 2, esito: "PERSA", puntiAssegnati: -1));
+      await apriPagina(tester);
+
+      expect(find.text("4-6 6-3 2-6"), findsOneWidget);
+      expect(find.text("6-4 3-6 6-2"), findsNothing);
+      expect(find.text("Persa · -1 punti"), findsOneWidget);
+      expect(coloreDi(tester, "Persa · -1 punti"), const Color(0xFFA33A3A));
+    });
+
+    testWidgets("punti non ancora calcolati: si vede solo l'esito", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: 1, esito: "VINTA", puntiAssegnati: null));
+      await apriPagina(tester);
+
+      expect(find.text("Vinta"), findsOneWidget);
+    });
+
+    testWidgets("variazione zero: i punti compaiono senza segno", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: 1, esito: "PERSA", puntiAssegnati: 0));
+      await apriPagina(tester);
+
+      expect(find.text("Persa · 0 punti"), findsOneWidget);
+    });
+
+    testWidgets("utente senza squadra: solo i set, nel verso del server e senza esito", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: null, esito: null, puntiAssegnati: null));
+      await apriPagina(tester);
+
+      expect(find.text("6-4 3-6 6-2"), findsOneWidget);
+      expect(find.textContaining("Vinta"), findsNothing);
+      expect(find.textContaining("Persa"), findsNothing);
+      expect(find.textContaining("punti"), findsNothing);
+    });
+
+    testWidgets("badge squadra accanto a ogni posto, giocatore del campo compreso, e Organizzatore insieme al badge", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), posti: quattroPostiDiTest(conSquadre: true), risultato: risultatoDiTest());
+      await apriPagina(tester);
+
+      expect(find.text("Squadra 1"), findsNWidgets(2));
+      expect(find.text("Squadra 2"), findsNWidgets(2));
+      expect(find.text("Organizzatore"), findsOneWidget);
+      expect(find.text("Giocatore del campo"), findsOneWidget);
+
+      //il badge sta sulla stessa riga del suo giocatore
+      final yCampo = tester.getCenter(find.text("Giocatore del campo")).dy;
+      final badgeSulPostoCampo = find.text("Squadra 2").evaluate().where((e) => (tester.getCenter(find.byWidget(e.widget)).dy - yCampo).abs() < 20);
+      expect(badgeSulPostoCampo.length, 1);
+    });
+
+    testWidgets("dopo il salvataggio il form si chiude e il dettaglio si ricarica col risultato", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoRegistrareRisultato: true), posti: quattroPostiDiTest(), stato: "confermata");
+      await apriPagina(tester);
+      expect(repo.chiamate, 1);
+
+      await tester.tap(find.text("Registra risultato"));
+      await tester.pumpAndSettle();
+
+      //il dettaglio ricaricato e quello che il server restituisce dopo la registrazione
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(), posti: quattroPostiDiTest(conSquadre: true), stato: "giocata", risultato: risultatoDiTest(squadraUtente: 1, esito: "VINTA", puntiAssegnati: null));
+
+      //primo set 1-0 e secondo set 0-1: basta che nessun set finisca in parita
+      await tester.tap(find.byIcon(Icons.add).at(0));
+      await tester.pump();
+      await tester.tap(find.byIcon(Icons.add).at(3));
+      await tester.pump();
+      await tester.tap(find.text("Salva risultato"));
+      await tester.pumpAndSettle();
+
+      expect(repo.chiamateRisultato, 1);
+      expect(find.byType(RegistraRisultatoPage), findsNothing);
+      expect(find.widgetWithText(SnackBar, "Risultato registrato"), findsOneWidget);
+      expect(repo.chiamate, 2);
+      expect(find.text("Risultato"), findsOneWidget);
+      expect(find.text("6-4 3-6 6-2"), findsOneWidget);
+      expect(find.text("Giocata"), findsOneWidget);
+      expect(find.text("Registra risultato"), findsNothing);
+    });
+
+    testWidgets("uscendo dal form con la freccia il dettaglio non si ricarica", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoRegistrareRisultato: true), posti: quattroPostiDiTest(), stato: "confermata");
+      await apriPagina(tester);
+
+      await tester.tap(find.text("Registra risultato"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RegistraRisultatoPage), findsNothing);
+      expect(find.text("Dettaglio partita"), findsOneWidget);
+      expect(repo.chiamate, 1);
     });
   });
 }

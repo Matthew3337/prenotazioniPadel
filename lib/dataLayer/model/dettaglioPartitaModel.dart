@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:thepadel/dataLayer/model/azioniPartitaModel.dart';
 import 'package:thepadel/dataLayer/model/postoPartitaModel.dart';
+import 'package:thepadel/dataLayer/model/risultatoPartitaModel.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 
 class DettaglioPartitaModel extends DettaglioPartita{
 
-  DettaglioPartitaModel({required super.id, required super.idCampo, required super.nomeCampo, required super.dataPartita, required super.oraInizio, required super.oraFine, required super.stato, required super.tipo, required super.telefonoCreatore, required super.posti, required super.azioni});
+  DettaglioPartitaModel({required super.id, required super.idCampo, required super.nomeCampo, required super.dataPartita, required super.oraInizio, required super.oraFine, required super.stato, required super.tipo, required super.telefonoCreatore, required super.posti, required super.azioni, required super.risultato});
 
   factory DettaglioPartitaModel.fromJson(Map<String, dynamic> json)
   {
     List<dynamic> postiJson = json['posti'] as List<dynamic>;
     List<PostoPartitaModel> posti = postiJson.map((e) => PostoPartitaModel.fromJson(e as Map<String, dynamic>)).toList();
+
+    //il risultato e null finche nessuno lo registra, e manca del tutto se il server non lo manda ancora
+    RisultatoPartitaModel? risultato;
+    if(json['risultato'] != null)
+    {
+      risultato = RisultatoPartitaModel.fromJson(json['risultato'] as Map<String, dynamic>);
+    }
 
     return DettaglioPartitaModel(
       id: json['id'] as int,
@@ -23,7 +31,8 @@ class DettaglioPartitaModel extends DettaglioPartita{
       tipo: json['tipo'] as String,
       telefonoCreatore: json['telefonoCreatore'] as String,
       posti: posti,
-      azioni: AzioniPartitaModel.fromJson(json['azioni'] as Map<String, dynamic>)
+      azioni: AzioniPartitaModel.fromJson(json['azioni'] as Map<String, dynamic>),
+      risultato: risultato
     );
   }
 

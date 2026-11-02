@@ -7,8 +7,10 @@ import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
+import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 
 import 'invitaUtenti.dart';
+import 'registraRisultato.dart';
 
 class DettaglioPartitaPage extends StatelessWidget {
   final int idPartita;
@@ -290,6 +292,8 @@ class _DettaglioPartitaView extends StatelessWidget {
     DettaglioPartita dettaglio,
     bool operazioneInCorso,
   ) {
+    final RisultatoPartita? risultato = dettaglio.risultato;
+
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
         r.horizontalPadding,
@@ -302,6 +306,11 @@ class _DettaglioPartitaView extends StatelessWidget {
         children: [
           _buildInfo(r, dettaglio),
           const SizedBox(height: 18),
+          // senza set non c'e' niente da mostrare, anche se il risultato esiste
+          if (risultato != null && risultato.set.isNotEmpty) ...[
+            _buildRisultato(r, risultato),
+            const SizedBox(height: 18),
+          ],
           _buildGiocatori(r, dettaglio),
           const SizedBox(height: 18),
           _buildAzioni(context, r, dettaglio, operazioneInCorso),
@@ -469,6 +478,104 @@ class _DettaglioPartitaView extends StatelessWidget {
   }
 
   // =====================================================================
+  // RISULTATO
+  // =====================================================================
+
+  // il server da' i set come squadra1-squadra2: se l'utente e' nella
+  // squadra 2 li giriamo, cosi' il primo numero sono sempre i suoi game
+  Widget _buildRisultato(_Responsive r, RisultatoPartita risultato) {
+    String punteggi = '';
+    for (final set in risultato.set) {
+      String punteggio = '${set.squadra1}-${set.squadra2}';
+      if (risultato.squadraUtente == 2) {
+        punteggio = '${set.squadra2}-${set.squadra1}';
+      }
+
+      if (punteggi.isEmpty) {
+        punteggi = punteggio;
+      } else {
+        punteggi = '$punteggi $punteggio';
+      }
+    }
+
+    // senza esito (utente senza squadra) la riga sotto ai set non compare
+    String esito = '';
+    Color coloreEsito = darkText;
+    if (risultato.esito == 'VINTA') {
+      esito = 'Vinta';
+      coloreEsito = const Color(0xFF075E50);
+    }
+    if (risultato.esito == 'PERSA') {
+      esito = 'Persa';
+      coloreEsito = const Color(0xFFA33A3A);
+    }
+
+    final int? punti = risultato.puntiAssegnati;
+    if (esito.isNotEmpty && punti != null) {
+      // i punti negativi hanno gia' il meno davanti
+      if (punti > 0) {
+        esito = '$esito · +$punti punti';
+      } else {
+        esito = '$esito · $punti punti';
+      }
+    }
+
+    return _buildCard(
+      r: r,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Risultato',
+              style: TextStyle(
+                fontSize: r.font(17),
+                fontWeight: FontWeight.w500,
+                color: greyText,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                _iconBox(r, Icons.emoji_events_outlined),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        punteggi,
+                        style: TextStyle(
+                          fontSize: r.font(16),
+                          fontWeight: FontWeight.w600,
+                          color: darkText,
+                        ),
+                      ),
+                      if (esito.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          esito,
+                          style: TextStyle(
+                            fontSize: r.font(13),
+                            fontWeight: FontWeight.w600,
+                            color: coloreEsito,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =====================================================================
   // GIOCATORI
   // =====================================================================
 
@@ -537,6 +644,10 @@ class _DettaglioPartitaView extends StatelessWidget {
               ),
             ),
           ),
+          if (posto.squadra != null) ...[
+            const SizedBox(width: 8),
+            _badgeSquadra(r, posto.squadra),
+          ],
         ],
       );
     }
@@ -582,25 +693,58 @@ class _DettaglioPartitaView extends StatelessWidget {
             ],
           ),
         ),
-        if (organizzatore) ...[
+        // i due badge stanno uno sopra l'altro: affiancati su un telefono
+        // piccolo non lascerebbero spazio al nome
+        if (organizzatore || posto.squadra != null) ...[
           const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: const Color(0xFFE7F1FC),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              'Organizzatore',
-              style: TextStyle(
-                color: primaryColor,
-                fontSize: r.font(12),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (organizzatore)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE7F1FC),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Organizzatore',
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontSize: r.font(12),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              if (organizzatore && posto.squadra != null)
+                const SizedBox(height: 4),
+              if (posto.squadra != null) _badgeSquadra(r, posto.squadra),
+            ],
           ),
         ],
       ],
+    );
+  }
+
+  Widget _badgeSquadra(_Responsive r, int? squadra) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: borderColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        'Squadra $squadra',
+        style: TextStyle(
+          color: darkText,
+          fontSize: r.font(12),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 
@@ -629,8 +773,7 @@ class _DettaglioPartitaView extends StatelessWidget {
   // AZIONI
   // =====================================================================
 
-  // i bottoni compaiono solo se il server dice che l'utente puo' usarli.
-  // Registra risultato per ora mostra solo un avviso
+  // i bottoni compaiono solo se il server dice che l'utente puo' usarli
   Widget _buildAzioni(
     BuildContext context,
     _Responsive r,
@@ -638,10 +781,6 @@ class _DettaglioPartitaView extends StatelessWidget {
     bool operazioneInCorso,
   ) {
     final List<Widget> bottoni = [];
-
-    void funzioneInArrivo() {
-      _mostraSnackBar(context, r, 'Funzione in arrivo');
-    }
 
     if (dettaglio.azioni.puoInvitare) {
       bottoni.add(
@@ -683,7 +822,9 @@ class _DettaglioPartitaView extends StatelessWidget {
           distruttivo: false,
           disabilitato: operazioneInCorso,
           caricamento: false,
-          onPressed: funzioneInArrivo,
+          onPressed: () {
+            _apriRegistraRisultato(context, dettaglio);
+          },
         ),
       );
     }
@@ -735,6 +876,25 @@ class _DettaglioPartitaView extends StatelessWidget {
     if (context.mounted) {
       context.read<DettaglioPartitaBloc>().add(
         DettaglioPartitaRichiesto(idPartita: idPartita),
+      );
+    }
+  }
+
+  Future<void> _apriRegistraRisultato(
+    BuildContext context,
+    DettaglioPartita dettaglio,
+  ) async {
+    final bool? registrato = await Navigator.push(
+      context,
+      MaterialPageRoute<bool>(
+        builder: (_) => RegistraRisultatoPage(dettaglio: dettaglio),
+      ),
+    );
+
+    // con la freccia indietro la pagina torna con null e non e' cambiato niente
+    if (registrato == true && context.mounted) {
+      context.read<DettaglioPartitaBloc>().add(
+        DettaglioPartitaRichiesto(idPartita: dettaglio.id),
       );
     }
   }
