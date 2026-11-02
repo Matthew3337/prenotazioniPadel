@@ -17,4 +17,13 @@ void main()
 
     expect(url.PartiteRisultato, "/api/partite/{id}/risultato");
   });
+
+  test("api-endpoints.json contiene l'endpoint della classifica", () async
+  {
+    final json = await rootBundle.loadString("assets/json/api-endpoints.json");
+
+    final url = MyUrl.fromJsom(jsonDecode(json) as Map<String, dynamic>);
+
+    expect(url.Classifica, "/api/classifica");
+  });
 }
