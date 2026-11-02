@@ -24,7 +24,7 @@ AzioniPartita azioniDiTest({bool puoInvitare = false, bool puoEliminare = false,
 }
 
 //partita con il creatore (Mario Rossi) e un giocatore del campo: restano 2 posti liberi
-DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata"})
+DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata", RisultatoPartita? risultato})
 {
   return DettaglioPartita(
     id: 10,
@@ -37,11 +37,24 @@ DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? pos
     tipo: "PUBBLICA",
     telefonoCreatore: "3331234567",
     posti: posti ?? [
-      PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false),
-      PostoPartita(tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false),
+      PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false, squadra: null),
+      PostoPartita(idPosto: null, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null),
     ],
     azioni: azioni ?? azioniDiTest(puoInvitare: true, puoEliminare: true),
+    risultato: risultato,
   );
+}
+
+//i 4 posti di una partita pronta per il risultato: idPosto da 11 a 14, l'ultimo e un giocatore del campo.
+//con conSquadre il risultato e gia registrato: i primi due in squadra 1, gli altri in squadra 2
+List<PostoPartita> quattroPostiDiTest({bool conSquadre = false})
+{
+  return [
+    PostoPartita(idPosto: 11, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: conSquadre ? 1 : null),
+    PostoPartita(idPosto: 12, tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: true, squadra: conSquadre ? 1 : null),
+    PostoPartita(idPosto: 13, tipo: "UTENTE", telefono: "3335550002", nome: "Anna", cognome: "Verdi", livello: 2.5, confermata: true, squadra: conSquadre ? 2 : null),
+    PostoPartita(idPosto: 14, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: conSquadre ? 2 : null),
+  ];
 }
 
 //partita della bacheca pubbliche: di default e quella di dettaglioDiTest vista dalla bacheca
@@ -118,11 +131,11 @@ PartitaInvito partitaInvitoDiTest({int id = 10, String nomeCampo = "Campo Centra
 DettaglioPartita dettaglioConInvitati(int invitati)
 {
   final posti = <PostoPartita>[
-    PostoPartita(tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false),
+    PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false, squadra: null),
   ];
   for (int i = 0; i < invitati; i++)
   {
-    posti.add(PostoPartita(tipo: "UTENTE", telefono: "333555000$i", nome: "Invitato", cognome: "$i", livello: 3.0, confermata: false));
+    posti.add(PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "333555000$i", nome: "Invitato", cognome: "$i", livello: 3.0, confermata: false, squadra: null));
   }
   return dettaglioDiTest(posti: posti);
 }
@@ -193,6 +206,16 @@ class FakePartitaRepo extends PartitaRepoImpl
   Completer<DettaglioPartita>? attesaConferma;
   int chiamateConferma = 0;
   int? idConfermaRicevuto;
+
+  //risultato: se rispostaRisultato e null restituisce dettaglioDiTest
+  DettaglioPartita? rispostaRisultato;
+  Exception? erroreRisultato;
+  Completer<DettaglioPartita>? attesaRisultato;
+  int chiamateRisultato = 0;
+  int? idRisultatoRicevuto;
+  List<int>? squadra1Ricevuta;
+  List<int>? squadra2Ricevuta;
+  List<SetPartita>? setRicevuti;
 
   //metodi
   FakePartitaRepo() : super(dsPartita: DataSourcePartita(c: Client(c: MockClient((_) async => http.Response('', 500))), elencoUrl: urlDiTest()));
@@ -346,5 +369,25 @@ class FakePartitaRepo extends PartitaRepoImpl
       throw erroreConferma!;
     }
     return rispostaConferma ?? dettaglioDiTest();
+  }
+
+  @override
+  Future<DettaglioPartita> registraRisultato(int idPartita, List<int> squadra1, List<int> squadra2, List<SetPartita> set) async
+  {
+    chiamateRisultato++;
+    idRisultatoRicevuto = idPartita;
+    squadra1Ricevuta = squadra1;
+    squadra2Ricevuta = squadra2;
+    setRicevuti = set;
+
+    if(attesaRisultato != null)
+    {
+      return attesaRisultato!.future;
+    }
+    if(erroreRisultato != null)
+    {
+      throw erroreRisultato!;
+    }
+    return rispostaRisultato ?? dettaglioDiTest();
   }
 }

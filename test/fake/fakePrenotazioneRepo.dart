@@ -37,6 +37,7 @@ MyUrl urlDiTest()
     PartiteInvita: "/api/partite/{id}/inviti",
     PartiteInviti: "/api/partite/inviti",
     PartiteConferma: "/api/partite/{id}/conferma",
+    PartiteRisultato: "/api/partite/{id}/risultato",
   );
 }
 

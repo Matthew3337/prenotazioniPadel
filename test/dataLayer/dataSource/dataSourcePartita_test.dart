@@ -13,6 +13,8 @@ import 'package:thepadel/dataLayer/model/partitaPubblicaModel.dart';
 import 'package:thepadel/dataLayer/model/partitaInvitoModel.dart';
 import 'package:thepadel/dataLayer/model/partitaStoricoModel.dart';
 import 'package:thepadel/dataLayer/model/utenteInvitabileModel.dart';
+import 'package:thepadel/domainLayer/enetity/setPartita.dart';
+import 'package:thepadel/repositoryImpl/partitaRepoImpl.dart';
 
 import '../../fake/fakePrenotazioneRepo.dart';
 
@@ -936,6 +938,115 @@ void main()
       final ds = creaDataSource(401, "", richieste);
 
       await expectLater(ds.confermaPartita(7), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("registraRisultato", ()
+  {
+    final squadra1 = [11, 12];
+    final squadra2 = [13, 14];
+    final set = [SetPartita(squadra1: 6, squadra2: 4), SetPartita(squadra1: 3, squadra2: 6), SetPartita(squadra1: 6, squadra2: 2)];
+
+    //risposta 200 del contratto T9: il dettaglio con squadre e risultato valorizzati
+    String rispostaConRisultato()
+    {
+      final dettaglio = jsonDecode(rispostaDettaglio(2.5)) as Map<String, dynamic>;
+      dettaglio["stato"] = "giocata";
+      dettaglio["posti"] = [
+        {"idPosto": 11, "tipo": "UTENTE", "telefono": "3331234567", "nome": "Mario", "cognome": "Rossi", "livello": 2.5, "confermata": true, "squadra": 1},
+        {"idPosto": 14, "tipo": "CAMPO", "telefono": null, "nome": null, "cognome": null, "livello": null, "confermata": false, "squadra": 2},
+      ];
+      dettaglio["risultato"] = {
+        "set": [{"squadra1": 6, "squadra2": 4}, {"squadra1": 3, "squadra2": 6}, {"squadra1": 6, "squadra2": 2}],
+        "squadraUtente": 1,
+        "esito": "VINTA",
+        "puntiAssegnati": null,
+      };
+      return jsonEncode(dettaglio);
+    }
+
+    test("200: POST all'url con l'id, token e body del contratto, restituisce il dettaglio aggiornato", () async
+    {
+      final ds = creaDataSource(200, rispostaConRisultato(), richieste);
+
+      final dettaglio = await ds.registraRisultato(7, squadra1, squadra2, set);
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "POST");
+      expect(richieste.first.url.toString(), "http://test/api/partite/7/risultato");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+      expect(jsonDecode(richieste.first.body), {
+        "squadra1": [11, 12],
+        "squadra2": [13, 14],
+        "set": [{"squadra1": 6, "squadra2": 4}, {"squadra1": 3, "squadra2": 6}, {"squadra1": 6, "squadra2": 2}],
+      });
+
+      expect(dettaglio, isA<DettaglioPartitaModel>());
+      expect(dettaglio.stato, "giocata");
+      expect(dettaglio.posti[0].squadra, 1);
+      expect(dettaglio.risultato!.set.length, 3);
+      expect(dettaglio.risultato!.esito, "VINTA");
+    });
+
+    test("con due soli set il body ne contiene due", () async
+    {
+      final ds = creaDataSource(200, rispostaConRisultato(), richieste);
+
+      await ds.registraRisultato(7, squadra1, squadra2, [SetPartita(squadra1: 6, squadra2: 4), SetPartita(squadra1: 6, squadra2: 2)]);
+
+      final body = jsonDecode(richieste.first.body) as Map<String, dynamic>;
+      expect(body["set"], [{"squadra1": 6, "squadra2": 4}, {"squadra1": 6, "squadra2": 2}]);
+    });
+
+    test("il repository delega al data source", () async
+    {
+      final ds = creaDataSource(200, rispostaConRisultato(), richieste);
+
+      final dettaglio = await PartitaRepoImpl(dsPartita: ds).registraRisultato(7, squadra1, squadra2, set);
+
+      expect(dettaglio.stato, "giocata");
+      expect(richieste.length, 1);
+    });
+
+    for(final caso in {
+      400: "Il terzo set non va inserito se una squadra ha vinto i primi due",
+      403: "L'amministratore modifica i risultati dalla propria area",
+      409: "Il risultato è già stato registrato",
+    }.entries)
+    {
+      test("${caso.key}: lancia OperazioneRifiutata col messaggio del server", () async
+      {
+        final ds = creaDataSource(caso.key, erroreServer(caso.key, caso.value), richieste);
+
+        await expectLater(
+          ds.registraRisultato(7, squadra1, squadra2, set),
+          throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", caso.value)),
+        );
+      });
+    }
+
+    test("404: lancia PartitaNonTrovata col messaggio del server", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Partita non trovata"), richieste);
+
+      await expectLater(
+        ds.registraRisultato(99, squadra1, squadra2, set),
+        throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Partita non trovata")),
+      );
+    });
+
+    test("altro errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore interno"), richieste);
+
+      await expectLater(ds.registraRisultato(7, squadra1, squadra2, set), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("risposta senza body (401 col token scaduto): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.registraRisultato(7, squadra1, squadra2, set), throwsA(isA<ErroreGenericoServer>()));
     });
   });
 }
