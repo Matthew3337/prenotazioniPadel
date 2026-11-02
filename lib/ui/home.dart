@@ -7,9 +7,11 @@ import 'package:thepadel/bloc/homePage/homeState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/prenotazione.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
+import 'package:thepadel/domainLayer/enetity/voceClassifica.dart';
 
 import 'bachecaInviti.dart';
 import 'bachecaPubbliche.dart';
+import 'classifica.dart';
 import 'creaPartita.dart';
 import 'dettaglioPartita.dart';
 import 'storico.dart';
@@ -22,7 +24,8 @@ class HomePage extends StatelessWidget {
     return BlocProvider<HomeBloc>(
       create: (_) => sl<HomeBloc>()
         ..add(const HomeProssimaPartitaRequested())
-        ..add(const HomeSlotOggiRequested()),
+        ..add(const HomeSlotOggiRequested())
+        ..add(const HomeClassificaRequested()),
       child: const _HomeView(),
     );
   }
@@ -103,7 +106,7 @@ class _HomeView extends StatelessWidget {
                           const SizedBox(height: 18),
                           _buildCampiLiberi(r),
                           const SizedBox(height: 18),
-                          _buildClassifica(r),
+                          _buildClassifica(context, r),
                         ],
                       ),
                     ),
@@ -486,7 +489,8 @@ class _HomeView extends StatelessWidget {
     if (context.mounted) {
       context.read<HomeBloc>()
         ..add(const HomeProssimaPartitaRequested())
-        ..add(const HomeSlotOggiRequested());
+        ..add(const HomeSlotOggiRequested())
+        ..add(const HomeClassificaRequested());
     }
   }
 
@@ -506,14 +510,19 @@ class _HomeView extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Slot disponibili oggi',
-                  style: TextStyle(
-                    fontSize: r.font(17),
-                    fontWeight: FontWeight.w500,
-                    color: greyText,
+                Flexible(
+                  child: Text(
+                    'Slot disponibili oggi',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: r.font(17),
+                      fontWeight: FontWeight.w500,
+                      color: greyText,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 GestureDetector(
                   onTap: () {
                     // TODO: apertura selezione data
@@ -711,25 +720,27 @@ class _HomeView extends StatelessWidget {
     if (idPartita != null && context.mounted) {
       context.read<HomeBloc>()
         ..add(const HomeProssimaPartitaRequested())
-        ..add(const HomeSlotOggiRequested());
+        ..add(const HomeSlotOggiRequested())
+        ..add(const HomeClassificaRequested());
       await _apriDettaglio(context, idPartita);
     }
   }
 
   Future<void> _apriDettaglio(BuildContext context, int idPartita) async {
-    final risultato = await Navigator.push<bool>(
+    await Navigator.push<bool>(
       context,
       MaterialPageRoute<bool>(
         builder: (_) => DettaglioPartitaPage(idPartita: idPartita),
       ),
     );
 
-    // true arriva se la partita e' stata eliminata o se l'utente ne e'
-    // uscito: prossima partita e slot liberi sono cambiati
-    if (risultato == true && context.mounted) {
+    // ricarichiamo sempre: dopo un risultato registrato la pagina torna con
+    // la freccia indietro, senza true, ma il punteggio in classifica e' cambiato
+    if (context.mounted) {
       context.read<HomeBloc>()
         ..add(const HomeProssimaPartitaRequested())
-        ..add(const HomeSlotOggiRequested());
+        ..add(const HomeSlotOggiRequested())
+        ..add(const HomeClassificaRequested());
     }
   }
 
@@ -737,33 +748,34 @@ class _HomeView extends StatelessWidget {
   // CLASSIFICA
   // =====================================================================
 
-  Widget _buildClassifica(_Responsive r) {
-    final badgeSize = (r.width * 0.12).clamp(44.0, 54.0);
-
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'La tua posizione',
-                  style: TextStyle(
-                    fontSize: r.font(17),
-                    fontWeight: FontWeight.w500,
-                    color: greyText,
+  Widget _buildClassifica(BuildContext context, _Responsive r) {
+    // tutta la card apre la classifica: anche il tocco su "Classifica
+    // completa" arriva qui, il link non ha bisogno di un suo gesture
+    return InkWell(
+      borderRadius: BorderRadius.circular(r.cardBorderRadius),
+      onTap: () {
+        _apriClassifica(context);
+      },
+      child: _buildCard(
+        r: r,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'La tua posizione',
+                    style: TextStyle(
+                      fontSize: r.font(17),
+                      fontWeight: FontWeight.w500,
+                      color: greyText,
+                    ),
                   ),
-                ),
-                Flexible(
-                  child: GestureDetector(
-                    onTap: () {
-                      // TODO
-                    },
+                  Flexible(
                     child: Text(
                       'Classifica completa',
                       textAlign: TextAlign.right,
@@ -776,45 +788,139 @@ class _HomeView extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Container(
-                  width: badgeSize,
-                  height: badgeSize,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFF0D9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '4',
-                      style: TextStyle(
-                        fontSize: r.font(18),
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF92530B),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Text(
-                  'Punteggio: 1240',
-                  style: TextStyle(
-                    fontSize: r.font(15),
-                    fontWeight: FontWeight.w500,
-                    color: darkText,
-                  ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildClassificaSection(r),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildClassificaSection(_Responsive r) {
+    return BlocBuilder<HomeBloc, HomeState>(
+      builder: (context, state) {
+        final sectionState = state.classifica;
+
+        if (sectionState is SectionLoading) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(
+              child: CircularProgressIndicator(color: primaryColor),
+            ),
+          );
+        }
+
+        if (sectionState is SectionError<VoceClassifica>) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  color: Colors.redAccent,
+                  size: r.font(26),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  sectionState.message,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: greyText, fontSize: r.font(14)),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () {
+                    context
+                        .read<HomeBloc>()
+                        .add(const HomeClassificaRequested());
+                  },
+                  child: Text(
+                    'Riprova',
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: r.font(15),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // succede all'admin, che non compare tra i giocatori in classifica
+        if (sectionState is SectionEmpty) {
+          return Text(
+            'Classifica non disponibile',
+            style: TextStyle(fontSize: r.font(14), color: greyText),
+          );
+        }
+
+        if (sectionState is SectionSuccess<VoceClassifica>) {
+          return _rigaPosizione(r, sectionState.data);
+        }
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _rigaPosizione(_Responsive r, VoceClassifica voce) {
+    final badgeSize = (r.width * 0.12).clamp(44.0, 54.0);
+
+    return Row(
+      children: [
+        Container(
+          width: badgeSize,
+          height: badgeSize,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFFF0D9),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              '${voce.posizione}',
+              style: TextStyle(
+                fontSize: r.font(18),
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF92530B),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            'Punteggio: ${voce.punteggio}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: r.font(15),
+              fontWeight: FontWeight.w500,
+              color: darkText,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _apriClassifica(BuildContext context) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute<void>(builder: (_) => const ClassificaPage()),
+    );
+
+    // nel frattempo i punti possono essere cambiati, quindi al ritorno
+    // ricarichiamo le sezioni come per le altre pagine
+    if (context.mounted) {
+      context.read<HomeBloc>()
+        ..add(const HomeProssimaPartitaRequested())
+        ..add(const HomeSlotOggiRequested())
+        ..add(const HomeClassificaRequested());
+    }
   }
 
   // =====================================================================
@@ -872,6 +978,9 @@ Widget _buildBottomNavigation(BuildContext context, _Responsive r) {
             icon: Icons.bar_chart_outlined,
             label: 'Classifica',
             selected: false,
+            onTap: () {
+              _apriClassifica(context);
+            },
           ),
         ],
       ),
@@ -890,7 +999,8 @@ Future<void> _apriStorico(BuildContext context) async {
   if (context.mounted) {
     context.read<HomeBloc>()
       ..add(const HomeProssimaPartitaRequested())
-      ..add(const HomeSlotOggiRequested());
+      ..add(const HomeSlotOggiRequested())
+      ..add(const HomeClassificaRequested());
   }
 }
 

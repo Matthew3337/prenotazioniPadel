@@ -4,6 +4,7 @@ import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/dataLayer/model/utenteModel.dart';
+import 'package:thepadel/dataLayer/model/voceClassificaModel.dart';
 
 class DataSourceUtente{
 
@@ -61,5 +62,20 @@ class DataSourceUtente{
       throw ErroreGenericoServer();
     }
 
+  }
+
+  Future<List<VoceClassificaModel>> getClassifica() async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    dynamic res = await c.get(elencoUrl.BaseUrl + elencoUrl.Classifica, token: token);
+
+    if(res is List) //BUON FINE
+    {
+      return res.map((e) => VoceClassificaModel.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    else
+    { //se c'e un errore arriva una mappa (o niente), non c'e un caso specifico da gestire
+      throw ErroreGenericoServer();
+    }
   }
 }
