@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/bloc/autenticazione/authBloc.dart';
 import 'package:thepadel/bloc/bachecaInviti/bachecaInvitiBloc.dart';
 import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheBloc.dart';
+import 'package:thepadel/bloc/classifica/classificaBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
@@ -24,6 +25,7 @@ import 'package:thepadel/repositoryImpl/utenteRepoImpl.dart';
 import 'package:thepadel/useCase/authUseCase.dart';
 import 'package:thepadel/useCase/bachecaInvitiUseCase.dart';
 import 'package:thepadel/useCase/bachecaPubblicheUseCase.dart';
+import 'package:thepadel/useCase/classificaUseCase.dart';
 import 'package:thepadel/useCase/creaPartitaUseCase.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
@@ -65,7 +67,11 @@ void init()
 
   sl.registerLazySingleton<SlotDisponibiliUseCase>(() => SlotDisponibiliUseCase(repo: sl()));
 
-  sl.registerFactory<HomeBloc>(()=> HomeBloc(prossimaPartitaUseCase: sl(), slotUseCase: sl()));
+  sl.registerLazySingleton<ClassificaUseCase>(() => ClassificaUseCase(repo: sl()));
+
+  sl.registerFactory<ClassificaBloc>(() => ClassificaBloc(classificaUseCase: sl()));
+
+  sl.registerFactory<HomeBloc>(()=> HomeBloc(prossimaPartitaUseCase: sl(), slotUseCase: sl(), classificaUseCase: sl()));
 
   sl.registerLazySingleton<CreaPartitaUseCase>(() => CreaPartitaUseCase(repo: sl()));
 
