@@ -8,6 +8,7 @@ import 'package:thepadel/dataLayer/model/partitaInvitoModel.dart';
 import 'package:thepadel/dataLayer/model/partitaPubblicaModel.dart';
 import 'package:thepadel/dataLayer/model/partitaStoricoModel.dart';
 import 'package:thepadel/dataLayer/model/utenteInvitabileModel.dart';
+import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 
 class DataSourcePartita{
 
@@ -244,6 +245,42 @@ class DataSourcePartita{
       throw PartitaNonTrovata(messaggio: res['errore']);
     }
     else if(res.containsKey("errore") && ((res['status'] as int) == 403 || (res['status'] as int) == 409)) //E L'ADMIN, NON PARTECIPA, HA GIA CONFERMATO O SIAMO FUORI DALLA FINESTRA TRA 24 E 12 ORE
+    {
+      throw OperazioneRifiutata(messaggio: res['errore']);
+    }
+    else
+    { //ALTRI ERRORI
+      throw ErroreGenericoServer();
+    }
+  }
+
+  Future<DettaglioPartitaModel> registraRisultato(int idPartita, List<int> squadra1, List<int> squadra2, List<SetPartita> set) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+
+    //i set sono entity, il body invece vuole una lista di mappe con i game delle due squadre
+    List<Map<String, dynamic>> setJson = [];
+    for (SetPartita s in set)
+    {
+      setJson.add({"squadra1": s.squadra1, "squadra2": s.squadra2});
+    }
+    Map<String, dynamic> body = {"squadra1": squadra1, "squadra2": squadra2, "set": setJson};
+
+    dynamic res = await c.post(elencoUrl.BaseUrl + elencoUrl.PartiteRisultato.replaceFirst("{id}", idPartita.toString()), body, token: token);
+
+    if(res == null) //risposta senza body (es. token scaduto), non c'e niente da leggere
+    {
+      throw ErroreGenericoServer();
+    }
+    else if(res.containsKey("posti")) //BUON FINE, il server restituisce il dettaglio gia aggiornato con il risultato
+    {
+      return DettaglioPartitaModel.fromJson(res);
+    }
+    else if(res.containsKey("errore") && (res['status'] as int) == 404) //PARTITA INESISTENTE O NON VISIBILE
+    {
+      throw PartitaNonTrovata(messaggio: res['errore']);
+    }
+    else if(res.containsKey("errore") && ((res['status'] as int) == 400 || (res['status'] as int) == 403 || (res['status'] as int) == 409)) //SQUADRE O SET NON VALIDI, E L'ADMIN, NON PARTECIPA, RISULTATO GIA REGISTRATO, PARTITA NON CONFERMATA O FUORI DALLE 24 ORE DOPO LA FINE
     {
       throw OperazioneRifiutata(messaggio: res['errore']);
     }

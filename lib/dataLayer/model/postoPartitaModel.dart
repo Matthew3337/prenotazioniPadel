@@ -2,7 +2,7 @@ import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 
 class PostoPartitaModel extends PostoPartita{
 
-  PostoPartitaModel({required super.tipo, required super.telefono, required super.nome, required super.cognome, required super.livello, required super.confermata});
+  PostoPartitaModel({required super.idPosto, required super.tipo, required super.telefono, required super.nome, required super.cognome, required super.livello, required super.confermata, required super.squadra});
 
   factory PostoPartitaModel.fromJson(Map<String, dynamic> json)
   {
@@ -13,13 +13,16 @@ class PostoPartitaModel extends PostoPartita{
       livello = (json['livello'] as num).toDouble();
     }
 
+    //idPosto e squadra con as int? valgono null anche se il server non li manda ancora
     return PostoPartitaModel(
+      idPosto: json['idPosto'] as int?,
       tipo: json['tipo'] as String,
       telefono: json['telefono'] as String?,
       nome: json['nome'] as String?,
       cognome: json['cognome'] as String?,
       livello: livello,
-      confermata: json['confermata'] as bool
+      confermata: json['confermata'] as bool,
+      squadra: json['squadra'] as int?
     );
   }
 }

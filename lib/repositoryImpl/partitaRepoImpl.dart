@@ -3,6 +3,7 @@ import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/partitaInvito.dart';
 import 'package:thepadel/domainLayer/enetity/partitaPubblica.dart';
 import 'package:thepadel/domainLayer/enetity/partitaStorico.dart';
+import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 import 'package:thepadel/domainLayer/enetity/utenteInvitabile.dart';
 import 'package:thepadel/domainLayer/repositoryInterface/partitaRepo.dart';
 
@@ -60,6 +61,11 @@ class PartitaRepoImpl implements PartitaRepo {
   @override
   Future<DettaglioPartita> confermaPartita(int idPartita) {
     return dsPartita.confermaPartita(idPartita);
+  }
+
+  @override
+  Future<DettaglioPartita> registraRisultato(int idPartita, List<int> squadra1, List<int> squadra2, List<SetPartita> set) {
+    return dsPartita.registraRisultato(idPartita, squadra1, squadra2, set);
   }
 
 }

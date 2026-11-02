@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:thepadel/domainLayer/enetity/azioniPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
+import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 
 class DettaglioPartita {
   //attributi
@@ -15,8 +16,9 @@ class DettaglioPartita {
   final String telefonoCreatore;
   final List<PostoPartita> posti; //solo i posti occupati, il creatore e sempre il primo
   final AzioniPartita azioni;
+  final RisultatoPartita? risultato; //null finche nessuno lo ha registrato
 
-  DettaglioPartita({required this.id, required this.idCampo, required this.nomeCampo, required this.dataPartita, required this.oraInizio, required this.oraFine, required this.stato, required this.tipo, required this.telefonoCreatore, required this.posti, required this.azioni});
+  DettaglioPartita({required this.id, required this.idCampo, required this.nomeCampo, required this.dataPartita, required this.oraInizio, required this.oraFine, required this.stato, required this.tipo, required this.telefonoCreatore, required this.posti, required this.azioni, required this.risultato});
 
   //metodi
 
