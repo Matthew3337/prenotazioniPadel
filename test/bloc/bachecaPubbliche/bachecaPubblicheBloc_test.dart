@@ -149,4 +149,29 @@ void main()
       isA<BachecaPubblicheErrore>().having((s) => s.messaggio, "messaggio", ErroreGenericoServer().messaggio),
     ]));
   });
+
+  test("timeout o rete assente al caricamento: Loading poi Errore col messaggio generico", () async
+  {
+    repo.errorePubbliche = Exception("timeout");
+    bloc.add(const BachecaPubblicheRichiesta());
+
+    await expectLater(bloc.stream, emitsInOrder([
+      isA<BachecaPubblicheLoading>(),
+      isA<BachecaPubblicheErrore>().having((s) => s.messaggio, "messaggio", ErroreGenericoServer().messaggio),
+    ]));
+  });
+
+  test("timeout o rete assente all'ingresso: IngressoErrore col messaggio generico, poi la lista ricaricata", () async
+  {
+    await caricaBacheca();
+
+    repo.erroreEntra = Exception("timeout");
+    bloc.add(const EntraInPartitaRichiesto(idPartita: 10));
+
+    await expectLater(bloc.stream, emitsInOrder([
+      isA<IngressoInCorso>(),
+      isA<IngressoErrore>().having((s) => s.messaggio, "messaggio", ErroreGenericoServer().messaggio),
+      caricataCon([10, 11]),
+    ]));
+  });
 }

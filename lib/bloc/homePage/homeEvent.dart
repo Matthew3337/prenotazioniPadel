@@ -17,3 +17,11 @@ class HomeSlotOggiRequested extends HomeEvent {
 class HomeClassificaRequested extends HomeEvent {
   const HomeClassificaRequested();
 }
+
+class HomeInvitiRequested extends HomeEvent {
+  const HomeInvitiRequested();
+}
+
+class HomePartitePubblicheRequested extends HomeEvent {
+  const HomePartitePubblicheRequested();
+}

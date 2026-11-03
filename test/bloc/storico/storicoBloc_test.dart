@@ -82,4 +82,15 @@ void main()
     ]));
     expect(repo.chiamateStorico, 2);
   });
+
+  test("timeout o rete assente: Loading poi Errore col messaggio generico", () async
+  {
+    repo.erroreStorico = Exception("timeout");
+    bloc.add(const StoricoRichiesto());
+
+    await expectLater(bloc.stream, emitsInOrder([
+      isA<StoricoLoading>(),
+      isA<StoricoErrore>().having((s) => s.messaggio, "messaggio", ErroreGenericoServer().messaggio),
+    ]));
+  });
 }

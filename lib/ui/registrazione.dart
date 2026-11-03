@@ -4,9 +4,13 @@ import 'package:thepadel/bloc/autenticazione/authBloc.dart';
 import 'package:thepadel/bloc/autenticazione/authState.dart';
 import 'package:thepadel/bloc/autenticazione/authevent.dart';
 import 'package:thepadel/core/di/depInjection.dart';
+import 'package:thepadel/dataLayer/exception.dart';
+
+import 'stileApp.dart';
 
 class RegistrazionePage extends StatefulWidget {
   const RegistrazionePage({super.key});
+
   @override
   State<RegistrazionePage> createState() => RegistrazionePageState();
 }
@@ -17,7 +21,7 @@ class RegistrazionePageState extends State<RegistrazionePage> {
     return BlocProvider(
       create: (_) => sl<AuthBloc>(),
       child: const Scaffold(
-        backgroundColor: Color(0xFFF7F8FC),
+        backgroundColor: Colors.white,
         body: _RegistrazioneForm(),
       ),
     );
@@ -26,6 +30,7 @@ class RegistrazionePageState extends State<RegistrazionePage> {
 
 class _RegistrazioneForm extends StatefulWidget {
   const _RegistrazioneForm();
+
   @override
   State<_RegistrazioneForm> createState() => _RegistrazioneFormState();
 }
@@ -36,7 +41,6 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
   final _telefonoController = TextEditingController();
   final _passwordController = TextEditingController();
   DateTime? _dataNascita;
-  bool _nascondiPassword = true;
 
   @override
   void dispose() {
@@ -47,7 +51,7 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
     super.dispose();
   }
 
-  Future<void> _selezionaData(BuildContext context, double width) async {
+  Future<void> _selezionaData(BuildContext context) async {
     final now = DateTime.now();
     final data = await showDatePicker(
       context: context,
@@ -58,9 +62,9 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF3F5DA8),
+              primary: Colori.bluCampo,
               onPrimary: Colors.white,
-              onSurface: Color(0xFF1E2432),
+              onSurface: Colori.testo,
             ),
           ),
           child: child!,
@@ -77,509 +81,332 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
   String _formattaData(DateTime data) {
     final gg = data.day.toString().padLeft(2, '0');
     final mm = data.month.toString().padLeft(2, '0');
-    return "$gg/$mm/${data.year}";
+    return '$gg/$mm/${data.year}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final width = media.size.width;
-    final height = media.size.height;
-    // Dimensione massima del contenuto sui dispositivi grandi
-    final contentWidth = width > 500 ? 420.0 : width * 0.88;
-    // Dimensione adattiva del logo
-    final logoSize = width * 0.28 > 140 ? 140.0 : width * 0.28;
+    final r = Responsive(context);
+
     return SafeArea(
       child: Center(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: width * 0.06,
-            vertical: height * 0.025,
-          ),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: contentWidth,
-            ),
-            child: BlocConsumer<AuthBloc, AuthState>(
-              listener: (context, state) {
-                if (state is RegistrazioneSuccess) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text("Registrazione avvenuta con successo, effettua il login"),
-                      behavior: SnackBarBehavior.floating,
-                      margin: EdgeInsets.symmetric(
-                        horizontal: width * 0.05,
-                        vertical: height * 0.02,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  );
-                  Navigator.of(context).pop();
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 468),
+          child: BlocConsumer<AuthBloc, AuthState>(
+            listener: (context, state) {
+              if (state is RegistrazioneSuccess) {
+                mostraSnackBar(
+                  context,
+                  'Registrazione avvenuta con successo, effettua il login',
+                );
+                Navigator.of(context).pop();
+              }
+            },
+            builder: (context, state) {
+              final bool isLoading = state is AuthLoading;
+
+              // un errore alla volta: quello col campo va sotto il suo campo,
+              // quello generale in un riquadro sopra il bottone
+              CampoErroreAuth campoErrato = CampoErroreAuth.nessuno;
+              String? erroreGenerale;
+              String messaggioCampo = '';
+              if (state is AuthErrore) {
+                campoErrato = state.campo;
+                if (state.campo == CampoErroreAuth.nessuno) {
+                  erroreGenerale = state.messaggio;
+                } else {
+                  messaggioCampo = state.messaggio;
                 }
-                if (state is AuthErrore) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(state.messaggio),
-                      behavior: SnackBarBehavior.floating,
-                      margin: EdgeInsets.symmetric(
-                        horizontal: width * 0.05,
-                        vertical: height * 0.02,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  );
+              }
+
+              String? errore(CampoErroreAuth campo) {
+                if (campo == campoErrato) {
+                  return messaggioCampo;
                 }
-              },
-              builder: (context, state) {
-                final isLoading = state is AuthLoading;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // BOTTONE INDIETRO
-                    SizedBox(
-                      height: height * 0.02,
-                    ),
-                    Align(
+                return null;
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
+                    child: Align(
                       alignment: Alignment.centerLeft,
                       child: IconButton(
-                        onPressed: isLoading
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                        icon: const Icon(
-                          Icons.arrow_back,
-                          color: Color(0xFF353B48),
+                        tooltip: 'Torna al login',
+                        constraints: const BoxConstraints(
+                          minWidth: 44,
+                          minHeight: 44,
                         ),
-                      ),
-                    ),
-                    // LOGO
-                    Center(
-                      child: Container(
-                        width: logoSize,
-                        height: logoSize,
-                        padding: EdgeInsets.all(width * 0.03),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.07),
-                              blurRadius: 25,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
-                          child: Image.asset(
-                            "assets/icon/logoHome.png",
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.03,
-                    ),
-                    // TITOLO
-                    Text(
-                      "Crea il tuo account",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: width * 0.075,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1E2432),
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.008,
-                    ),
-                    Text(
-                      "Registrati per iniziare a prenotare",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: width * 0.038,
-                        color: const Color(0xFF7A8190),
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.04,
-                    ),
-                    // NOME
-                    Text(
-                      "Nome",
-                      style: TextStyle(
-                        fontSize: width * 0.035,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF353B48),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.01,
-                    ),
-                    TextField(
-                      controller: _nomeController,
-                      enabled: !isLoading,
-                      keyboardType: TextInputType.name,
-                      textCapitalization: TextCapitalization.words,
-                      style: TextStyle(
-                        fontSize: width * 0.04,
-                        color: const Color(0xFF252A35),
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "Inserisci il tuo nome",
-                        hintStyle: const TextStyle(
-                          color: Color(0xFFA0A5AF),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.person_outline,
-                          color: Color(0xFF3F5DA8),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: width * 0.045,
-                          vertical: height * 0.021,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE3E6ED),
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF3F5DA8),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.025,
-                    ),
-                    // COGNOME
-                    Text(
-                      "Cognome",
-                      style: TextStyle(
-                        fontSize: width * 0.035,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF353B48),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.01,
-                    ),
-                    TextField(
-                      controller: _cognomeController,
-                      enabled: !isLoading,
-                      keyboardType: TextInputType.name,
-                      textCapitalization: TextCapitalization.words,
-                      style: TextStyle(
-                        fontSize: width * 0.04,
-                        color: const Color(0xFF252A35),
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "Inserisci il tuo cognome",
-                        hintStyle: const TextStyle(
-                          color: Color(0xFFA0A5AF),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.person_outline,
-                          color: Color(0xFF3F5DA8),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: width * 0.045,
-                          vertical: height * 0.021,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE3E6ED),
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF3F5DA8),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.025,
-                    ),
-                    // DATA DI NASCITA
-                    Text(
-                      "Data di nascita",
-                      style: TextStyle(
-                        fontSize: width * 0.035,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF353B48),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.01,
-                    ),
-                    InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: isLoading
-                          ? null
-                          : () => _selezionaData(context, width),
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          hintText: "Seleziona la data",
-                          hintStyle: const TextStyle(
-                            color: Color(0xFFA0A5AF),
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.calendar_today_outlined,
-                            color: Color(0xFF3F5DA8),
-                          ),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: width * 0.045,
-                            vertical: height * 0.021,
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFE3E6ED),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                        child: Text(
-                          _dataNascita == null
-                              ? ""
-                              : _formattaData(_dataNascita!),
-                          style: TextStyle(
-                            fontSize: width * 0.04,
-                            color: const Color(0xFF252A35),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.025,
-                    ),
-                    // TELEFONO
-                    Text(
-                      "Numero di telefono",
-                      style: TextStyle(
-                        fontSize: width * 0.035,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF353B48),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.01,
-                    ),
-                    TextField(
-                      controller: _telefonoController,
-                      enabled: !isLoading,
-                      keyboardType: TextInputType.phone,
-                      style: TextStyle(
-                        fontSize: width * 0.04,
-                        color: const Color(0xFF252A35),
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "Inserisci il tuo numero",
-                        hintStyle: const TextStyle(
-                          color: Color(0xFFA0A5AF),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.phone_outlined,
-                          color: Color(0xFF3F5DA8),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: width * 0.045,
-                          vertical: height * 0.021,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE3E6ED),
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF3F5DA8),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.025,
-                    ),
-                    // PASSWORD
-                    Text(
-                      "Password",
-                      style: TextStyle(
-                        fontSize: width * 0.035,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF353B48),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.01,
-                    ),
-                    TextField(
-                      controller: _passwordController,
-                      enabled: !isLoading,
-                      obscureText: _nascondiPassword,
-                      style: TextStyle(
-                        fontSize: width * 0.04,
-                        color: const Color(0xFF252A35),
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "Crea una password",
-                        hintStyle: const TextStyle(
-                          color: Color(0xFFA0A5AF),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.lock_outline,
-                          color: Color(0xFF3F5DA8),
-                        ),
-                        suffixIcon: IconButton(
-                          onPressed: isLoading
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _nascondiPassword =
-                                        !_nascondiPassword;
-                                  });
+                        padding: EdgeInsets.zero,
+                        onPressed:
+                            isLoading
+                                ? null
+                                : () {
+                                  Navigator.of(context).pop();
                                 },
-                          icon: Icon(
-                            _nascondiPassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                            color: const Color(0xFF8C93A0),
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: width * 0.045,
-                          vertical: height * 0.021,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE3E6ED),
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF3F5DA8),
-                            width: 1.5,
-                          ),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new,
+                          size: 20,
+                          color: Colori.testo,
                         ),
                       ),
                     ),
-                    SizedBox(
-                      height: height * 0.04,
-                    ),
-                    // BOTTONE REGISTRATI
-                    SizedBox(
-                      height: height * 0.065,
-                      child: ElevatedButton(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                context.read<AuthBloc>().add(
-                                  RegistrazioneRichiesta(
-                                    nome: _nomeController.text,
-                                    cognome: _cognomeController.text,
-                                    telefono: _telefonoController.text,
-                                    dataNascita:
-                                        _dataNascita ?? DateTime(0),
-                                    pw: _passwordController.text,
-                                  ),
-                                );
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color(0xFF3F5DA8),
-                          disabledBackgroundColor:
-                              const Color(0xFF9AA8C8),
-                          foregroundColor: Colors.white,
-                          elevation: 3,
-                          shadowColor:
-                              const Color(0xFF3F5DA8).withOpacity(0.3),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text('Crea il tuo account', style: stileTitolo(r)),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Accederai con il numero di telefono.',
+                            style: stileSecondario(r),
                           ),
-                        ),
-                        child: isLoading
-                            ? SizedBox(
-                                width: width * 0.055,
-                                height: width * 0.055,
-                                child:
-                                    const CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                "REGISTRATI",
-                                style: TextStyle(
-                                  fontSize: width * 0.04,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
+                          const SizedBox(height: 12),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _campoTesto(
+                                  r,
+                                  etichetta: 'Nome',
+                                  controller: _nomeController,
+                                  isLoading: isLoading,
+                                  errore: errore(CampoErroreAuth.nome),
+                                  suggerimento: AutofillHints.givenName,
                                 ),
                               ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _campoTesto(
+                                  r,
+                                  etichetta: 'Cognome',
+                                  controller: _cognomeController,
+                                  isLoading: isLoading,
+                                  errore: errore(CampoErroreAuth.cognome),
+                                  suggerimento: AutofillHints.familyName,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _campoData(
+                            context,
+                            r,
+                            isLoading,
+                            errore(CampoErroreAuth.dataNascita),
+                          ),
+                          const SizedBox(height: 12),
+                          _campoTesto(
+                            r,
+                            etichetta: 'Telefono',
+                            controller: _telefonoController,
+                            isLoading: isLoading,
+                            errore: errore(CampoErroreAuth.telefono),
+                            tastiera: TextInputType.phone,
+                            suggerimento: AutofillHints.telephoneNumber,
+                          ),
+                          const SizedBox(height: 12),
+                          _campoTesto(
+                            r,
+                            etichetta: 'Password',
+                            controller: _passwordController,
+                            isLoading: isLoading,
+                            errore: errore(CampoErroreAuth.password),
+                            nascosto: true,
+                            suggerimento: AutofillHints.newPassword,
+                          ),
+                          const SizedBox(height: 16),
+                          if (erroreGenerale != null) ...[
+                            _buildErroreGenerale(context, erroreGenerale),
+                            const SizedBox(height: 12),
+                          ],
+                          BottonePieno(
+                            testo: isLoading ? 'Attendi…' : 'Registrati',
+                            altezza: 52,
+                            baseFont: 16,
+                            onPressed:
+                                isLoading
+                                    ? null
+                                    : () {
+                                      _registrati(context);
+                                    },
+                          ),
+                          const SizedBox(height: 4),
+                          _buildVaiALogin(context, r, isLoading),
+                        ],
                       ),
                     ),
-                    SizedBox(
-                      height: height * 0.025,
-                    ),
-                  ],
-                );
-              },
-            ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
+    );
+  }
+
+  void _registrati(BuildContext context) {
+    context.read<AuthBloc>().add(
+      RegistrazioneRichiesta(
+        nome: _nomeController.text,
+        cognome: _cognomeController.text,
+        telefono: _telefonoController.text,
+        // lo use case riconosce DateTime(0) come data non inserita
+        dataNascita: _dataNascita ?? DateTime(0),
+        pw: _passwordController.text,
+      ),
+    );
+  }
+
+  // ===== ERRORI =====
+
+  Widget _buildErroreGenerale(BuildContext context, String messaggio) {
+    // lo stato porta solo il testo: dal testo si capisce se il numero esiste
+    // gia', e in quel caso la cosa utile da proporre e' il login
+    if (messaggio == TelefonoDuplicatoException().messaggio) {
+      return RiquadroMessaggio(
+        testo: messaggio,
+        sfondo: Colori.arancioChiaro,
+        colore: Colori.arancio,
+        azione: LinkTesto(
+          testo: 'Accedi',
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+      );
+    }
+    return RiquadroMessaggio(testo: messaggio);
+  }
+
+  // ===== CAMPI =====
+
+  OutlineInputBorder _bordo(Color colore, double spessore) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: BorderSide(color: colore, width: spessore),
+    );
+  }
+
+  InputDecoration _decorazione(bool inErrore, bool isLoading) {
+    return InputDecoration(
+      filled: true,
+      fillColor: isLoading ? Colori.sfondo : Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      enabledBorder:
+          inErrore ? _bordo(Colori.rosso, 2) : _bordo(Colori.grigio, 1),
+      disabledBorder: _bordo(Colori.bordo, 1),
+      focusedBorder:
+          inErrore ? _bordo(Colori.rosso, 2) : _bordo(Colori.azzurro, 2),
+    );
+  }
+
+  Widget _campoTesto(
+    Responsive r, {
+    required String etichetta,
+    required TextEditingController controller,
+    required bool isLoading,
+    required String? errore,
+    required String suggerimento,
+    TextInputType tastiera = TextInputType.text,
+    bool nascosto = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(etichetta, style: stileTesto(r, peso: FontWeight.w600)),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          enabled: !isLoading,
+          keyboardType: tastiera,
+          obscureText: nascosto,
+          autofillHints: [suggerimento],
+          style: stileTesto(r, base: 16),
+          decoration: _decorazione(errore != null, isLoading),
+        ),
+        if (errore != null) _testoErrore(r, errore),
+      ],
+    );
+  }
+
+  Widget _testoErrore(Responsive r, String messaggio) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        messaggio,
+        style: stileTesto(
+          r,
+          base: 14,
+          peso: FontWeight.w600,
+          colore: Colori.rosso,
+        ),
+      ),
+    );
+  }
+
+  // la data si sceglie dal calendario, cosi' non si puo' inserirne una
+  // inesistente; l'aspetto resta quello degli altri campi
+  Widget _campoData(
+    BuildContext context,
+    Responsive r,
+    bool isLoading,
+    String? errore,
+  ) {
+    final DateTime? data = _dataNascita;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Data di nascita', style: stileTesto(r, peso: FontWeight.w600)),
+        const SizedBox(height: 4),
+        InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap:
+              isLoading
+                  ? null
+                  : () {
+                    _selezionaData(context);
+                  },
+          child: InputDecorator(
+            isEmpty: false,
+            decoration: _decorazione(errore != null, isLoading),
+            child: Text(
+              data == null ? 'gg/mm/aaaa' : _formattaData(data),
+              style:
+                  data == null
+                      ? stileSecondario(r, base: 16)
+                      : stileTesto(r, base: 16),
+            ),
+          ),
+        ),
+        if (errore != null) _testoErrore(r, errore),
+      ],
+    );
+  }
+
+  Widget _buildVaiALogin(BuildContext context, Responsive r, bool isLoading) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('Hai già un account? ', style: stileSecondario(r)),
+        LinkTesto(
+          testo: 'Accedi',
+          onPressed:
+              isLoading
+                  ? null
+                  : () {
+                    Navigator.of(context).pop();
+                  },
+        ),
+      ],
     );
   }
 }

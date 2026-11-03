@@ -311,4 +311,48 @@ void main()
       expect(repo.chiamateConferma, 0);
     });
   });
+
+  group("timeout o rete assente", ()
+  {
+    Future<void> caricaDettaglio() async
+    {
+      bloc.add(const DettaglioPartitaRichiesto(idPartita: 10));
+      await expectLater(bloc.stream, emitsInOrder([isA<DettaglioPartitaLoading>(), isA<DettaglioPartitaCaricato>()]));
+    }
+
+    test("al caricamento: Errore col messaggio generico", () async
+    {
+      repo.errore = Exception("timeout");
+      bloc.add(const DettaglioPartitaRichiesto(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([isA<DettaglioPartitaLoading>(), erroreCon(ErroreGenericoServer().messaggio)]));
+    });
+
+    test("su elimina: OperazioneErrore col messaggio generico e dettaglio ricaricato", () async
+    {
+      await caricaDettaglio();
+      repo.erroreElimina = Exception("timeout");
+      bloc.add(const EliminaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([isA<OperazioneInCorso>(), operazioneErroreCon(ErroreGenericoServer().messaggio), isA<DettaglioPartitaCaricato>()]));
+    });
+
+    test("su esci: OperazioneErrore col messaggio generico e dettaglio ricaricato", () async
+    {
+      await caricaDettaglio();
+      repo.erroreEsci = Exception("timeout");
+      bloc.add(const EsciDaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([isA<OperazioneInCorso>(), operazioneErroreCon(ErroreGenericoServer().messaggio), isA<DettaglioPartitaCaricato>()]));
+    });
+
+    test("su conferma: OperazioneErrore col messaggio generico e dettaglio ricaricato", () async
+    {
+      await caricaDettaglio();
+      repo.erroreConferma = Exception("timeout");
+      bloc.add(const ConfermaPartitaRichiesta(idPartita: 10));
+
+      await expectLater(bloc.stream, emitsInOrder([isA<OperazioneInCorso>(), operazioneErroreCon(ErroreGenericoServer().messaggio), isA<DettaglioPartitaCaricato>()]));
+    });
+  });
 }

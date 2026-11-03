@@ -2,36 +2,38 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
-import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
-import 'package:thepadel/bloc/registraRisultato/registraRisultatoBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 import 'package:thepadel/ui/dettaglioPartita.dart';
+import 'package:thepadel/ui/home.dart';
 import 'package:thepadel/ui/invitaUtenti.dart';
 import 'package:thepadel/ui/registraRisultato.dart';
-import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
-import 'package:thepadel/useCase/invitaUtentiUseCase.dart';
-import 'package:thepadel/useCase/registraRisultatoUseCase.dart';
+import 'package:thepadel/ui/stileApp.dart';
+import 'package:thepadel/ui/storico.dart';
 
+import '../fake/blocDiTest.dart';
+import '../fake/fakeCampoRepo.dart';
 import '../fake/fakePartitaRepo.dart';
+import '../fake/fakePreferenze.dart';
+import '../fake/fakePrenotazioneRepo.dart';
+import '../fake/fakeUtenteRepo.dart';
+import '../fake/temaDiTest.dart';
 
 void main()
 {
+  setUpAll(caricaFontDellApp);
+
   late FakePartitaRepo repo;
 
   setUp(() async
   {
     await sl.reset();
+    await registraPreferenzeDiTest();
     repo = FakePartitaRepo();
-    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo)));
-    //serve per l'apertura della pagina degli inviti dal bottone Invita
-    sl.registerFactory<InvitaUtentiBloc>(() => InvitaUtentiBloc(invitabiliUseCase: InvitabiliUseCase(repo: repo), invitaUtenteUseCase: InvitaUtenteUseCase(repo: repo), dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo)));
-    //serve per l'apertura del form del risultato dal bottone Registra risultato
-    sl.registerFactory<RegistraRisultatoBloc>(() => RegistraRisultatoBloc(registraRisultatoUseCase: RegistraRisultatoUseCase(repo: repo)));
+    registraBlocDiTest(repoPartita: repo, repoCampo: FakeCampoRepo(), repoPrenotazione: FakePrenotazioneRepo(), repoUtente: FakeUtenteRepo());
   });
 
   tearDown(() async
@@ -41,116 +43,179 @@ void main()
 
   Future<void> apriPagina(WidgetTester tester) async
   {
-    //schermo da telefono (390x844): con la superficie di default 800x600 i bottoni finiscono fuori vista
+    //schermo da telefono (390x844)
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const MaterialApp(home: DettaglioPartitaPage(idPartita: 10)));
+    await tester.pumpWidget(MaterialApp(theme: temaDiTest(), home: const DettaglioPartitaPage(idPartita: 10)));
     await tester.pumpAndSettle();
   }
 
-  testWidgets("mostra info, posti occupati, posti liberi ed etichetta Organizzatore", (tester) async
+  testWidgets("mostra titolo, data, stato, giocatori, posti liberi ed etichetta Organizzatore", (tester) async
   {
+    final dettaglio = dettaglioDiTest();
     await apriPagina(tester);
 
     expect(repo.idRicevuto, 10);
     expect(find.text("Dettaglio partita"), findsOneWidget);
-    expect(find.text("Campo Centrale"), findsOneWidget);
-    expect(find.text("lunedì 02/11/2026"), findsOneWidget);
-    expect(find.text("18:30 - 20:00"), findsOneWidget);
+    expect(find.text("${conMaiuscola(giornoRelativo(dettaglio.dataPartita))} alle 18:30"), findsOneWidget);
+    expect(find.text("${giornoEMese(dettaglio.dataPartita)}, 18:30 - 20:00 · Campo Centrale"), findsOneWidget);
+    expect(find.text("Mancano 2 giocatori"), findsOneWidget);
     expect(find.text("Pubblica"), findsOneWidget);
-    expect(find.text("Creata"), findsOneWidget);
 
+    expect(find.text("Giocatori, 2 su 4"), findsOneWidget);
     expect(find.text("Mario Rossi"), findsOneWidget);
-    expect(find.text("Livello 2.5 · Da confermare"), findsOneWidget);
+    expect(find.text("Organizzatore · Livello 2.5"), findsOneWidget);
+    expect(find.text("Da confermare"), findsOneWidget);
     expect(find.text("Giocatore del campo"), findsOneWidget);
     expect(find.text("Posto libero"), findsNWidgets(2));
-    //solo il creatore ha l'etichetta
-    expect(find.text("Organizzatore"), findsOneWidget);
+    //sul campo disegnato il mio posto dice Tu
+    expect(find.text("Tu"), findsOneWidget);
+    expect(find.text("Del campo"), findsOneWidget);
   });
 
   testWidgets("un partecipante che non e il creatore non ha l'etichetta Organizzatore", (tester) async
   {
     repo.risposta = dettaglioDiTest(posti: [
       PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: null),
-      PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3339999999", nome: "Luca", cognome: "Bianchi", livello: null, confermata: false, squadra: null),
+      PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3339999999", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: false, squadra: null),
     ]);
     await apriPagina(tester);
 
     expect(find.text("Mario Rossi"), findsOneWidget);
-    expect(find.text("Livello 2.5 · Confermato"), findsOneWidget);
+    expect(find.text("Organizzatore · Livello 2.5"), findsOneWidget);
+    expect(find.text("Confermato"), findsOneWidget);
     expect(find.text("Luca Bianchi"), findsOneWidget);
+    expect(find.text("Livello 3.0"), findsOneWidget);
     expect(find.text("Da confermare"), findsOneWidget);
-    expect(find.text("Organizzatore"), findsOneWidget);
     expect(find.text("Posto libero"), findsNWidgets(2));
   });
 
-  testWidgets("azioni del creatore: Invita ed Elimina visibili, gli altri bottoni nascosti", (tester) async
+  group("stato della partita", ()
   {
-    await apriPagina(tester);
+    testWidgets("un solo posto libero: Manca un giocatore", (tester) async
+    {
+      repo.risposta = dettaglioConInvitati(2);
+      await apriPagina(tester);
 
-    expect(find.widgetWithText(ElevatedButton, "Invita"), findsOneWidget);
-    expect(find.widgetWithText(ElevatedButton, "Elimina partita"), findsOneWidget);
-    expect(find.text("Conferma"), findsNothing);
-    expect(find.text("Registra risultato"), findsNothing);
-    expect(find.text("Esci dalla partita"), findsNothing);
+      expect(find.text("Manca un giocatore"), findsOneWidget);
+    });
+
+    testWidgets("posti pieni ma conferme mancanti: In attesa di conferma", (tester) async
+    {
+      repo.risposta = dettaglioConInvitati(3);
+      await apriPagina(tester);
+
+      expect(find.text("In attesa di conferma"), findsOneWidget);
+      expect(find.text("Posto libero"), findsNothing);
+    });
+
+    testWidgets("confermata: lo dice la pillola, il tipo non c'e e le conferme non interessano piu", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "confermata", posti: quattroPostiDiTest());
+      await apriPagina(tester);
+
+      expect(find.text("Confermata, ci sono tutti"), findsOneWidget);
+      expect(find.text("Pubblica"), findsNothing);
+      expect(find.text("Confermato"), findsNothing);
+      expect(find.textContaining("su 4"), findsNothing);
+    });
+
+    testWidgets("annullata: pillola Annullata e nessuna azione, qualunque cosa dica il server", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "annullata", azioni: azioniDiTest(puoInvitare: true, puoEliminare: true, puoUscire: true, puoConfermare: true));
+      await apriPagina(tester);
+
+      expect(find.text("Annullata"), findsOneWidget);
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.text("Invita"), findsNothing);
+      expect(find.text("Invita giocatori"), findsNothing);
+      expect(find.text("Elimina partita"), findsNothing);
+      expect(find.text("Esci dalla partita"), findsNothing);
+    });
   });
 
-  testWidgets("azioni di un partecipante: Esci e Conferma visibili, Invita ed Elimina nascosti", (tester) async
+  group("azioni", ()
   {
-    repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoUscire: true, puoConfermare: true));
-    await apriPagina(tester);
+    testWidgets("creatore: Invita giocatori come bottone pieno, Elimina come link, gli altri nascosti", (tester) async
+    {
+      await apriPagina(tester);
 
-    expect(find.widgetWithText(ElevatedButton, "Esci dalla partita"), findsOneWidget);
-    expect(find.widgetWithText(ElevatedButton, "Conferma"), findsOneWidget);
-    expect(find.text("Invita"), findsNothing);
-    expect(find.text("Elimina partita"), findsNothing);
-    expect(find.text("Registra risultato"), findsNothing);
-  });
+      expect(find.widgetWithText(ElevatedButton, "Invita giocatori"), findsOneWidget);
+      expect(find.widgetWithText(TextButton, "Elimina partita"), findsOneWidget);
+      expect(find.text("Conferma"), findsNothing);
+      expect(find.text("Registra risultato"), findsNothing);
+      expect(find.text("Esci dalla partita"), findsNothing);
+    });
 
-  testWidgets("con puoRegistrareRisultato compare solo Registra risultato", (tester) async
-  {
-    repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoRegistrareRisultato: true));
-    await apriPagina(tester);
+    testWidgets("partecipante: Conferma come bottone pieno, Esci come link, Invita ed Elimina nascosti", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoUscire: true, puoConfermare: true));
+      await apriPagina(tester);
 
-    expect(find.byType(ElevatedButton), findsOneWidget);
-    expect(find.widgetWithText(ElevatedButton, "Registra risultato"), findsOneWidget);
-  });
+      expect(find.widgetWithText(ElevatedButton, "Conferma"), findsOneWidget);
+      expect(find.widgetWithText(TextButton, "Esci dalla partita"), findsOneWidget);
+      expect(find.text("Invita"), findsNothing);
+      expect(find.text("Invita giocatori"), findsNothing);
+      expect(find.text("Elimina partita"), findsNothing);
+      expect(find.text("Registra risultato"), findsNothing);
+    });
 
-  testWidgets("nessuna azione: nessun bottone", (tester) async
-  {
-    repo.risposta = dettaglioDiTest(azioni: azioniDiTest());
-    await apriPagina(tester);
+    testWidgets("solo la prima azione e un bottone pieno, le altre sono link", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoConfermare: true, puoRegistrareRisultato: true, puoInvitare: true));
+      await apriPagina(tester);
 
-    expect(find.byType(ElevatedButton), findsNothing);
-  });
+      expect(find.byType(ElevatedButton), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, "Conferma"), findsOneWidget);
+      expect(find.widgetWithText(TextButton, "Registra risultato"), findsOneWidget);
+      expect(find.widgetWithText(TextButton, "Invita giocatori"), findsOneWidget);
+    });
 
-  testWidgets("Registra risultato apre la pagina del form con la partita a schermo", (tester) async
-  {
-    repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoRegistrareRisultato: true), posti: quattroPostiDiTest(), stato: "confermata");
-    await apriPagina(tester);
+    testWidgets("con puoRegistrareRisultato compare solo Registra risultato", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoRegistrareRisultato: true));
+      await apriPagina(tester);
 
-    await tester.tap(find.text("Registra risultato"));
-    await tester.pumpAndSettle();
+      expect(find.byType(ElevatedButton), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, "Registra risultato"), findsOneWidget);
+    });
 
-    expect(find.byType(RegistraRisultatoPage), findsOneWidget);
-    expect(tester.widget<RegistraRisultatoPage>(find.byType(RegistraRisultatoPage)).dettaglio.id, 10);
-    expect(find.text("Salva risultato"), findsOneWidget);
+    testWidgets("nessuna azione: nessun bottone e nessun Invita sui posti liberi", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest());
+      await apriPagina(tester);
+
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.text("Invita"), findsNothing);
+    });
+
+    testWidgets("Registra risultato apre la pagina del form con la partita a schermo", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoRegistrareRisultato: true), posti: quattroPostiDiTest(), stato: "confermata");
+      await apriPagina(tester);
+
+      await tester.tap(find.text("Registra risultato"));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RegistraRisultatoPage), findsOneWidget);
+      expect(tester.widget<RegistraRisultatoPage>(find.byType(RegistraRisultatoPage)).dettaglio.id, 10);
+      expect(find.text("Salva risultato"), findsOneWidget);
+    });
   });
 
   group("invita", ()
   {
-    testWidgets("Invita apre la pagina degli inviti e al ritorno con la freccia il dettaglio si ricarica", (tester) async
+    testWidgets("Invita giocatori apre la pagina degli inviti e al ritorno con la freccia il dettaglio si ricarica", (tester) async
     {
       await apriPagina(tester);
       expect(repo.chiamate, 1);
 
-      await tester.tap(find.text("Invita"));
+      await tester.tap(find.text("Invita giocatori"));
       await tester.pumpAndSettle();
 
       expect(find.byType(InvitaUtentiPage), findsOneWidget);
-      expect(find.text("Invita giocatori"), findsOneWidget);
       expect(repo.idInvitabiliRicevuto, 10);
       //anche la pagina degli inviti legge il dettaglio per i posti liberi
       expect(repo.chiamate, 2);
@@ -161,7 +226,7 @@ void main()
         PostoPartita(idPosto: null, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null),
         PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: false, squadra: null),
       ]);
-      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
       await tester.pumpAndSettle();
 
       expect(find.byType(InvitaUtentiPage), findsNothing);
@@ -172,12 +237,32 @@ void main()
       expect(find.text("Posto libero"), findsOneWidget);
     });
 
-    testWidgets("l'invito che riempie la partita chiude la pagina degli inviti e il dettaglio si ricarica", (tester) async
+    testWidgets("anche il link Invita sul posto libero apre gli inviti", (tester) async
+    {
+      await apriPagina(tester);
+
+      await tester.tap(find.widgetWithText(TextButton, "Invita").first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(InvitaUtentiPage), findsOneWidget);
+    });
+
+    testWidgets("anche il posto libero sul campo disegnato apre gli inviti", (tester) async
+    {
+      await apriPagina(tester);
+
+      await tester.tap(find.text("+").first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(InvitaUtentiPage), findsOneWidget);
+    });
+
+    testWidgets("l'invito che riempie la partita mostra il completo e tornando il dettaglio si ricarica", (tester) async
     {
       repo.risposta = dettaglioConInvitati(2);
       await apriPagina(tester);
 
-      await tester.tap(find.text("Invita"));
+      await tester.tap(find.text("Invita giocatori"));
       await tester.pumpAndSettle();
       expect(find.byType(InvitaUtentiPage), findsOneWidget);
 
@@ -187,32 +272,59 @@ void main()
       await tester.pumpAndSettle();
 
       expect(repo.chiamateInvita, 1);
+      expect(find.text("La partita è al completo"), findsOneWidget);
+      expect(find.widgetWithText(SnackBar, "Utente invitato"), findsOneWidget);
+
+      //la SnackBar copre il bottone: si aspetta che sparisca
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Torna alla partita"));
+      await tester.pumpAndSettle();
+
       expect(find.byType(InvitaUtentiPage), findsNothing);
       expect(find.text("Dettaglio partita"), findsOneWidget);
       expect(repo.chiamate, 3);
       expect(find.text("Posto libero"), findsNothing);
-      expect(find.widgetWithText(SnackBar, "Utente invitato"), findsOneWidget);
     });
   });
 
-  testWidgets("errore: mostra il messaggio e Riprova rifa la richiesta", (tester) async
+  group("errore di caricamento", ()
   {
-    repo.errore = PartitaNonTrovata(messaggio: "Partita non trovata");
-    await apriPagina(tester);
+    testWidgets("errore generico: messaggio e Riprova rifa la richiesta", (tester) async
+    {
+      repo.errore = ErroreGenericoServer();
+      await apriPagina(tester);
 
-    expect(find.text("Partita non trovata"), findsOneWidget);
-    expect(find.text("Riprova"), findsOneWidget);
-    expect(find.text("Giocatori"), findsNothing);
-    expect(repo.chiamate, 1);
+      expect(find.text("Non siamo riusciti a caricare la partita"), findsOneWidget);
+      expect(find.text(ErroreGenericoServer().messaggio), findsOneWidget);
+      expect(find.text("Riprova"), findsOneWidget);
+      expect(repo.chiamate, 1);
 
-    //al secondo tentativo il server risponde
-    repo.errore = null;
-    await tester.tap(find.text("Riprova"));
-    await tester.pumpAndSettle();
+      //al secondo tentativo il server risponde
+      repo.errore = null;
+      await tester.tap(find.text("Riprova"));
+      await tester.pumpAndSettle();
 
-    expect(repo.chiamate, 2);
-    expect(find.text("Partita non trovata"), findsNothing);
-    expect(find.text("Mario Rossi"), findsOneWidget);
+      expect(repo.chiamate, 2);
+      expect(find.text("Non siamo riusciti a caricare la partita"), findsNothing);
+      expect(find.text("Mario Rossi"), findsOneWidget);
+    });
+
+    testWidgets("partita non trovata: niente Riprova, si torna alla home togliendo tutto il resto", (tester) async
+    {
+      repo.errore = PartitaNonTrovata(messaggio: "Partita non trovata");
+      await apriPagina(tester);
+
+      expect(find.text("Partita non trovata"), findsOneWidget);
+      expect(find.text("Questa partita non esiste più, oppure non puoi vederla."), findsOneWidget);
+      expect(find.text("Riprova"), findsNothing);
+
+      await tester.tap(find.text("Torna alla home"));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(HomePage), findsOneWidget);
+      expect(find.byType(DettaglioPartitaPage), findsNothing);
+    });
   });
 
   //i bottoni in fondo possono finire sotto la piega: prima li porto in vista con lo scroll, poi li tocco
@@ -233,6 +345,7 @@ void main()
 
     final risultati = <bool?>[];
     await tester.pumpWidget(MaterialApp(
+      theme: temaDiTest(),
       home: Builder(
         builder: (context) => Scaffold(
           body: TextButton(
@@ -256,19 +369,31 @@ void main()
 
   group("elimina partita", ()
   {
-    testWidgets("il tocco su Elimina apre il dialog con titolo, testo e i bottoni Annulla e Conferma", (tester) async
+    testWidgets("il tocco su Elimina apre il dialog con titolo, testo e i bottoni Annulla ed Elimina", (tester) async
     {
+      final dettaglio = dettaglioDiTest();
       await apriPagina(tester);
 
       await toccaAzione(tester, "Elimina partita");
 
-      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.byType(Dialog), findsOneWidget);
       expect(find.text("Eliminare la partita?"), findsOneWidget);
-      expect(find.text("La partita verrà annullata per tutti i partecipanti."), findsOneWidget);
-      expect(find.widgetWithText(TextButton, "Annulla"), findsOneWidget);
-      expect(find.widgetWithText(TextButton, "Conferma"), findsOneWidget);
+      //l'unico altro posto e un giocatore del campo: non c'e nessuno da nominare
+      expect(find.text("La partita verrà annullata e il Campo Centrale tornerà libero ${giornoRelativo(dettaglio.dataPartita)} alle 18:30."), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, "Annulla"), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, "Elimina"), findsOneWidget);
       //finche l'utente non conferma il server non viene chiamato
       expect(repo.chiamateElimina, 0);
+    });
+
+    testWidgets("il testo del dialog nomina gli altri giocatori, senza chi sta eliminando", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(posti: quattroPostiDiTest());
+      await apriPagina(tester);
+
+      await toccaAzione(tester, "Elimina partita");
+
+      expect(find.textContaining("La partita verrà annullata per Luca e Anna,"), findsOneWidget);
     });
 
     testWidgets("Annulla chiude il dialog senza chiamare il server e resta sul dettaglio", (tester) async
@@ -279,11 +404,11 @@ void main()
       await tester.tap(find.text("Annulla"));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(Dialog), findsNothing);
       expect(repo.chiamateElimina, 0);
       expect(risultati, isEmpty);
       expect(find.text("Dettaglio partita"), findsOneWidget);
-      expect(find.widgetWithText(ElevatedButton, "Elimina partita"), findsOneWidget);
+      expect(find.widgetWithText(TextButton, "Elimina partita"), findsOneWidget);
     });
 
     testWidgets("il tocco fuori dal dialog equivale ad Annulla", (tester) async
@@ -294,17 +419,17 @@ void main()
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(Dialog), findsNothing);
       expect(repo.chiamateElimina, 0);
       expect(risultati, isEmpty);
     });
 
-    testWidgets("Conferma: elimina la partita, torna indietro con true e mostra Partita eliminata", (tester) async
+    testWidgets("Elimina: elimina la partita, torna indietro con true e mostra Partita eliminata", (tester) async
     {
       final risultati = await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Elimina partita");
-      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
+      await tester.tap(find.widgetWithText(ElevatedButton, "Elimina"));
       await tester.pumpAndSettle();
 
       expect(repo.chiamateElimina, 1);
@@ -316,27 +441,22 @@ void main()
       expect(find.widgetWithText(SnackBar, "Partita eliminata"), findsOneWidget);
     });
 
-    testWidgets("durante l'eliminazione i bottoni sono disabilitati e Elimina mostra il caricamento", (tester) async
+    testWidgets("durante l'eliminazione i bottoni sono disabilitati e il bottone pieno mostra il caricamento", (tester) async
     {
       repo.attesaElimina = Completer<void>();
       await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Elimina partita");
-      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
+      await tester.tap(find.widgetWithText(ElevatedButton, "Elimina"));
       await tester.pump();
-      await tester.pump();
+      //il tempo che il dialog si chiuda: con lo spinner che gira pumpAndSettle non finirebbe mai
+      await tester.pump(const Duration(milliseconds: 400));
 
       //il dettaglio resta a schermo
       expect(find.text("Mario Rossi"), findsOneWidget);
-      final bottoni = tester.widgetList<ElevatedButton>(find.byType(ElevatedButton)).toList();
-      expect(bottoni.length, 2);
-      for (final bottone in bottoni)
-      {
-        expect(bottone.onPressed, isNull);
-      }
-      expect(find.text("Elimina partita"), findsNothing);
-      expect(find.widgetWithText(ElevatedButton, "Invita"), findsOneWidget);
+      expect(tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed, isNull);
       expect(find.descendant(of: find.byType(ElevatedButton), matching: find.byType(CircularProgressIndicator)), findsOneWidget);
+      expect(tester.widget<TextButton>(find.widgetWithText(TextButton, "Elimina partita")).onPressed, isNull);
 
       repo.attesaElimina!.complete();
       await tester.pumpAndSettle();
@@ -349,7 +469,7 @@ void main()
       final risultati = await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Elimina partita");
-      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
+      await tester.tap(find.widgetWithText(ElevatedButton, "Elimina"));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(SnackBar, messaggio), findsOneWidget);
@@ -358,7 +478,7 @@ void main()
       expect(find.text("Mario Rossi"), findsOneWidget);
       //il dettaglio e stato chiesto di nuovo dopo l'errore e i bottoni sono tornati attivi
       expect(repo.chiamate, 2);
-      final bottone = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, "Elimina partita"));
+      final bottone = tester.widget<TextButton>(find.widgetWithText(TextButton, "Elimina partita"));
       expect(bottone.onPressed, isNotNull);
     });
   });
@@ -370,17 +490,17 @@ void main()
       repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoUscire: true));
     });
 
-    testWidgets("il tocco su Esci apre il dialog con titolo, testo e i bottoni Annulla e Conferma", (tester) async
+    testWidgets("il tocco su Esci apre il dialog con titolo, testo e i bottoni Annulla ed Esci", (tester) async
     {
       await apriPagina(tester);
 
       await toccaAzione(tester, "Esci dalla partita");
 
-      expect(find.byType(AlertDialog), findsOneWidget);
+      expect(find.byType(Dialog), findsOneWidget);
       expect(find.text("Uscire dalla partita?"), findsOneWidget);
       expect(find.text("Il tuo posto tornerà libero."), findsOneWidget);
-      expect(find.widgetWithText(TextButton, "Annulla"), findsOneWidget);
-      expect(find.widgetWithText(TextButton, "Conferma"), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, "Annulla"), findsOneWidget);
+      expect(find.widgetWithText(ElevatedButton, "Esci"), findsOneWidget);
       expect(repo.chiamateEsci, 0);
     });
 
@@ -392,18 +512,18 @@ void main()
       await tester.tap(find.text("Annulla"));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(Dialog), findsNothing);
       expect(repo.chiamateEsci, 0);
       expect(risultati, isEmpty);
-      expect(find.widgetWithText(ElevatedButton, "Esci dalla partita"), findsOneWidget);
+      expect(find.widgetWithText(TextButton, "Esci dalla partita"), findsOneWidget);
     });
 
-    testWidgets("Conferma: esce dalla partita, torna indietro con true e mostra Sei uscito dalla partita", (tester) async
+    testWidgets("Esci: esce dalla partita, torna indietro con true e mostra Sei uscito dalla partita", (tester) async
     {
       final risultati = await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Esci dalla partita");
-      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
+      await tester.tap(find.widgetWithText(ElevatedButton, "Esci"));
       await tester.pumpAndSettle();
 
       expect(repo.chiamateEsci, 1);
@@ -414,20 +534,20 @@ void main()
       expect(find.widgetWithText(SnackBar, "Sei uscito dalla partita"), findsOneWidget);
     });
 
-    testWidgets("durante l'uscita il bottone e disabilitato e mostra il caricamento", (tester) async
+    testWidgets("durante l'uscita il link e disabilitato e, senza bottone pieno, lo spinner sta sopra", (tester) async
     {
       repo.attesaEsci = Completer<void>();
       await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Esci dalla partita");
-      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
+      await tester.tap(find.widgetWithText(ElevatedButton, "Esci"));
       await tester.pump();
-      await tester.pump();
+      //il tempo che il dialog si chiuda: con lo spinner che gira pumpAndSettle non finirebbe mai
+      await tester.pump(const Duration(milliseconds: 400));
 
-      final bottone = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-      expect(bottone.onPressed, isNull);
-      expect(find.text("Esci dalla partita"), findsNothing);
-      expect(find.descendant(of: find.byType(ElevatedButton), matching: find.byType(CircularProgressIndicator)), findsOneWidget);
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(tester.widget<TextButton>(find.widgetWithText(TextButton, "Esci dalla partita")).onPressed, isNull);
 
       repo.attesaEsci!.complete();
       await tester.pumpAndSettle();
@@ -439,7 +559,7 @@ void main()
       final risultati = await apriDaPaginaPrecedente(tester);
 
       await toccaAzione(tester, "Esci dalla partita");
-      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
+      await tester.tap(find.widgetWithText(ElevatedButton, "Esci"));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(SnackBar, "L'uscita è chiusa: mancano meno di 24 ore all'inizio"), findsOneWidget);
@@ -448,7 +568,7 @@ void main()
       expect(repo.chiamate, 2);
     });
 
-    testWidgets("errore e ricarica fallita: compare la schermata d'errore con Riprova", (tester) async
+    testWidgets("errore e ricarica fallita: compare la schermata d'errore", (tester) async
     {
       repo.erroreEsci = ErroreGenericoServer();
       await apriDaPaginaPrecedente(tester);
@@ -456,12 +576,12 @@ void main()
       repo.errore = PartitaNonTrovata(messaggio: "Partita non trovata");
 
       await toccaAzione(tester, "Esci dalla partita");
-      await tester.tap(find.widgetWithText(TextButton, "Conferma"));
+      await tester.tap(find.widgetWithText(ElevatedButton, "Esci"));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(SnackBar, ErroreGenericoServer().messaggio), findsOneWidget);
       expect(find.text("Partita non trovata"), findsOneWidget);
-      expect(find.text("Riprova"), findsOneWidget);
+      expect(find.text("Torna alla home"), findsOneWidget);
       expect(find.text("Mario Rossi"), findsNothing);
     });
   });
@@ -489,7 +609,7 @@ void main()
 
       await toccaAzione(tester, "Conferma");
 
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(Dialog), findsNothing);
       expect(repo.chiamateConferma, 1);
       expect(repo.idConfermaRicevuto, 10);
       expect(repo.chiamateElimina, 0);
@@ -500,15 +620,15 @@ void main()
     {
       repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato());
       await apriPagina(tester);
-      expect(find.text("Livello 2.5 · Da confermare"), findsOneWidget);
+      expect(find.text("Da confermare"), findsOneWidget);
 
       await toccaAzione(tester, "Conferma");
 
       expect(find.widgetWithText(SnackBar, "Partecipazione confermata"), findsOneWidget);
       expect(find.text("Partita confermata: ci sono tutti!"), findsNothing);
       //il dettaglio a schermo e quello restituito dalla conferma
-      expect(find.text("Livello 2.5 · Confermato"), findsOneWidget);
-      expect(find.text("Creata"), findsOneWidget);
+      expect(find.text("Confermato"), findsOneWidget);
+      expect(find.text("Da confermare"), findsNothing);
       expect(find.widgetWithText(ElevatedButton, "Conferma"), findsNothing);
       expect(find.text("Dettaglio partita"), findsOneWidget);
       expect(repo.chiamate, 1);
@@ -523,8 +643,7 @@ void main()
 
       expect(find.widgetWithText(SnackBar, "Partita confermata: ci sono tutti!"), findsOneWidget);
       expect(find.text("Partecipazione confermata"), findsNothing);
-      expect(find.text("Confermata"), findsOneWidget);
-      expect(find.text("Creata"), findsNothing);
+      expect(find.text("Confermata, ci sono tutti"), findsOneWidget);
     });
 
     testWidgets("durante la conferma i bottoni sono disabilitati e Conferma mostra il caricamento", (tester) async
@@ -540,14 +659,9 @@ void main()
 
       //il dettaglio resta a schermo
       expect(find.text("Mario Rossi"), findsOneWidget);
-      final bottoni = tester.widgetList<ElevatedButton>(find.byType(ElevatedButton)).toList();
-      expect(bottoni.length, 2);
-      for (final bottone in bottoni)
-      {
-        expect(bottone.onPressed, isNull);
-      }
+      expect(tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed, isNull);
       expect(find.text("Conferma"), findsNothing);
-      expect(find.widgetWithText(ElevatedButton, "Registra risultato"), findsOneWidget);
+      expect(tester.widget<TextButton>(find.widgetWithText(TextButton, "Registra risultato")).onPressed, isNull);
       expect(find.descendant(of: find.byType(ElevatedButton), matching: find.byType(CircularProgressIndicator)), findsOneWidget);
 
       repo.attesaConferma!.complete(dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato()));
@@ -577,50 +691,60 @@ void main()
 
   group("risultato", ()
   {
-    //colore del testo a schermo, per controllare l'esito verde o rosso
-    Color? coloreDi(WidgetTester tester, String testo)
+    //la posizione verticale di un testo, per controllare l'ordine delle squadre a schermo
+    double yDi(WidgetTester tester, String testo)
     {
-      return tester.widget<Text>(find.text(testo)).style?.color;
+      return tester.getTopLeft(find.text(testo)).dy;
     }
 
-    testWidgets("senza risultato la card Risultato non compare e non ci sono badge", (tester) async
+    testWidgets("senza risultato la card Risultato non compare", (tester) async
     {
       repo.risposta = dettaglioDiTest(posti: quattroPostiDiTest());
       await apriPagina(tester);
 
       expect(find.text("Risultato"), findsNothing);
-      expect(find.text("Squadra 1"), findsNothing);
-      expect(find.text("Squadra 2"), findsNothing);
+      expect(find.text("La tua squadra"), findsNothing);
+      expect(find.text("Vai allo storico"), findsNothing);
     });
 
-    testWidgets("risultato senza set: la card non compare", (tester) async
+    //il dettaglio com'era prima della nuova UI: "senza set non c'e' niente da mostrare, anche se il risultato esiste"
+    testWidgets("risultato senza set: niente card ne link allo storico, resta la lista dei giocatori", (tester) async
     {
       repo.risposta = dettaglioDiTest(risultato: RisultatoPartita(set: const [], squadraUtente: 1, esito: "VINTA", puntiAssegnati: 3));
       await apriPagina(tester);
 
       expect(find.text("Risultato"), findsNothing);
+      expect(find.text("Vai allo storico"), findsNothing);
+      expect(find.text("Giocatori, 2 su 4"), findsOneWidget);
+      expect(find.text("Mario Rossi"), findsOneWidget);
+      expect(find.text("Giocatore del campo"), findsOneWidget);
+      expect(find.text("Posto libero"), findsNWidgets(2));
     });
 
-    testWidgets("utente in squadra 1: set come arrivano dal server, Vinta in verde con +3 punti", (tester) async
+    testWidgets("utente in squadra 1: Hai vinto con +3 punti, la sua squadra in alto e i set del server", (tester) async
     {
-      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: 1, esito: "VINTA", puntiAssegnati: 3));
+      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), posti: quattroPostiDiTest(conSquadre: true), risultato: risultatoDiTest(squadraUtente: 1, esito: "VINTA", puntiAssegnati: 3));
       await apriPagina(tester);
 
+      expect(find.text("Hai vinto, +3 punti"), findsOneWidget);
       expect(find.text("Risultato"), findsOneWidget);
-      expect(find.text("6-4 3-6 6-2"), findsOneWidget);
-      expect(find.text("Vinta · +3 punti"), findsOneWidget);
-      expect(coloreDi(tester, "Vinta · +3 punti"), const Color(0xFF075E50));
+      expect(find.text("Set 1"), findsOneWidget);
+      expect(find.text("Set 3"), findsOneWidget);
+      expect(find.text("La tua squadra"), findsOneWidget);
+      expect(find.text("Mario e Luca"), findsOneWidget);
+      expect(find.text("Anna e Giocatore del campo"), findsOneWidget);
+      expect(yDi(tester, "Mario e Luca"), lessThan(yDi(tester, "Anna e Giocatore del campo")));
+      //i set della squadra 1, nell'ordine in cui arrivano dal server
+      expect(tester.getCenter(find.text("6").first).dy, closeTo(tester.getCenter(find.text("3").first).dy, 1));
     });
 
-    testWidgets("utente in squadra 2: set invertiti, Persa in rosso con -1 punti", (tester) async
+    testWidgets("utente in squadra 2: Hai perso con -1 punti e la sua squadra va in alto", (tester) async
     {
-      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: 2, esito: "PERSA", puntiAssegnati: -1));
+      repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), posti: quattroPostiDiTest(conSquadre: true), risultato: risultatoDiTest(squadraUtente: 2, esito: "PERSA", puntiAssegnati: -1));
       await apriPagina(tester);
 
-      expect(find.text("4-6 6-3 2-6"), findsOneWidget);
-      expect(find.text("6-4 3-6 6-2"), findsNothing);
-      expect(find.text("Persa · -1 punti"), findsOneWidget);
-      expect(coloreDi(tester, "Persa · -1 punti"), const Color(0xFFA33A3A));
+      expect(find.text("Hai perso, -1 punti"), findsOneWidget);
+      expect(yDi(tester, "Anna e Giocatore del campo"), lessThan(yDi(tester, "Mario e Luca")));
     });
 
     testWidgets("punti non ancora calcolati: si vede solo l'esito", (tester) async
@@ -628,42 +752,43 @@ void main()
       repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: 1, esito: "VINTA", puntiAssegnati: null));
       await apriPagina(tester);
 
-      expect(find.text("Vinta"), findsOneWidget);
+      expect(find.text("Hai vinto"), findsOneWidget);
     });
 
-    testWidgets("variazione zero: i punti compaiono senza segno", (tester) async
+    testWidgets("variazione zero: i punti compaiono col segno piu", (tester) async
     {
       repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: 1, esito: "PERSA", puntiAssegnati: 0));
       await apriPagina(tester);
 
-      expect(find.text("Persa · 0 punti"), findsOneWidget);
+      expect(find.text("Hai perso, +0 punti"), findsOneWidget);
     });
 
-    testWidgets("utente senza squadra: solo i set, nel verso del server e senza esito", (tester) async
+    testWidgets("utente senza squadra: Partita giocata, nessuna squadra evidenziata", (tester) async
     {
       repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), risultato: risultatoDiTest(squadraUtente: null, esito: null, puntiAssegnati: null));
       await apriPagina(tester);
 
-      expect(find.text("6-4 3-6 6-2"), findsOneWidget);
-      expect(find.textContaining("Vinta"), findsNothing);
-      expect(find.textContaining("Persa"), findsNothing);
-      expect(find.textContaining("punti"), findsNothing);
+      expect(find.text("Partita giocata"), findsOneWidget);
+      expect(find.text("La tua squadra"), findsNothing);
+      expect(find.textContaining("Hai vinto"), findsNothing);
+      expect(find.textContaining("Hai perso"), findsNothing);
+      //sui posti non ci sono squadre: resta solo il numero
+      expect(find.text("Squadra 1"), findsOneWidget);
+      expect(find.text("Squadra 2"), findsOneWidget);
     });
 
-    testWidgets("badge squadra accanto a ogni posto, giocatore del campo compreso, e Organizzatore insieme al badge", (tester) async
+    testWidgets("Vai allo storico apre lo storico togliendo il dettaglio", (tester) async
     {
       repo.risposta = dettaglioDiTest(stato: "giocata", azioni: azioniDiTest(), posti: quattroPostiDiTest(conSquadre: true), risultato: risultatoDiTest());
       await apriPagina(tester);
 
-      expect(find.text("Squadra 1"), findsNWidgets(2));
-      expect(find.text("Squadra 2"), findsNWidgets(2));
-      expect(find.text("Organizzatore"), findsOneWidget);
-      expect(find.text("Giocatore del campo"), findsOneWidget);
+      await tester.ensureVisible(find.text("Vai allo storico"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Vai allo storico"));
+      await tester.pumpAndSettle();
 
-      //il badge sta sulla stessa riga del suo giocatore
-      final yCampo = tester.getCenter(find.text("Giocatore del campo")).dy;
-      final badgeSulPostoCampo = find.text("Squadra 2").evaluate().where((e) => (tester.getCenter(find.byWidget(e.widget)).dy - yCampo).abs() < 20);
-      expect(badgeSulPostoCampo.length, 1);
+      expect(find.byType(StoricoPage), findsOneWidget);
+      expect(find.byType(DettaglioPartitaPage), findsNothing);
     });
 
     testWidgets("dopo il salvataggio il form si chiude e il dettaglio si ricarica col risultato", (tester) async
@@ -679,9 +804,9 @@ void main()
       repo.risposta = dettaglioDiTest(azioni: azioniDiTest(), posti: quattroPostiDiTest(conSquadre: true), stato: "giocata", risultato: risultatoDiTest(squadraUtente: 1, esito: "VINTA", puntiAssegnati: null));
 
       //primo set 1-0 e secondo set 0-1: basta che nessun set finisca in parita
-      await tester.tap(find.byIcon(Icons.add).at(0));
+      await tester.tap(find.text("+").at(0));
       await tester.pump();
-      await tester.tap(find.byIcon(Icons.add).at(3));
+      await tester.tap(find.text("+").at(3));
       await tester.pump();
       await tester.tap(find.text("Salva risultato"));
       await tester.pumpAndSettle();
@@ -691,8 +816,7 @@ void main()
       expect(find.widgetWithText(SnackBar, "Risultato registrato"), findsOneWidget);
       expect(repo.chiamate, 2);
       expect(find.text("Risultato"), findsOneWidget);
-      expect(find.text("6-4 3-6 6-2"), findsOneWidget);
-      expect(find.text("Giocata"), findsOneWidget);
+      expect(find.text("Hai vinto"), findsOneWidget);
       expect(find.text("Registra risultato"), findsNothing);
     });
 
@@ -703,7 +827,7 @@ void main()
 
       await tester.tap(find.text("Registra risultato"));
       await tester.pumpAndSettle();
-      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.tap(find.byIcon(Icons.arrow_back_ios_new));
       await tester.pumpAndSettle();
 
       expect(find.byType(RegistraRisultatoPage), findsNothing);

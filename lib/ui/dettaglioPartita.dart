@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaEvent.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
+import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 
+import 'barraNavigazione.dart';
+import 'campoPadel.dart';
+import 'home.dart';
 import 'invitaUtenti.dart';
 import 'registraRisultato.dart';
+import 'stileApp.dart';
+import 'storico.dart';
 
 class DettaglioPartitaPage extends StatelessWidget {
   final int idPartita;
@@ -29,853 +34,771 @@ class DettaglioPartitaPage extends StatelessWidget {
   }
 }
 
-/// Helper responsive: stesso sistema usato in home, font scalati sulla
-/// larghezza di un iPhone standard (~390px) e padding clampati.
-class _Responsive {
-  final BuildContext context;
-  final double width;
-  final double height;
-  final bool isTablet;
-  final double textScale;
-
-  _Responsive(this.context)
-    : width = MediaQuery.sizeOf(context).width,
-      height = MediaQuery.sizeOf(context).height,
-      isTablet = MediaQuery.sizeOf(context).width >= 600,
-      textScale = (MediaQuery.sizeOf(context).width / 390).clamp(0.8, 1.1);
-
-  double font(double base) => base * textScale;
-
-  double get horizontalPadding => (width * 0.06).clamp(20.0, 48.0);
-
-  double get cardBorderRadius => isTablet ? 32 : 26;
-
-  double get maxContentWidth => isTablet ? 640 : double.infinity;
-}
-
 class _DettaglioPartitaView extends StatelessWidget {
   // serve per rimandare l'evento quando l'utente tocca "Riprova"
   final int idPartita;
 
   const _DettaglioPartitaView({required this.idPartita});
 
-  static const Color backgroundColor = Color(0xFFF7F8FC);
-  static const Color primaryColor = Color(0xFF4564B1);
-  static const Color darkText = Color(0xFF252B3A);
-  static const Color greyText = Color(0xFF7D8597);
-  static const Color borderColor = Color(0xFFE0E3EA);
-
   @override
   Widget build(BuildContext context) {
-    final r = _Responsive(context);
+    final r = Responsive(context);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Colori.sfondo,
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: r.maxContentWidth),
-            child: Column(
-              children: [
-                // l'header resta fuori dal builder, cosi' la freccia
-                // indietro c'e' anche durante il caricamento e in errore
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    r.horizontalPadding,
-                    16,
-                    r.horizontalPadding,
-                    0,
-                  ),
-                  child: _buildHeader(context, r),
-                ),
-                Expanded(
-                  child:
-                      BlocConsumer<DettaglioPartitaBloc, DettaglioPartitaState>(
-                        listener: (context, state) {
-                          // true dice alla pagina precedente di ricaricarsi,
-                          // perche' la partita non e' piu' la stessa
-                          if (state is PartitaEliminata) {
-                            _mostraSnackBar(context, r, 'Partita eliminata');
-                            Navigator.pop(context, true);
-                          }
-                          if (state is UscitaCompletata) {
-                            _mostraSnackBar(
-                              context,
-                              r,
-                              'Sei uscito dalla partita',
-                            );
-                            Navigator.pop(context, true);
-                          }
-                          if (state is PartecipazioneConfermata) {
-                            // se con questa conferma ci sono tutti, la
-                            // partita passa a confermata e lo diciamo
-                            if (state.dettaglio.stato == "confermata") {
-                              _mostraSnackBar(
-                                context,
-                                r,
-                                'Partita confermata: ci sono tutti!',
-                              );
-                            } else {
-                              _mostraSnackBar(
-                                context,
-                                r,
-                                'Partecipazione confermata',
-                              );
-                            }
-                          }
-                          if (state is OperazioneErrore) {
-                            _mostraSnackBar(context, r, state.messaggio);
-                          }
-                        },
-                        builder: (context, state) {
-                          if (state is DettaglioPartitaErrore) {
-                            return _buildErrore(context, r, state.messaggio);
-                          }
-
-                          if (state is DettaglioPartitaCaricato) {
-                            return _buildContenuto(
-                              context,
-                              r,
-                              state.dettaglio,
-                              false,
-                            );
-                          }
-
-                          // dopo la conferma il BLoC ci passa il dettaglio
-                          // aggiornato, quindi lo disegniamo come al solito
-                          if (state is PartecipazioneConfermata) {
-                            return _buildContenuto(
-                              context,
-                              r,
-                              state.dettaglio,
-                              false,
-                            );
-                          }
-
-                          // durante l'operazione il dettaglio resta a
-                          // schermo, ma con i bottoni bloccati
-                          if (state is OperazioneInCorso) {
-                            return _buildContenuto(
-                              context,
-                              r,
-                              state.dettaglio,
-                              true,
-                            );
-                          }
-
-                          // dopo l'errore il BLoC ricarica da solo il
-                          // dettaglio, intanto mostriamo quello che avevamo
-                          if (state is OperazioneErrore) {
-                            return _buildContenuto(
-                              context,
-                              r,
-                              state.dettaglio,
-                              false,
-                            );
-                          }
-
-                          // PartitaEliminata e UscitaCompletata durano solo
-                          // il tempo del pop, quindi basta lo spinner
-
-                          // e lo stesso vale per Initial e Loading
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: primaryColor,
-                            ),
-                          );
-                        },
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _mostraSnackBar(BuildContext context, _Responsive r, String testo) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(testo),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.symmetric(
-          horizontal: r.width * 0.05,
-          vertical: r.height * 0.02,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // HEADER
-  // =====================================================================
-
-  Widget _buildHeader(BuildContext context, _Responsive r) {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(Icons.arrow_back, color: darkText, size: r.font(24)),
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
-            'Dettaglio partita',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: r.font(24),
-              fontWeight: FontWeight.w700,
-              color: darkText,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =====================================================================
-  // ERRORE
-  // =====================================================================
-
-  Widget _buildErrore(BuildContext context, _Responsive r, String messaggio) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: r.horizontalPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.redAccent,
-              size: r.font(32),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              messaggio,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: greyText, fontSize: r.font(15)),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () {
-                context.read<DettaglioPartitaBloc>().add(
-                  DettaglioPartitaRichiesto(idPartita: idPartita),
-                );
-              },
-              child: Text(
-                'Riprova',
-                style: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: r.font(15),
+        child: ContenutoCentrato(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // la testata resta fuori dal builder, cosi' la freccia indietro
+              // c'e' anche durante il caricamento e in errore
+              const TestataIndietro(titolo: 'Dettaglio partita'),
+              Expanded(
+                child: BlocConsumer<DettaglioPartitaBloc, DettaglioPartitaState>(
+                  listener: (context, state) {
+                    // true dice alla pagina precedente di ricaricarsi,
+                    // perche' la partita non e' piu' la stessa
+                    if (state is PartitaEliminata) {
+                      mostraSnackBar(context, 'Partita eliminata');
+                      Navigator.pop(context, true);
+                    }
+                    if (state is UscitaCompletata) {
+                      mostraSnackBar(context, 'Sei uscito dalla partita');
+                      Navigator.pop(context, true);
+                    }
+                    if (state is PartecipazioneConfermata) {
+                      // se con questa conferma ci sono tutti, la partita
+                      // passa a confermata e lo diciamo
+                      if (state.dettaglio.stato == 'confermata') {
+                        mostraSnackBar(
+                          context,
+                          'Partita confermata: ci sono tutti!',
+                        );
+                      } else {
+                        mostraSnackBar(context, 'Partecipazione confermata');
+                      }
+                    }
+                    if (state is OperazioneErrore) {
+                      mostraSnackBar(context, state.messaggio);
+                    }
+                  },
+                  builder: (context, state) {
+                    if (state is DettaglioPartitaErrore) {
+                      return _buildErrore(context, r, state.messaggio);
+                    }
+                    if (state is DettaglioPartitaCaricato) {
+                      return _buildContenuto(context, r, state.dettaglio, false);
+                    }
+                    if (state is PartecipazioneConfermata) {
+                      return _buildContenuto(context, r, state.dettaglio, false);
+                    }
+                    if (state is OperazioneErrore) {
+                      return _buildContenuto(context, r, state.dettaglio, false);
+                    }
+                    if (state is OperazioneInCorso) {
+                      return _buildContenuto(context, r, state.dettaglio, true);
+                    }
+                    return _buildScheletro();
+                  },
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // =====================================================================
-  // CONTENUTO
-  // =====================================================================
+  // ===== CARICAMENTO =====
 
-  Widget _buildContenuto(
-    BuildContext context,
-    _Responsive r,
-    DettaglioPartita dettaglio,
-    bool operazioneInCorso,
-  ) {
-    final RisultatoPartita? risultato = dettaglio.risultato;
+  Widget _buildScheletro() {
+    final List<Widget> righe = [];
+    for (int i = 0; i < 4; i++) {
+      righe.add(
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              BarraGrigia(larghezza: 140, altezza: 16),
+              SizedBox(height: 4),
+              BarraGrigia(larghezza: 180, altezza: 12),
+            ],
+          ),
+        ),
+      );
+    }
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(
-        r.horizontalPadding,
-        22,
-        r.horizontalPadding,
-        16,
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildInfo(r, dettaglio),
-          const SizedBox(height: 18),
-          // senza set non c'e' niente da mostrare, anche se il risultato esiste
-          if (risultato != null && risultato.set.isNotEmpty) ...[
-            _buildRisultato(r, risultato),
-            const SizedBox(height: 18),
-          ],
-          _buildGiocatori(r, dettaglio),
-          const SizedBox(height: 18),
-          _buildAzioni(context, r, dettaglio, operazioneInCorso),
-        ],
-      ),
-    );
-  }
-
-  // =====================================================================
-  // INFO PARTITA
-  // =====================================================================
-
-  Widget _buildInfo(_Responsive r, DettaglioPartita dettaglio) {
-    final String giorno = _giornoSettimana(dettaglio.dataPartita);
-    final String data = _formatData(dettaglio.dataPartita);
-    final String oraInizio = _formatTime(dettaglio.oraInizio);
-    final String oraFine = _formatTime(dettaglio.oraFine);
-
-    String tipo = 'Privata';
-    if (dettaglio.tipo == 'PUBBLICA') {
-      tipo = 'Pubblica';
-    }
-
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Partita',
-                    style: TextStyle(
-                      fontSize: r.font(17),
-                      fontWeight: FontWeight.w500,
-                      color: greyText,
-                    ),
-                  ),
-                ),
-                _badgeStato(r, dettaglio.stato),
-              ],
-            ),
-            const SizedBox(height: 14),
-            _rigaInfo(
-              r,
-              icona: Icons.sports_tennis,
-              etichetta: 'Campo',
-              valore: dettaglio.nomeCampo,
-            ),
-            const SizedBox(height: 14),
-            _rigaInfo(
-              r,
-              icona: Icons.calendar_month_outlined,
-              etichetta: 'Data',
-              valore: '$giorno $data',
-            ),
-            const SizedBox(height: 14),
-            _rigaInfo(
-              r,
-              icona: Icons.access_time,
-              etichetta: 'Orario',
-              valore: '$oraInizio - $oraFine',
-            ),
-            const SizedBox(height: 14),
-            _rigaInfo(
-              r,
-              icona:
-                  dettaglio.tipo == 'PUBBLICA'
-                      ? Icons.public
-                      : Icons.lock_outline,
-              etichetta: 'Tipo',
-              valore: tipo,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _rigaInfo(
-    _Responsive r, {
-    required IconData icona,
-    required String etichetta,
-    required String valore,
-  }) {
-    return Row(
-      children: [
-        _iconBox(r, icona),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                etichetta,
-                style: TextStyle(
-                  fontSize: r.font(13),
-                  fontWeight: FontWeight.w500,
-                  color: greyText,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                valore,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: r.font(16),
-                  fontWeight: FontWeight.w600,
-                  color: darkText,
-                ),
-              ),
-            ],
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: BarraGrigia(larghezza: 240, altezza: 30),
           ),
-        ),
-      ],
-    );
-  }
-
-  // il server manda lo stato in minuscolo: qui scegliamo testo e colori
-  // del badge, riusando le tinte verde e rossa degli slot in home
-  Widget _badgeStato(_Responsive r, String stato) {
-    String testo = stato;
-    Color sfondo = borderColor;
-    Color colore = greyText;
-
-    if (stato == 'creata') {
-      testo = 'Creata';
-      sfondo = const Color(0xFFE7F1FC);
-      colore = primaryColor;
-    }
-    if (stato == 'confermata') {
-      testo = 'Confermata';
-      sfondo = const Color(0xFFE0F4EE);
-      colore = const Color(0xFF075E50);
-    }
-    if (stato == 'annullata') {
-      testo = 'Annullata';
-      sfondo = const Color(0xFFFBE3E3);
-      colore = const Color(0xFFA33A3A);
-    }
-    if (stato == 'giocata') {
-      testo = 'Giocata';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: sfondo,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        testo,
-        style: TextStyle(
-          color: colore,
-          fontSize: r.font(13),
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // RISULTATO
-  // =====================================================================
-
-  // il server da' i set come squadra1-squadra2: se l'utente e' nella
-  // squadra 2 li giriamo, cosi' il primo numero sono sempre i suoi game
-  Widget _buildRisultato(_Responsive r, RisultatoPartita risultato) {
-    String punteggi = '';
-    for (final set in risultato.set) {
-      String punteggio = '${set.squadra1}-${set.squadra2}';
-      if (risultato.squadraUtente == 2) {
-        punteggio = '${set.squadra2}-${set.squadra1}';
-      }
-
-      if (punteggi.isEmpty) {
-        punteggi = punteggio;
-      } else {
-        punteggi = '$punteggi $punteggio';
-      }
-    }
-
-    // senza esito (utente senza squadra) la riga sotto ai set non compare
-    String esito = '';
-    Color coloreEsito = darkText;
-    if (risultato.esito == 'VINTA') {
-      esito = 'Vinta';
-      coloreEsito = const Color(0xFF075E50);
-    }
-    if (risultato.esito == 'PERSA') {
-      esito = 'Persa';
-      coloreEsito = const Color(0xFFA33A3A);
-    }
-
-    final int? punti = risultato.puntiAssegnati;
-    if (esito.isNotEmpty && punti != null) {
-      // i punti negativi hanno gia' il meno davanti
-      if (punti > 0) {
-        esito = '$esito · +$punti punti';
-      } else {
-        esito = '$esito · $punti punti';
-      }
-    }
-
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Risultato',
-              style: TextStyle(
-                fontSize: r.font(17),
-                fontWeight: FontWeight.w500,
-                color: greyText,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                _iconBox(r, Icons.emoji_events_outlined),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        punteggi,
-                        style: TextStyle(
-                          fontSize: r.font(16),
-                          fontWeight: FontWeight.w600,
-                          color: darkText,
-                        ),
-                      ),
-                      if (esito.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          esito,
-                          style: TextStyle(
-                            fontSize: r.font(13),
-                            fontWeight: FontWeight.w600,
-                            color: coloreEsito,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // GIOCATORI
-  // =====================================================================
-
-  Widget _buildGiocatori(_Responsive r, DettaglioPartita dettaglio) {
-    final List<Widget> righe = [];
-
-    for (final posto in dettaglio.posti) {
-      righe.add(_rigaPostoOccupato(r, posto, dettaglio.telefonoCreatore));
-      righe.add(const SizedBox(height: 12));
-    }
-
-    // il server manda solo i posti occupati, gli altri fino a 4 sono liberi
-    for (int i = 0; i < dettaglio.postiLiberi; i++) {
-      righe.add(_rigaPostoLibero(r));
-      righe.add(const SizedBox(height: 12));
-    }
-
-    // tolgo lo spazio dopo l'ultima riga
-    if (righe.isNotEmpty) {
-      righe.removeLast();
-    }
-
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Giocatori',
-              style: TextStyle(
-                fontSize: r.font(17),
-                fontWeight: FontWeight.w500,
-                color: greyText,
-              ),
-            ),
-            const SizedBox(height: 14),
-            ...righe,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _rigaPostoOccupato(
-    _Responsive r,
-    PostoPartita posto,
-    String telefonoCreatore,
-  ) {
-    if (posto.tipo == 'CAMPO') {
-      return Row(
-        children: [
-          _iconBox(r, Icons.storefront_outlined),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              'Giocatore del campo',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: r.font(16),
-                fontWeight: FontWeight.w600,
-                color: darkText,
-              ),
-            ),
+          const SizedBox(height: 8),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: BarraGrigia(larghezza: 280, altezza: 16),
           ),
-          if (posto.squadra != null) ...[
-            const SizedBox(width: 8),
-            _badgeSquadra(r, posto.squadra),
-          ],
-        ],
-      );
-    }
-
-    final String nomeCompleto =
-        '${posto.nome ?? ''} ${posto.cognome ?? ''}'.trim();
-    final bool organizzatore = posto.telefono == telefonoCreatore;
-
-    String dettagli = posto.confermata ? 'Confermato' : 'Da confermare';
-    if (posto.livello != null) {
-      dettagli = 'Livello ${posto.livello!.toStringAsFixed(1)} · $dettagli';
-    }
-
-    return Row(
-      children: [
-        _iconBox(r, Icons.person_outline),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                nomeCompleto,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: r.font(16),
-                  fontWeight: FontWeight.w600,
-                  color: darkText,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                dettagli,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: r.font(13),
-                  fontWeight: FontWeight.w500,
-                  color: posto.confermata ? const Color(0xFF075E50) : greyText,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // i due badge stanno uno sopra l'altro: affiancati su un telefono
-        // piccolo non lascerebbero spazio al nome
-        if (organizzatore || posto.squadra != null) ...[
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (organizzatore)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE7F1FC),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Organizzatore',
-                    style: TextStyle(
-                      color: primaryColor,
-                      fontSize: r.font(12),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              if (organizzatore && posto.squadra != null)
-                const SizedBox(height: 4),
-              if (posto.squadra != null) _badgeSquadra(r, posto.squadra),
-            ],
+          const SizedBox(height: 14),
+          const BarraGrigia(altezza: 200, raggio: 20),
+          const SizedBox(height: 14),
+          CardBianca(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: righe,
+            ),
           ),
         ],
-      ],
-    );
-  }
-
-  Widget _badgeSquadra(_Responsive r, int? squadra) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: borderColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        'Squadra $squadra',
-        style: TextStyle(
-          color: darkText,
-          fontSize: r.font(12),
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }
 
-  Widget _rigaPostoLibero(_Responsive r) {
-    return Row(
-      children: [
-        _iconBox(r, Icons.person_add_alt_outlined),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Text(
-            'Posto libero',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: r.font(16),
-              fontWeight: FontWeight.w500,
-              color: greyText,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // ===== ERRORE =====
 
-  // =====================================================================
-  // AZIONI
-  // =====================================================================
-
-  // i bottoni compaiono solo se il server dice che l'utente puo' usarli
-  Widget _buildAzioni(
-    BuildContext context,
-    _Responsive r,
-    DettaglioPartita dettaglio,
-    bool operazioneInCorso,
-  ) {
-    final List<Widget> bottoni = [];
-
-    if (dettaglio.azioni.puoInvitare) {
-      bottoni.add(
-        _bottoneAzione(
-          r,
-          testo: 'Invita',
-          distruttivo: false,
-          disabilitato: operazioneInCorso,
-          caricamento: false,
-          onPressed: () {
-            _apriInvita(context, dettaglio.id);
-          },
-        ),
-      );
-    }
-    if (dettaglio.azioni.puoConfermare) {
-      bottoni.add(
-        _bottoneAzione(
-          r,
-          testo: 'Conferma',
-          distruttivo: false,
-          disabilitato: operazioneInCorso,
-          caricamento: operazioneInCorso,
-          // la conferma parte subito, senza dialog: e' un'azione che non
-          // fa danni e deve bastare un tocco
-          onPressed: () {
+  Widget _buildErrore(BuildContext context, Responsive r, String messaggio) {
+    // lo stato di errore porta solo il testo: quello generico vuol dire che
+    // il problema e' di rete o del server, e quindi ha senso riprovare
+    if (messaggio == ErroreGenericoServer().messaggio) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+        child: CardErrore(
+          titolo: 'Non siamo riusciti a caricare la partita',
+          testo: messaggio,
+          onRiprova: () {
             context.read<DettaglioPartitaBloc>().add(
-              ConfermaPartitaRichiesta(idPartita: dettaglio.id),
+              DettaglioPartitaRichiesto(idPartita: idPartita),
             );
           },
         ),
       );
     }
-    if (dettaglio.azioni.puoRegistrareRisultato) {
-      bottoni.add(
-        _bottoneAzione(
-          r,
-          testo: 'Registra risultato',
-          distruttivo: false,
-          disabilitato: operazioneInCorso,
-          caricamento: false,
-          onPressed: () {
-            _apriRegistraRisultato(context, dettaglio);
-          },
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Partita non trovata', style: stileTitolo(r)),
+          const SizedBox(height: 12),
+          CardBianca(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Questa partita non esiste più, oppure non puoi vederla.',
+                  style: stileTesto(r, base: 16),
+                ),
+                const SizedBox(height: 12),
+                BottonePieno(
+                  testo: 'Torna alla home',
+                  onPressed: () {
+                    tornaAllaVoce(context, const HomePage());
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== CONTENUTO =====
+
+  Widget _buildContenuto(
+    BuildContext context,
+    Responsive r,
+    DettaglioPartita dettaglio,
+    bool isLoading,
+  ) {
+    final RisultatoPartita? risultato = dettaglio.risultato;
+    final List<Widget> azioni = _buildAzioni(context, r, dettaglio, isLoading);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildIntestazione(r, dettaglio),
+                const SizedBox(height: 14),
+                _buildCampo(context, dettaglio, isLoading),
+                const SizedBox(height: 14),
+                // senza set non c'e' niente da mostrare, anche se il risultato esiste
+                if (risultato != null && risultato.set.isNotEmpty)
+                  _buildRisultato(r, dettaglio, risultato)
+                else
+                  _buildGiocatori(context, r, dettaglio, isLoading),
+                if (risultato != null && risultato.set.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: LinkTesto(
+                      testo: 'Vai allo storico',
+                      onPressed: () {
+                        tornaAllaVoce(context, const StoricoPage());
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        if (azioni.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: azioni,
+            ),
+          ),
+      ],
+    );
+  }
+
+  // su una partita annullata non si fa piu' nulla, qualunque cosa dica il server
+  bool _puoInvitare(DettaglioPartita dettaglio) {
+    return dettaglio.azioni.puoInvitare && dettaglio.stato != 'annullata';
+  }
+
+  // ===== INTESTAZIONE =====
+
+  String _titolo(DettaglioPartita dettaglio) {
+    final RisultatoPartita? risultato = dettaglio.risultato;
+
+    if (risultato != null && risultato.esito != null) {
+      String testo = risultato.esito == 'VINTA' ? 'Hai vinto' : 'Hai perso';
+      final int? punti = risultato.puntiAssegnati;
+      if (punti != null) {
+        testo += punti >= 0 ? ', +$punti punti' : ', $punti punti';
+      }
+      return testo;
+    }
+    if (dettaglio.stato == 'giocata') {
+      return 'Partita giocata';
+    }
+    final String giorno = conMaiuscola(giornoRelativo(dettaglio.dataPartita));
+    return '$giorno alle ${formattaOra(dettaglio.oraInizio)}';
+  }
+
+  String _sottotitolo(DettaglioPartita dettaglio) {
+    final String orario =
+        '${formattaOra(dettaglio.oraInizio)} - ${formattaOra(dettaglio.oraFine)}';
+    if (dettaglio.stato == 'giocata') {
+      return '${conMaiuscola(dataEstesa(dettaglio.dataPartita))}, '
+          '$orario · ${dettaglio.nomeCampo}';
+    }
+    return '${giornoEMese(dettaglio.dataPartita)}, $orario · ${dettaglio.nomeCampo}';
+  }
+
+  List<String> _nomiDaConfermare(DettaglioPartita dettaglio) {
+    final List<String> nomi = [];
+    for (final posto in dettaglio.posti) {
+      // i giocatori del campo hanno sempre confermata false: non contano
+      if (posto.tipo == 'UTENTE' && !posto.confermata) {
+        nomi.add(posto.nome ?? '');
+      }
+    }
+    return nomi;
+  }
+
+  List<Widget> _pilloleStato(DettaglioPartita dettaglio) {
+    if (dettaglio.stato == 'annullata') {
+      return const [
+        Pillola(
+          testo: 'Annullata',
+          sfondo: Colori.bordo,
+          colore: Colori.testo,
+        ),
+      ];
+    }
+    if (dettaglio.stato == 'confermata') {
+      return const [
+        Pillola(
+          testo: 'Confermata, ci sono tutti',
+          sfondo: Colori.verdeChiaro,
+          colore: Colori.verde,
+        ),
+      ];
+    }
+    if (dettaglio.stato != 'creata') {
+      return const [];
+    }
+
+    final List<Widget> pillole = [];
+    if (dettaglio.postiLiberi == 1) {
+      pillole.add(
+        const Pillola(
+          testo: 'Manca un giocatore',
+          sfondo: Colori.arancioChiaro,
+          colore: Colori.arancio,
+        ),
+      );
+    } else if (dettaglio.postiLiberi > 1) {
+      pillole.add(
+        Pillola(
+          testo: 'Mancano ${dettaglio.postiLiberi} giocatori',
+          sfondo: Colori.arancioChiaro,
+          colore: Colori.arancio,
+        ),
+      );
+    } else if (_nomiDaConfermare(dettaglio).isNotEmpty) {
+      pillole.add(
+        const Pillola(
+          testo: 'In attesa di conferma',
+          sfondo: Colori.arancioChiaro,
+          colore: Colori.arancio,
         ),
       );
     }
-    // lo stato OperazioneInCorso non dice quale operazione e' partita:
-    // lo spinner va su Conferma, Esci ed Elimina, che sono gli unici bottoni
-    // che la fanno partire
-    if (dettaglio.azioni.puoUscire) {
-      bottoni.add(
-        _bottoneAzione(
+    pillole.add(
+      Pillola(
+        testo: dettaglio.tipo == 'PUBBLICA' ? 'Pubblica' : 'Privata',
+        sfondo: Colori.bordo,
+        colore: Colori.testo,
+      ),
+    );
+    return pillole;
+  }
+
+  Widget _buildIntestazione(Responsive r, DettaglioPartita dettaglio) {
+    final List<Widget> pillole = _pilloleStato(dettaglio);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_titolo(dettaglio), style: stileTitolo(r)),
+        const SizedBox(height: 4),
+        Text(_sottotitolo(dettaglio), style: stileSecondario(r)),
+        if (pillole.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, runSpacing: 6, children: pillole),
+        ],
+      ],
+    );
+  }
+
+  // ===== CAMPO =====
+
+  Widget _buildCampo(
+    BuildContext context,
+    DettaglioPartita dettaglio,
+    bool isLoading,
+  ) {
+    VoidCallback? onInvita;
+    if (_puoInvitare(dettaglio) && !isLoading) {
+      onInvita = () {
+        _apriInvita(context, dettaglio);
+      };
+    }
+
+    return CampoPadel(
+      altezza: dettaglio.postiLiberi > 0 ? 200 : 180,
+      arrotondato: true,
+      posti: postiDaDettaglio(dettaglio, conNomi: true, onInvita: onInvita),
+    );
+  }
+
+  // ===== GIOCATORI =====
+
+  Widget _buildGiocatori(
+    BuildContext context,
+    Responsive r,
+    DettaglioPartita dettaglio,
+    bool isLoading,
+  ) {
+    // le conferme interessano solo finche' la partita e' in attesa
+    final bool inAttesa = dettaglio.stato == 'creata';
+    final List<Widget> righe = [];
+
+    for (final posto in dettaglio.posti) {
+      righe.add(_rigaPosto(r, posto, dettaglio.telefonoCreatore, inAttesa));
+    }
+    for (int i = 0; i < dettaglio.postiLiberi; i++) {
+      righe.add(_rigaPostoLibero(context, r, dettaglio, isLoading));
+    }
+
+    final List<Widget> figli = [];
+    if (inAttesa) {
+      figli.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 2),
+          child: Text(
+            'Giocatori, ${dettaglio.posti.length} su 4',
+            style: stileTesto(r, base: 16, peso: FontWeight.w700),
+          ),
+        ),
+      );
+    }
+    for (int i = 0; i < righe.length; i++) {
+      if (i > 0) {
+        figli.add(const Divider(height: 1, color: Colori.bordo));
+      }
+      figli.add(righe[i]);
+    }
+
+    return CardBianca(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: figli,
+      ),
+    );
+  }
+
+  Widget _rigaPosto(
+    Responsive r,
+    PostoPartita posto,
+    String telefonoCreatore,
+    bool conStato,
+  ) {
+    String nome = '${posto.nome ?? ''} ${posto.cognome ?? ''}'.trim();
+    String dettagli = '';
+
+    if (posto.tipo == 'CAMPO') {
+      nome = 'Giocatore del campo';
+    } else {
+      if (posto.telefono == telefonoCreatore) {
+        dettagli = 'Organizzatore · ';
+      }
+      if (posto.livello != null) {
+        dettagli += 'Livello ${posto.livello}';
+      }
+    }
+
+    Widget? statoConferma;
+    if (conStato && posto.tipo == 'UTENTE') {
+      statoConferma = Text(
+        posto.confermata ? 'Confermato' : 'Da confermare',
+        style: stileTesto(
           r,
+          base: 14,
+          peso: FontWeight.w600,
+          colore: posto.confermata ? Colori.verde : Colori.arancio,
+        ),
+      );
+    }
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(nome, style: stileTesto(r, peso: FontWeight.w600)),
+                  if (dettagli.isNotEmpty)
+                    Text(dettagli, style: stileSecondario(r, base: 13)),
+                ],
+              ),
+            ),
+            if (statoConferma != null) ...[
+              const SizedBox(width: 8),
+              statoConferma,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _rigaPostoLibero(
+    BuildContext context,
+    Responsive r,
+    DettaglioPartita dettaglio,
+    bool isLoading,
+  ) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Row(
+        children: [
+          Expanded(child: Text('Posto libero', style: stileSecondario(r))),
+          if (_puoInvitare(dettaglio))
+            LinkTesto(
+              testo: 'Invita',
+              onPressed:
+                  isLoading
+                      ? null
+                      : () {
+                        _apriInvita(context, dettaglio);
+                      },
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ===== RISULTATO =====
+
+  // i nomi di una squadra; senza squadre sui posti resta solo il numero
+  String _nomiSquadra(DettaglioPartita dettaglio, int squadra) {
+    final List<String> nomi = [];
+    for (final posto in dettaglio.posti) {
+      if (posto.squadra == squadra) {
+        if (posto.tipo == 'CAMPO') {
+          nomi.add('Giocatore del campo');
+        } else {
+          nomi.add(posto.nome ?? '');
+        }
+      }
+    }
+    if (nomi.isEmpty) {
+      return 'Squadra $squadra';
+    }
+    return unisciNomi(nomi);
+  }
+
+  Widget _buildRisultato(
+    Responsive r,
+    DettaglioPartita dettaglio,
+    RisultatoPartita risultato,
+  ) {
+    // la squadra dell'utente va in alto: il server invece le ordina per numero
+    final int? mia = risultato.squadraUtente;
+    final int primaSquadra = mia == 2 ? 2 : 1;
+    final int secondaSquadra = mia == 2 ? 1 : 2;
+
+    final List<Widget> titoliSet = [];
+    for (int i = 0; i < risultato.set.length; i++) {
+      titoliSet.add(
+        SizedBox(
+          width: r.font(48),
+          child: Text(
+            'Set ${i + 1}',
+            textAlign: TextAlign.center,
+            style: stileSecondario(r, base: 13),
+          ),
+        ),
+      );
+    }
+
+    return CardBianca(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Risultato',
+            style: stileTesto(r, base: 16, peso: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+          Row(children: [const Spacer(), ...titoliSet]),
+          const SizedBox(height: 8),
+          _rigaSquadra(r, dettaglio, risultato, primaSquadra, mia),
+          const SizedBox(height: 8),
+          _rigaSquadra(r, dettaglio, risultato, secondaSquadra, mia),
+        ],
+      ),
+    );
+  }
+
+  Widget _rigaSquadra(
+    Responsive r,
+    DettaglioPartita dettaglio,
+    RisultatoPartita risultato,
+    int squadra,
+    int? mia,
+  ) {
+    final bool eLaMia = squadra == mia;
+
+    final List<Widget> punteggi = [];
+    for (final set in risultato.set) {
+      final int game = squadra == 1 ? set.squadra1 : set.squadra2;
+      punteggi.add(
+        SizedBox(
+          width: r.font(48),
+          child: Text(
+            '$game',
+            textAlign: TextAlign.center,
+            style: stileNumero(r, 22).copyWith(
+              fontWeight: eLaMia ? FontWeight.w600 : FontWeight.w500,
+              color: eLaMia ? Colori.testo : Colori.testoSecondario,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _nomiSquadra(dettaglio, squadra),
+                style:
+                    eLaMia
+                        ? stileTesto(r, peso: FontWeight.w700)
+                        : stileSecondario(r),
+              ),
+              if (eLaMia)
+                Text(
+                  'La tua squadra',
+                  style: stileTesto(
+                    r,
+                    base: 13,
+                    peso: FontWeight.w600,
+                    colore: Colori.verde,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        ...punteggi,
+      ],
+    );
+  }
+
+  // ===== AZIONI =====
+
+  // Cosa si puo' fare lo decide sempre il server. Solo la prima azione tra
+  // conferma, risultato e invito e' un bottone pieno, le altre sono link.
+  List<Widget> _buildAzioni(
+    BuildContext context,
+    Responsive r,
+    DettaglioPartita dettaglio,
+    bool isLoading,
+  ) {
+    if (dettaglio.stato == 'annullata') {
+      return [];
+    }
+
+    final List<_Azione> principali = [];
+    if (dettaglio.azioni.puoConfermare) {
+      principali.add(
+        _Azione('Conferma', () {
+          context.read<DettaglioPartitaBloc>().add(
+            ConfermaPartitaRichiesta(idPartita: dettaglio.id),
+          );
+        }),
+      );
+    }
+    if (dettaglio.azioni.puoRegistrareRisultato) {
+      principali.add(
+        _Azione('Registra risultato', () {
+          _apriRegistraRisultato(context, dettaglio);
+        }),
+      );
+    }
+    if (dettaglio.azioni.puoInvitare) {
+      principali.add(
+        _Azione('Invita giocatori', () {
+          _apriInvita(context, dettaglio);
+        }),
+      );
+    }
+
+    final List<Widget> figli = [];
+    for (int i = 0; i < principali.length; i++) {
+      if (i == 0) {
+        figli.add(
+          BottonePieno(
+            testo: principali[i].testo,
+            altezza: 52,
+            baseFont: 16,
+            inCaricamento: isLoading,
+            onPressed: principali[i].onPressed,
+          ),
+        );
+        figli.add(const SizedBox(height: 4));
+      } else {
+        figli.add(
+          LinkTesto(
+            testo: principali[i].testo,
+            onPressed: isLoading ? null : principali[i].onPressed,
+          ),
+        );
+      }
+    }
+
+    if (dettaglio.azioni.puoUscire) {
+      figli.add(
+        LinkTesto(
           testo: 'Esci dalla partita',
-          distruttivo: false,
-          disabilitato: operazioneInCorso,
-          caricamento: operazioneInCorso,
-          onPressed: () {
-            _confermaEsci(context, dettaglio.id);
-          },
+          peso: FontWeight.w600,
+          colore: Colori.testoSecondario,
+          onPressed:
+              isLoading
+                  ? null
+                  : () {
+                    _confermaEsci(context, dettaglio.id);
+                  },
         ),
       );
     }
     if (dettaglio.azioni.puoEliminare) {
-      bottoni.add(
-        _bottoneAzione(
-          r,
+      figli.add(
+        LinkTesto(
           testo: 'Elimina partita',
-          distruttivo: true,
-          disabilitato: operazioneInCorso,
-          caricamento: operazioneInCorso,
-          onPressed: () {
-            _confermaElimina(context, dettaglio.id);
-          },
+          peso: FontWeight.w600,
+          colore: Colori.rosso,
+          onPressed:
+              isLoading
+                  ? null
+                  : () {
+                    _confermaElimina(context, dettaglio);
+                  },
         ),
       );
     }
 
-    return Column(mainAxisSize: MainAxisSize.min, children: bottoni);
+    // senza bottone pieno lo spinner non avrebbe dove stare
+    if (isLoading && principali.isEmpty && figli.isNotEmpty) {
+      figli.insert(
+        0,
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.all(8),
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Colori.testo,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return figli;
   }
 
-  Future<void> _apriInvita(BuildContext context, int idPartita) async {
-    await Navigator.push(
+  Future<void> _apriInvita(
+    BuildContext context,
+    DettaglioPartita dettaglio,
+  ) async {
+    await Navigator.push<bool>(
       context,
       MaterialPageRoute<bool>(
-        builder: (_) => InvitaUtentiPage(idPartita: idPartita),
+        builder:
+            (_) => InvitaUtentiPage(
+              idPartita: dettaglio.id,
+              dettaglio: dettaglio,
+            ),
       ),
     );
 
-    // ricarichiamo sempre, non solo quando la pagina torna con true:
-    // anche un solo invito cambia i giocatori e i posti liberi
+    // ricarichiamo sempre: anche tornando con la freccia indietro qualche
+    // invito puo' essere gia' partito
     if (context.mounted) {
       context.read<DettaglioPartitaBloc>().add(
-        DettaglioPartitaRichiesto(idPartita: idPartita),
+        DettaglioPartitaRichiesto(idPartita: dettaglio.id),
       );
     }
   }
@@ -884,14 +807,13 @@ class _DettaglioPartitaView extends StatelessWidget {
     BuildContext context,
     DettaglioPartita dettaglio,
   ) async {
-    final bool? registrato = await Navigator.push(
+    final bool? registrato = await Navigator.push<bool>(
       context,
       MaterialPageRoute<bool>(
         builder: (_) => RegistraRisultatoPage(dettaglio: dettaglio),
       ),
     );
 
-    // con la freccia indietro la pagina torna con null e non e' cambiato niente
     if (registrato == true && context.mounted) {
       context.read<DettaglioPartitaBloc>().add(
         DettaglioPartitaRichiesto(idPartita: dettaglio.id),
@@ -899,16 +821,40 @@ class _DettaglioPartitaView extends StatelessWidget {
     }
   }
 
-  Future<void> _confermaElimina(BuildContext context, int idPartita) async {
+  // ===== DIALOG DI CONFERMA =====
+
+  Future<void> _confermaElimina(
+    BuildContext context,
+    DettaglioPartita dettaglio,
+  ) async {
+    // i giocatori del campo non vanno avvisati, e nemmeno chi sta eliminando
+    final String? mioTelefono = telefonoUtenteCorrente();
+    final List<String> altri = [];
+    for (final posto in dettaglio.posti) {
+      if (posto.tipo == 'UTENTE' && posto.telefono != mioTelefono) {
+        altri.add(posto.nome ?? '');
+      }
+    }
+
+    String testo = 'La partita verrà annullata';
+    if (altri.isNotEmpty) {
+      testo += ' per ${unisciNomi(altri)},';
+    }
+    testo +=
+        ' e il ${dettaglio.nomeCampo} tornerà libero '
+        '${giornoRelativo(dettaglio.dataPartita)} alle '
+        '${formattaOra(dettaglio.oraInizio)}.';
+
     final bool confermato = await _chiediConferma(
       context,
       titolo: 'Eliminare la partita?',
-      testo: 'La partita verrà annullata per tutti i partecipanti.',
+      testo: testo,
+      azione: 'Elimina',
     );
 
     if (confermato && context.mounted) {
       context.read<DettaglioPartitaBloc>().add(
-        EliminaPartitaRichiesta(idPartita: idPartita),
+        EliminaPartitaRichiesta(idPartita: dettaglio.id),
       );
     }
   }
@@ -918,6 +864,7 @@ class _DettaglioPartitaView extends StatelessWidget {
       context,
       titolo: 'Uscire dalla partita?',
       testo: 'Il tuo posto tornerà libero.',
+      azione: 'Esci',
     );
 
     if (confermato && context.mounted) {
@@ -927,190 +874,81 @@ class _DettaglioPartitaView extends StatelessWidget {
     }
   }
 
-  // restituisce true solo se l'utente tocca Conferma; con Annulla o
-  // toccando fuori dal dialog non succede niente
+  // restituisce true solo se l'utente tocca l'azione; con Annulla o toccando
+  // fuori dal dialog non succede niente
   Future<bool> _chiediConferma(
     BuildContext context, {
     required String titolo,
     required String testo,
+    required String azione,
   }) async {
-    final r = _Responsive(context);
+    final r = Responsive(context);
 
     final bool? risposta = await showDialog<bool>(
       context: context,
+      barrierColor: Colori.testo.withValues(alpha: 0.55),
       builder: (dialogContext) {
-        return AlertDialog(
+        return Dialog(
           backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          elevation: 0,
+          insetPadding: const EdgeInsets.all(24),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(r.cardBorderRadius),
+            borderRadius: BorderRadius.circular(20),
           ),
-          title: Text(
-            titolo,
-            style: TextStyle(
-              fontSize: r.font(20),
-              fontWeight: FontWeight.w700,
-              color: darkText,
-            ),
-          ),
-          content: Text(
-            testo,
-            style: TextStyle(fontSize: r.font(15), color: greyText),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: Text(
-                'Annulla',
-                style: TextStyle(
-                  color: greyText,
-                  fontWeight: FontWeight.w600,
-                  fontSize: r.font(15),
-                ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(titolo, style: stileNumero(r, 22)),
+                  const SizedBox(height: 8),
+                  Text(testo, style: stileSecondario(r)),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: BottonePieno(
+                          testo: 'Annulla',
+                          sfondo: Colori.sfondo,
+                          coloreTesto: Colori.testo,
+                          paddingOrizzontale: 8,
+                          onPressed: () {
+                            Navigator.pop(dialogContext, false);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: BottonePieno(
+                          testo: azione,
+                          sfondo: Colori.rosso,
+                          paddingOrizzontale: 8,
+                          onPressed: () {
+                            Navigator.pop(dialogContext, true);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              child: Text(
-                'Conferma',
-                style: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: r.font(15),
-                ),
-              ),
-            ),
-          ],
+          ),
         );
       },
     );
 
     return risposta == true;
   }
+}
 
-  Widget _bottoneAzione(
-    _Responsive r, {
-    required String testo,
-    required bool distruttivo,
-    required bool disabilitato,
-    required bool caricamento,
-    required VoidCallback onPressed,
-  }) {
-    final double altezza = (r.height * 0.065).clamp(48.0, 60.0);
-    const Color rosso = Color(0xFFA33A3A);
+class _Azione {
+  final String testo;
+  final VoidCallback onPressed;
 
-    Widget contenuto = Text(
-      testo,
-      style: TextStyle(
-        fontSize: r.font(16),
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.5,
-      ),
-    );
-    if (caricamento) {
-      contenuto = SizedBox(
-        width: r.font(22),
-        height: r.font(22),
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          color: distruttivo ? rosso : Colors.white,
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: SizedBox(
-        width: double.infinity,
-        height: altezza,
-        child: ElevatedButton(
-          // con onPressed a null il bottone si disabilita da solo
-          onPressed: disabilitato ? null : onPressed,
-          // il bottone distruttivo e' bianco con bordo e testo rossi,
-          // cosi' si distingue subito dagli altri. I colori da disabilitato
-          // restano quasi gli stessi, cosi' lo spinner si vede bene
-          style: ElevatedButton.styleFrom(
-            backgroundColor: distruttivo ? Colors.white : primaryColor,
-            foregroundColor: distruttivo ? rosso : Colors.white,
-            disabledBackgroundColor:
-                distruttivo
-                    ? Colors.white
-                    : primaryColor.withValues(alpha: 0.6),
-            disabledForegroundColor:
-                distruttivo ? rosso.withValues(alpha: 0.6) : Colors.white,
-            elevation: distruttivo ? 0 : 3,
-            shadowColor: primaryColor.withValues(alpha: 0.3),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side:
-                  distruttivo
-                      ? const BorderSide(color: rosso, width: 1.5)
-                      : BorderSide.none,
-            ),
-          ),
-          child: contenuto,
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // CARD GENERICA
-  // =====================================================================
-
-  Widget _iconBox(_Responsive r, IconData icon) {
-    final size = (r.width * 0.13).clamp(44.0, 56.0);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE7F1FC),
-        borderRadius: BorderRadius.circular(size * 0.26),
-      ),
-      child: Icon(icon, color: const Color(0xFF2168B4), size: size * 0.5),
-    );
-  }
-
-  Widget _buildCard({required _Responsive r, required Widget child}) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(r.cardBorderRadius),
-        border: Border.all(color: borderColor, width: 1),
-      ),
-      child: child,
-    );
-  }
-
-  // =====================================================================
-  // DATE / TIME
-  // =====================================================================
-
-  String _giornoSettimana(DateTime date) {
-    const giorni = [
-      'lunedì',
-      'martedì',
-      'mercoledì',
-      'giovedì',
-      'venerdì',
-      'sabato',
-      'domenica',
-    ];
-    return giorni[date.weekday - 1];
-  }
-
-  String _formatData(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
-  }
-
-  String _formatTime(TimeOfDay time) {
-    return '${time.hour.toString().padLeft(2, '0')}:'
-        '${time.minute.toString().padLeft(2, '0')}';
-  }
+  _Azione(this.testo, this.onPressed);
 }

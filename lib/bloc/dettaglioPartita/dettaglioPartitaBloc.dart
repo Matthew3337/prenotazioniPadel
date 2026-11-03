@@ -59,6 +59,10 @@ class DettaglioPartitaBloc extends Bloc<DettaglioPartitaEvent, DettaglioPartitaS
     {
       emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
     }
+    on Exception //timeout o rete assente: il Client li lascia passare cosi come sono, senza questo la pagina resterebbe ferma
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: ErroreGenericoServer().messaggio));
+    }
 
     //se il server ha rifiutato la partita e probabilmente cambiata (stato o azioni possibili),
     //quindi la ricarico; non emetto il Loading cosi il dettaglio resta a schermo finche non arriva quello nuovo
@@ -92,6 +96,10 @@ class DettaglioPartitaBloc extends Bloc<DettaglioPartitaEvent, DettaglioPartitaS
     on ErroreGenericoServer catch (e)
     {
       emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on Exception
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: ErroreGenericoServer().messaggio));
     }
 
     //come per l'eliminazione, ricarico il dettaglio aggiornato senza passare dal Loading
@@ -127,6 +135,10 @@ class DettaglioPartitaBloc extends Bloc<DettaglioPartitaEvent, DettaglioPartitaS
     {
       emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
     }
+    on Exception
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: ErroreGenericoServer().messaggio));
+    }
 
     //come per elimina ed esci, ricarico il dettaglio aggiornato senza passare dal Loading
     await _caricaDettaglio(evento.idPartita, emit);
@@ -146,6 +158,10 @@ class DettaglioPartitaBloc extends Bloc<DettaglioPartitaEvent, DettaglioPartitaS
     on ErroreGenericoServer catch (e)
     {
       emit(DettaglioPartitaErrore(messaggio: e.messaggio));
+    }
+    on Exception
+    {
+      emit(DettaglioPartitaErrore(messaggio: ErroreGenericoServer().messaggio));
     }
   }
 }

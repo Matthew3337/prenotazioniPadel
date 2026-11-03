@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:thepadel/bloc/classifica/classificaBloc.dart';
 import 'package:thepadel/bloc/classifica/classificaEvent.dart';
 import 'package:thepadel/bloc/classifica/classificaState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/voceClassifica.dart';
+
+import 'barraNavigazione.dart';
+import 'stileApp.dart';
 
 class ClassificaPage extends StatelessWidget {
   const ClassificaPage({super.key});
@@ -19,344 +21,275 @@ class ClassificaPage extends StatelessWidget {
   }
 }
 
-/// Helper responsive: stesso sistema usato in home, font scalati sulla
-/// larghezza di un iPhone standard (~390px) e padding clampati.
-class _Responsive {
-  final BuildContext context;
-  final double width;
-  final double height;
-  final bool isTablet;
-  final double textScale;
-
-  _Responsive(this.context)
-    : width = MediaQuery.sizeOf(context).width,
-      height = MediaQuery.sizeOf(context).height,
-      isTablet = MediaQuery.sizeOf(context).width >= 600,
-      textScale = (MediaQuery.sizeOf(context).width / 390).clamp(0.8, 1.1);
-
-  double font(double base) => base * textScale;
-
-  double get horizontalPadding => (width * 0.06).clamp(20.0, 48.0);
-
-  double get cardBorderRadius => isTablet ? 32 : 26;
-
-  double get maxContentWidth => isTablet ? 640 : double.infinity;
-}
-
 class _ClassificaView extends StatelessWidget {
   const _ClassificaView();
 
-  static const Color backgroundColor = Color(0xFFF7F8FC);
-  static const Color primaryColor = Color(0xFF4564B1);
-  static const Color darkText = Color(0xFF252B3A);
-  static const Color greyText = Color(0xFF7D8597);
-  static const Color borderColor = Color(0xFFE0E3EA);
-
-  // lo stesso azzurro chiaro del badge "Creata" nel dettaglio e nello storico
-  static const Color primarioChiaro = Color(0xFFE7F1FC);
-
-  // stesse tinte del badge della posizione nella card della home
-  static const Color podioSfondo = Color(0xFFFFF0D9);
-  static const Color podioTesto = Color(0xFF92530B);
+  void _ricarica(BuildContext context) {
+    context.read<ClassificaBloc>().add(const ClassificaRichiesta());
+  }
 
   @override
   Widget build(BuildContext context) {
-    final r = _Responsive(context);
+    final r = Responsive(context);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Colori.sfondo,
+      bottomNavigationBar: const BarraNavigazione(
+        voceAttiva: VoceBarra.classifica,
+      ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: r.maxContentWidth),
-            child: Column(
-              children: [
-                // l'header resta fuori dal builder, cosi' la freccia
-                // indietro c'e' anche durante il caricamento e in errore
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    r.horizontalPadding,
-                    16,
-                    r.horizontalPadding,
-                    0,
-                  ),
-                  child: _buildHeader(context, r),
-                ),
-                Expanded(
-                  child: BlocBuilder<ClassificaBloc, ClassificaState>(
-                    builder: (context, state) {
-                      if (state is ClassificaErrore) {
-                        return _buildErrore(context, r, state.messaggio);
-                      }
-
-                      if (state is ClassificaCaricata) {
-                        return _buildLista(context, r, state.voci);
-                      }
-
-                      // ClassificaInitial e ClassificaLoading
-                      return const Center(
-                        child: CircularProgressIndicator(color: primaryColor),
-                      );
+        child: ContenutoCentrato(
+          child: BlocBuilder<ClassificaBloc, ClassificaState>(
+            builder: (context, state) {
+              List<Widget> elementi;
+              if (state is ClassificaCaricata) {
+                elementi = _buildCaricata(r, state.voci);
+              } else if (state is ClassificaErrore) {
+                elementi = [
+                  Text('Classifica', style: stileTitolo(r)),
+                  const SizedBox(height: 12),
+                  CardErrore(
+                    titolo: 'Non siamo riusciti a caricare la classifica',
+                    testo:
+                        'Controlla la connessione. Se il problema resta, riprova più tardi.',
+                    onRiprova: () {
+                      _ricarica(context);
                     },
+                  ),
+                ];
+              } else {
+                elementi = _buildScheletro();
+              }
+
+              return RefreshIndicator(
+                color: Colori.primario,
+                onRefresh: () async {
+                  _ricarica(context);
+                },
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  children: elementi,
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ===== CARICAMENTO =====
+
+  List<Widget> _buildScheletro() {
+    final List<Widget> righe = [];
+    for (int i = 0; i < 8; i++) {
+      righe.add(
+        const SizedBox(
+          height: 58,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              children: [
+                BarraGrigia(larghezza: 20, altezza: 20),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BarraGrigia(larghezza: 140, altezza: 16),
+                      SizedBox(height: 5),
+                      BarraGrigia(altezza: 4, raggio: 2),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 8),
+                BarraGrigia(larghezza: 54, altezza: 18),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return [
+      const BarraGrigia(larghezza: 240, altezza: 30),
+      const SizedBox(height: 8),
+      const BarraGrigia(larghezza: 280, altezza: 16),
+      const SizedBox(height: 12),
+      CardBianca(
+        padding: const EdgeInsets.all(6),
+        child: Column(children: righe),
+      ),
+    ];
+  }
+
+  // ===== CONTENUTO =====
+
+  List<Widget> _buildCaricata(Responsive r, List<VoceClassifica> voci) {
+    VoceClassifica? mia;
+    for (final voce in voci) {
+      if (voce.utenteCorrente) {
+        mia = voce;
+      }
+    }
+
+    final List<Widget> elementi = [];
+    if (mia == null) {
+      // l'amministratore non e' in classifica: nessuna frase su di lui
+      elementi.add(Text('Classifica', style: stileTitolo(r)));
+    } else {
+      elementi.add(
+        Text(
+          'Sei ${mia.posizione}° con ${mia.punteggio} punti',
+          style: stileTitolo(r),
+        ),
+      );
+      final String distacco = _testoDistacco(mia, voci);
+      if (distacco.isNotEmpty) {
+        elementi.add(const SizedBox(height: 4));
+        elementi.add(Text(distacco, style: stileSecondario(r)));
+      }
+    }
+    elementi.add(const SizedBox(height: 12));
+
+    if (voci.isEmpty) {
+      elementi.add(
+        CardBianca(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Nessun giocatore in classifica',
+            style: stileSecondario(r),
+          ),
+        ),
+      );
+      return elementi;
+    }
+
+    // il server manda la lista gia' ordinata: il primo ha il punteggio piu' alto
+    final int massimo = voci.first.punteggio;
+    final List<Widget> righe = [];
+    for (final voce in voci) {
+      righe.add(_buildRiga(r, voce, massimo));
+    }
+
+    elementi.add(
+      CardBianca(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: righe,
+        ),
+      ),
+    );
+    return elementi;
+  }
+
+  // "22 da Andrea Russo, 27 di vantaggio su Elena Marchi". Non basta guardare
+  // le righe vicine: con i pari merito si cercano posizioni davvero diverse.
+  String _testoDistacco(VoceClassifica mia, List<VoceClassifica> voci) {
+    VoceClassifica? sopra;
+    VoceClassifica? sotto;
+    for (final voce in voci) {
+      if (voce.posizione < mia.posizione &&
+          (sopra == null || voce.posizione > sopra.posizione)) {
+        sopra = voce;
+      }
+      if (voce.posizione > mia.posizione &&
+          (sotto == null || voce.posizione < sotto.posizione)) {
+        sotto = voce;
+      }
+    }
+
+    final List<String> parti = [];
+    if (sopra != null) {
+      parti.add(
+        '${sopra.punteggio - mia.punteggio} da ${sopra.nome} ${sopra.cognome}',
+      );
+    }
+    if (sotto != null) {
+      parti.add(
+        '${mia.punteggio - sotto.punteggio} di vantaggio su '
+        '${sotto.nome} ${sotto.cognome}',
+      );
+    }
+    return parti.join(', ');
+  }
+
+  Widget _buildRiga(Responsive r, VoceClassifica voce, int massimo) {
+    final bool sono = voce.utenteCorrente;
+
+    double proporzione = 0;
+    if (massimo > 0) {
+      proporzione = (voce.punteggio / massimo).clamp(0.0, 1.0);
+    }
+
+    String nome = '${voce.nome} ${voce.cognome}';
+    if (sono) {
+      nome = '$nome (tu)';
+    }
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 58),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: sono ? Colori.azzurroChiaro : null,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: r.font(28),
+            child: Text('${voce.posizione}', style: stileNumero(r, 17)),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  nome,
+                  style: stileTesto(
+                    r,
+                    peso: sono ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Container(
+                  height: 4,
+                  alignment: Alignment.centerLeft,
+                  decoration: BoxDecoration(
+                    color: Colori.bordo,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  child: FractionallySizedBox(
+                    widthFactor: proporzione,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: sono ? Colori.bluCampo : Colori.grigio,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // HEADER
-  // =====================================================================
-
-  Widget _buildHeader(BuildContext context, _Responsive r) {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(Icons.arrow_back, color: darkText, size: r.font(24)),
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
-            'Classifica',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: r.font(24),
-              fontWeight: FontWeight.w700,
-              color: darkText,
+          const SizedBox(width: 8),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '${voce.punteggio} ',
+                  style: stileTesto(r, peso: FontWeight.w700),
+                ),
+                TextSpan(text: 'pt', style: stileSecondario(r, base: 13)),
+              ],
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  // =====================================================================
-  // ERRORE
-  // =====================================================================
-
-  Widget _buildErrore(BuildContext context, _Responsive r, String messaggio) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: r.horizontalPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.redAccent,
-              size: r.font(32),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              messaggio,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: greyText, fontSize: r.font(15)),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () {
-                context.read<ClassificaBloc>().add(const ClassificaRichiesta());
-              },
-              child: Text(
-                'Riprova',
-                style: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: r.font(15),
-                ),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
-    );
-  }
-
-  // =====================================================================
-  // LISTA GIOCATORI
-  // =====================================================================
-
-  Widget _buildLista(
-    BuildContext context,
-    _Responsive r,
-    List<VoceClassifica> voci,
-  ) {
-    final List<Widget> elementi = [];
-
-    if (voci.isEmpty) {
-      elementi.add(_buildVuota(r));
-    }
-
-    // l'ordine e' quello deciso dal server, qui non si riordina niente
-    for (final voce in voci) {
-      elementi.add(_buildRiga(r, voce));
-      elementi.add(const SizedBox(height: 10));
-    }
-
-    // la lista deve poter scorrere anche quando e' corta o vuota,
-    // altrimenti il pull-to-refresh non parte
-    return RefreshIndicator(
-      color: primaryColor,
-      onRefresh: () async {
-        context.read<ClassificaBloc>().add(const ClassificaRichiesta());
-      },
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(
-          r.horizontalPadding,
-          22,
-          r.horizontalPadding,
-          16,
-        ),
-        children: elementi,
-      ),
-    );
-  }
-
-  Widget _buildVuota(_Responsive r) {
-    return _buildCard(
-      r: r,
-      sfondo: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            _iconBox(r, Icons.bar_chart_outlined),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                'Nessun giocatore in classifica',
-                style: TextStyle(
-                  fontSize: r.font(16),
-                  fontWeight: FontWeight.w500,
-                  color: darkText,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // RIGA GIOCATORE
-  // =====================================================================
-
-  Widget _buildRiga(_Responsive r, VoceClassifica voce) {
-    Color sfondo = Colors.white;
-    FontWeight pesoTesto = FontWeight.w500;
-
-    if (voce.utenteCorrente) {
-      sfondo = primarioChiaro;
-      pesoTesto = FontWeight.w700;
-    }
-
-    return _buildCard(
-      r: r,
-      sfondo: sfondo,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 18, 12),
-        child: Row(
-          children: [
-            _badgePosizione(r, voce.posizione, pesoTesto),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                '${voce.nome} ${voce.cognome}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: r.font(16),
-                  fontWeight: pesoTesto,
-                  color: darkText,
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              '${voce.punteggio} pt',
-              style: TextStyle(
-                fontSize: r.font(15),
-                fontWeight: pesoTesto,
-                color: darkText,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // a pari punti la posizione si ripete (1, 2, 2, 4), quindi l'accento
-  // dipende dal numero e non dall'indice della riga: con un pari merito
-  // le righe colorate possono essere piu' di tre
-  Widget _badgePosizione(_Responsive r, int posizione, FontWeight peso) {
-    final size = (r.width * 0.11).clamp(40.0, 48.0);
-
-    Color sfondo = borderColor;
-    Color colore = darkText;
-
-    if (posizione <= 3) {
-      sfondo = podioSfondo;
-      colore = podioTesto;
-    }
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: sfondo, shape: BoxShape.circle),
-      child: Center(
-        child: Text(
-          '$posizione',
-          style: TextStyle(
-            fontSize: r.font(16),
-            fontWeight: peso,
-            color: colore,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // CARD GENERICA
-  // =====================================================================
-
-  Widget _iconBox(_Responsive r, IconData icon) {
-    final size = (r.width * 0.13).clamp(44.0, 56.0);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: primarioChiaro,
-        borderRadius: BorderRadius.circular(size * 0.26),
-      ),
-      child: Icon(icon, color: const Color(0xFF2168B4), size: size * 0.5),
-    );
-  }
-
-  Widget _buildCard({
-    required _Responsive r,
-    required Color sfondo,
-    required Widget child,
-  }) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: sfondo,
-        borderRadius: BorderRadius.circular(r.cardBorderRadius),
-        border: Border.all(color: borderColor, width: 1),
-      ),
-      child: child,
     );
   }
 }

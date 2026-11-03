@@ -26,11 +26,11 @@ class RegistrazioneUseCase {
 
   Future<int> call(String nome, String cognome, String telefono, DateTime dataNascita, String password){
 
-    if(nome.isEmpty)
+    if(nome.trim().isEmpty)
     {
       throw NomeMancante();
     } 
-    if(cognome.isEmpty)
+    if(cognome.trim().isEmpty)
     {
       throw CognomeMancante();
     }

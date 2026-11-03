@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:thepadel/bloc/storico/storicoBloc.dart';
 import 'package:thepadel/bloc/storico/storicoEvent.dart';
 import 'package:thepadel/bloc/storico/storicoState.dart';
@@ -8,7 +7,11 @@ import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/partitaStorico.dart';
 import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 
+import 'bachecaPubbliche.dart';
+import 'barraNavigazione.dart';
 import 'dettaglioPartita.dart';
+import 'prenota.dart';
+import 'stileApp.dart';
 
 class StoricoPage extends StatelessWidget {
   const StoricoPage({super.key});
@@ -22,522 +25,447 @@ class StoricoPage extends StatelessWidget {
   }
 }
 
-/// Helper responsive: stesso sistema usato in home, font scalati sulla
-/// larghezza di un iPhone standard (~390px) e padding clampati.
-class _Responsive {
-  final BuildContext context;
-  final double width;
-  final double height;
-  final bool isTablet;
-  final double textScale;
-
-  _Responsive(this.context)
-    : width = MediaQuery.sizeOf(context).width,
-      height = MediaQuery.sizeOf(context).height,
-      isTablet = MediaQuery.sizeOf(context).width >= 600,
-      textScale = (MediaQuery.sizeOf(context).width / 390).clamp(0.8, 1.1);
-
-  double font(double base) => base * textScale;
-
-  double get horizontalPadding => (width * 0.06).clamp(20.0, 48.0);
-
-  double get cardBorderRadius => isTablet ? 32 : 26;
-
-  double get maxContentWidth => isTablet ? 640 : double.infinity;
-}
-
 class _StoricoView extends StatelessWidget {
   const _StoricoView();
 
-  static const Color backgroundColor = Color(0xFFF7F8FC);
-  static const Color primaryColor = Color(0xFF4564B1);
-  static const Color darkText = Color(0xFF252B3A);
-  static const Color greyText = Color(0xFF7D8597);
-  static const Color borderColor = Color(0xFFE0E3EA);
-
-  // stesse tinte verde e rossa del badge di stato nel dettaglio
-  static const Color verde = Color(0xFF075E50);
-  static const Color rosso = Color(0xFFA33A3A);
+  void _ricarica(BuildContext context) {
+    context.read<StoricoBloc>().add(const StoricoRichiesto());
+  }
 
   @override
   Widget build(BuildContext context) {
-    final r = _Responsive(context);
+    final r = Responsive(context);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Colori.sfondo,
+      bottomNavigationBar: const BarraNavigazione(
+        voceAttiva: VoceBarra.storico,
+      ),
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: r.maxContentWidth),
-            child: Column(
-              children: [
-                // l'header resta fuori dal builder, cosi' la freccia
-                // indietro c'e' anche durante il caricamento e in errore
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    r.horizontalPadding,
-                    16,
-                    r.horizontalPadding,
-                    0,
-                  ),
-                  child: _buildHeader(context, r),
-                ),
-                Expanded(
-                  child: BlocBuilder<StoricoBloc, StoricoState>(
-                    builder: (context, state) {
-                      if (state is StoricoErrore) {
-                        return _buildErrore(context, r, state.messaggio);
-                      }
-
-                      if (state is StoricoCaricato) {
-                        return _buildLista(context, r, state.partite);
-                      }
-
-                      // StoricoInitial e StoricoLoading
-                      return const Center(
-                        child: CircularProgressIndicator(color: primaryColor),
-                      );
+        child: ContenutoCentrato(
+          child: BlocBuilder<StoricoBloc, StoricoState>(
+            builder: (context, state) {
+              List<Widget> elementi;
+              if (state is StoricoCaricato) {
+                elementi = _buildCaricato(context, r, state.partite);
+              } else if (state is StoricoErrore) {
+                elementi = [
+                  Text('Storico partite', style: stileTitolo(r)),
+                  const SizedBox(height: 12),
+                  CardErrore(
+                    titolo: 'Non siamo riusciti a caricare lo storico',
+                    testo: state.messaggio,
+                    onRiprova: () {
+                      _ricarica(context);
                     },
                   ),
+                ];
+              } else {
+                elementi = _buildScheletro();
+              }
+
+              return RefreshIndicator(
+                color: Colori.primario,
+                onRefresh: () async {
+                  _ricarica(context);
+                },
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  children: elementi,
                 ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Future<void> _apriDettaglio(BuildContext context, int idPartita) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => DettaglioPartitaPage(idPartita: idPartita),
-      ),
-    );
+  // ===== CARICAMENTO =====
 
-    // dal dettaglio l'utente puo' uscire dalla partita o eliminarla,
-    // quindi al ritorno lo storico va ricaricato
-    if (context.mounted) {
-      context.read<StoricoBloc>().add(const StoricoRichiesto());
-    }
-  }
-
-  // =====================================================================
-  // HEADER
-  // =====================================================================
-
-  Widget _buildHeader(BuildContext context, _Responsive r) {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(Icons.arrow_back, color: darkText, size: r.font(24)),
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
-            'Storico partite',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: r.font(24),
-              fontWeight: FontWeight.w700,
-              color: darkText,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =====================================================================
-  // ERRORE
-  // =====================================================================
-
-  Widget _buildErrore(BuildContext context, _Responsive r, String messaggio) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: r.horizontalPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.redAccent,
-              size: r.font(32),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              messaggio,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: greyText, fontSize: r.font(15)),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () {
-                context.read<StoricoBloc>().add(const StoricoRichiesto());
-              },
-              child: Text(
-                'Riprova',
-                style: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: r.font(15),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // LISTA PARTITE
-  // =====================================================================
-
-  Widget _buildLista(
-    BuildContext context,
-    _Responsive r,
-    List<PartitaStorico> partite,
-  ) {
-    final List<Widget> elementi = [];
-
-    if (partite.isEmpty) {
-      elementi.add(_buildVuota(r));
-    }
-
-    for (final partita in partite) {
-      elementi.add(_buildPartitaCard(context, r, partita));
-      elementi.add(const SizedBox(height: 14));
-    }
-
-    // la lista deve poter scorrere anche quando e' corta o vuota,
-    // altrimenti il pull-to-refresh non parte
-    return RefreshIndicator(
-      color: primaryColor,
-      onRefresh: () async {
-        context.read<StoricoBloc>().add(const StoricoRichiesto());
-      },
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(
-          r.horizontalPadding,
-          22,
-          r.horizontalPadding,
-          16,
-        ),
-        children: elementi,
-      ),
-    );
-  }
-
-  Widget _buildVuota(_Responsive r) {
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            _iconBox(r, Icons.history),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                'Non hai ancora partite nello storico',
-                style: TextStyle(
-                  fontSize: r.font(16),
-                  fontWeight: FontWeight.w500,
-                  color: darkText,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // CARD PARTITA
-  // =====================================================================
-
-  Widget _buildPartitaCard(
-    BuildContext context,
-    _Responsive r,
-    PartitaStorico partita,
-  ) {
-    final String giorno = _giornoSettimana(partita.dataPartita);
-    final String data = _formatData(partita.dataPartita);
-    final String oraInizio = _formatTime(partita.oraInizio);
-    final String oraFine = _formatTime(partita.oraFine);
-
-    final List<Widget> righe = [
-      Row(
-        children: [
-          Expanded(
-            child: Text(
-              partita.nomeCampo,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: r.font(18),
-                fontWeight: FontWeight.w700,
-                color: darkText,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          _badgeStato(r, partita.stato),
-        ],
-      ),
-      const SizedBox(height: 14),
-      _rigaInfo(
-        r,
-        icona: Icons.calendar_month_outlined,
-        etichetta: 'Data',
-        valore: '$giorno $data',
-      ),
-      const SizedBox(height: 14),
-      _rigaInfo(
-        r,
-        icona: Icons.access_time,
-        etichetta: 'Orario',
-        valore: '$oraInizio - $oraFine',
-      ),
-    ];
-
-    // senza set non c'e' niente da mostrare, anche se il risultato esiste
-    final RisultatoPartita? risultato = partita.risultato;
-    if (risultato != null && risultato.set.isNotEmpty) {
-      righe.add(const SizedBox(height: 14));
-      righe.add(_rigaRisultato(r, risultato));
-    }
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(r.cardBorderRadius),
-      onTap: () {
-        _apriDettaglio(context, partita.id);
-      },
-      child: _buildCard(
-        r: r,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+  List<Widget> _buildScheletro() {
+    final List<Widget> righe = [];
+    for (int i = 0; i < 4; i++) {
+      righe.add(
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 12),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: righe,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _rigaInfo(
-    _Responsive r, {
-    required IconData icona,
-    required String etichetta,
-    required String valore,
-  }) {
-    return Row(
-      children: [
-        _iconBox(r, icona),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                etichetta,
-                style: TextStyle(
-                  fontSize: r.font(13),
-                  fontWeight: FontWeight.w500,
-                  color: greyText,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  BarraGrigia(larghezza: 150, altezza: 18),
+                  BarraGrigia(larghezza: 90, altezza: 22, raggio: 999),
+                ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                valore,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: r.font(16),
-                  fontWeight: FontWeight.w600,
-                  color: darkText,
-                ),
+              SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  BarraGrigia(larghezza: 170, altezza: 16),
+                  BarraGrigia(larghezza: 60, altezza: 16),
+                ],
               ),
             ],
           ),
         ),
-      ],
+      );
+    }
+
+    return [
+      const BarraGrigia(larghezza: 200, altezza: 30),
+      const SizedBox(height: 8),
+      const BarraGrigia(larghezza: 260, altezza: 16),
+      const SizedBox(height: 12),
+      CardBianca(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Column(children: righe),
+      ),
+    ];
+  }
+
+  // ===== CONTENUTO =====
+
+  List<Widget> _buildCaricato(
+    BuildContext context,
+    Responsive r,
+    List<PartitaStorico> partite,
+  ) {
+    if (partite.isEmpty) {
+      return _buildVuoto(context, r);
+    }
+
+    final List<Widget> elementi = [..._buildBilancio(r, partite)];
+
+    // basta una partita alla volta: finita questa compare la successiva
+    PartitaStorico? senzaRisultato;
+    for (final partita in partite) {
+      if (senzaRisultato == null && _mancaRisultato(partita)) {
+        senzaRisultato = partita;
+      }
+    }
+    if (senzaRisultato != null) {
+      elementi.add(const SizedBox(height: 12));
+      elementi.add(_buildManca(context, r, senzaRisultato));
+    }
+
+    final List<Widget> righe = [];
+    for (int i = 0; i < partite.length; i++) {
+      if (i > 0) {
+        righe.add(const Divider(height: 1, color: Colori.bordo));
+      }
+      righe.add(_buildRiga(context, r, partite[i]));
+    }
+    elementi.add(const SizedBox(height: 12));
+    elementi.add(
+      CardBianca(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: righe,
+        ),
+      ),
+    );
+    return elementi;
+  }
+
+  // Il server passa a "giocata" solo quando il risultato viene registrato:
+  // fino ad allora una partita finita resta "confermata", quindi si guarda
+  // anche l'orario di fine. Se finisce a mezzanotte o dopo, e' gia' il giorno dopo.
+  bool _mancaRisultato(PartitaStorico partita) {
+    if (partita.risultato != null) {
+      return false;
+    }
+    if (partita.stato == 'giocata') {
+      return true;
+    }
+    if (partita.stato != 'confermata') {
+      return false;
+    }
+    final DateTime data = partita.dataPartita;
+    final TimeOfDay inizio = partita.oraInizio;
+    final TimeOfDay fine = partita.oraFine;
+    int giorno = data.day;
+    if (fine.hour < inizio.hour) {
+      giorno = data.day + 1;
+    }
+    final DateTime finePartita = DateTime(
+      data.year,
+      data.month,
+      giorno,
+      fine.hour,
+      fine.minute,
+    );
+    return finePartita.isBefore(DateTime.now());
+  }
+
+  List<Widget> _buildBilancio(Responsive r, List<PartitaStorico> partite) {
+    int vinte = 0;
+    int perse = 0;
+    for (final partita in partite) {
+      final String? esito = partita.risultato?.esito;
+      if (esito == 'VINTA') {
+        vinte++;
+      }
+      if (esito == 'PERSA') {
+        perse++;
+      }
+    }
+
+    final int conEsito = vinte + perse;
+    if (conEsito == 0) {
+      return [
+        Text('Storico partite', style: stileTitolo(r)),
+        const SizedBox(height: 4),
+        Text(
+          'Qui troverai risultati e punti di ogni partita.',
+          style: stileSecondario(r),
+        ),
+      ];
+    }
+
+    final String testoVinte = vinte == 1 ? '1 vinta' : '$vinte vinte';
+    final String testoPerse = perse == 1 ? '1 persa' : '$perse perse';
+    final String sottotitolo =
+        conEsito == 1
+            ? 'La tua ultima partita con risultato'
+            : 'Le tue ultime $conEsito partite con risultato';
+
+    return [
+      Text('$testoVinte, $testoPerse', style: stileTitolo(r)),
+      const SizedBox(height: 4),
+      Text(sottotitolo, style: stileSecondario(r)),
+    ];
+  }
+
+  Widget _buildManca(
+    BuildContext context,
+    Responsive r,
+    PartitaStorico partita,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colori.arancioChiaro,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Manca il risultato di ${nomeGiorno(partita.dataPartita)}',
+            style: stileTesto(
+              r,
+              base: 16,
+              peso: FontWeight.w700,
+              colore: Colori.arancio,
+            ),
+          ),
+          Text(
+            '${giornoEMese(partita.dataPartita)}, '
+            '${formattaOra(partita.oraInizio)} - ${formattaOra(partita.oraFine)} · '
+            '${partita.nomeCampo}',
+            style: stileTesto(r),
+          ),
+          const SizedBox(height: 10),
+          // il form del risultato ha bisogno del dettaglio con i giocatori, che
+          // lo storico non ha: lo si raggiunge dalla pagina della partita
+          BottonePieno(
+            testo: 'Registra risultato',
+            onPressed: () {
+              _apriDettaglio(context, partita.id);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRiga(
+    BuildContext context,
+    Responsive r,
+    PartitaStorico partita,
+  ) {
+    final RisultatoPartita? risultato = partita.risultato;
+    final String punteggio = risultato == null ? '' : _testoSet(risultato);
+
+    return InkWell(
+      onTap: () {
+        _apriDettaglio(context, partita.id);
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    conMaiuscola(dataEstesa(partita.dataPartita)),
+                    style: stileTesto(r, base: 16, peso: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _pillola(partita),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${formattaOra(partita.oraInizio)} - '
+                    '${formattaOra(partita.oraFine)} · ${partita.nomeCampo}',
+                    style: stileSecondario(r),
+                  ),
+                ),
+                if (punteggio.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Text(punteggio, style: stileNumero(r, 15)),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   // il server da' i set come squadra1-squadra2: se l'utente e' nella
   // squadra 2 li giriamo, cosi' il primo numero sono sempre i suoi game
-  Widget _rigaRisultato(_Responsive r, RisultatoPartita risultato) {
+  String _testoSet(RisultatoPartita risultato) {
     String testo = '';
     for (final set in risultato.set) {
       String punteggio = '${set.squadra1}-${set.squadra2}';
       if (risultato.squadraUtente == 2) {
         punteggio = '${set.squadra2}-${set.squadra1}';
       }
-
       if (testo.isEmpty) {
         testo = punteggio;
       } else {
         testo = '$testo $punteggio';
       }
     }
+    return testo;
+  }
 
-    Color colore = darkText;
-    if (risultato.esito == 'VINTA') {
-      testo = '$testo · Vinta';
-      colore = verde;
+  // i punti possono anche essere negativi: il segno meno lo mette gia' il numero
+  String _testoPunti(int? punti) {
+    if (punti == null) {
+      return '';
     }
-    if (risultato.esito == 'PERSA') {
-      testo = '$testo · Persa';
-      colore = rosso;
+    if (punti >= 0) {
+      return ' · +$punti pt';
     }
+    return ' · $punti pt';
+  }
 
-    final int? punti = risultato.puntiAssegnati;
-    if (punti != null) {
-      // i punti negativi hanno gia' il meno davanti
-      if (punti > 0) {
-        testo = '$testo · +$punti punti';
-      } else {
-        testo = '$testo · $punti punti';
-      }
-    }
+  Widget _pillola(PartitaStorico partita) {
+    final RisultatoPartita? risultato = partita.risultato;
 
-    return Row(
-      children: [
-        _iconBox(r, Icons.emoji_events_outlined),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Risultato',
-                style: TextStyle(
-                  fontSize: r.font(13),
-                  fontWeight: FontWeight.w500,
-                  color: greyText,
+    if (risultato != null && risultato.esito == 'VINTA') {
+      return Pillola(
+        testo: 'Vinta${_testoPunti(risultato.puntiAssegnati)}',
+        sfondo: Colori.verdeChiaro,
+        colore: Colori.verde,
+      );
+    }
+    if (risultato != null && risultato.esito == 'PERSA') {
+      return Pillola(
+        testo: 'Persa${_testoPunti(risultato.puntiAssegnati)}',
+        sfondo: Colori.bordo,
+        colore: Colori.testo,
+      );
+    }
+    if (_mancaRisultato(partita)) {
+      return const Pillola(
+        testo: 'Senza risultato',
+        sfondo: Colori.arancioChiaro,
+        colore: Colori.arancio,
+      );
+    }
+    if (partita.stato == 'giocata') {
+      return const Pillola(
+        testo: 'Giocata',
+        sfondo: Colori.bordo,
+        colore: Colori.testo,
+      );
+    }
+    return const Pillola(
+      testo: 'In programma',
+      sfondo: Colori.azzurroChiaro,
+      colore: Colori.azzurro,
+    );
+  }
+
+  // ===== VUOTO =====
+
+  List<Widget> _buildVuoto(BuildContext context, Responsive r) {
+    return [
+      Text('Storico partite', style: stileTitolo(r)),
+      const SizedBox(height: 4),
+      Text(
+        'Qui troverai risultati e punti di ogni partita.',
+        style: stileSecondario(r),
+      ),
+      const SizedBox(height: 12),
+      CardBianca(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Non hai ancora partite nello storico',
+              style: stileTesto(r, base: 16, peso: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Prenota un campo o unisciti a una partita aperta.',
+              style: stileSecondario(r),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: BottonePieno(
+                    testo: 'Prenota un campo',
+                    paddingOrizzontale: 8,
+                    onPressed: () {
+                      cambiaPagina(context, const PrenotaPage());
+                    },
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                testo,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: r.font(16),
-                  fontWeight: FontWeight.w600,
-                  color: colore,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: BottonePieno(
+                    testo: 'Trova una partita',
+                    paddingOrizzontale: 8,
+                    sfondo: Colori.azzurroChiaro,
+                    coloreTesto: Colori.azzurro,
+                    onPressed: () {
+                      cambiaPagina(context, const BachecaPubblichePage());
+                    },
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // stessi testi e colori del badge nel dettaglio partita; le annullate
-  // il server non le manda nello storico
-  Widget _badgeStato(_Responsive r, String stato) {
-    String testo = stato;
-    Color sfondo = borderColor;
-    Color colore = greyText;
-
-    if (stato == 'creata') {
-      testo = 'Creata';
-      sfondo = const Color(0xFFE7F1FC);
-      colore = primaryColor;
-    }
-    if (stato == 'confermata') {
-      testo = 'Confermata';
-      sfondo = const Color(0xFFE0F4EE);
-      colore = verde;
-    }
-    if (stato == 'giocata') {
-      testo = 'Giocata';
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: sfondo,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        testo,
-        style: TextStyle(
-          color: colore,
-          fontSize: r.font(13),
-          fontWeight: FontWeight.w600,
+              ],
+            ),
+          ],
         ),
       ),
-    );
-  }
-
-  // =====================================================================
-  // CARD GENERICA
-  // =====================================================================
-
-  Widget _iconBox(_Responsive r, IconData icon) {
-    final size = (r.width * 0.13).clamp(44.0, 56.0);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE7F1FC),
-        borderRadius: BorderRadius.circular(size * 0.26),
-      ),
-      child: Icon(icon, color: const Color(0xFF2168B4), size: size * 0.5),
-    );
-  }
-
-  Widget _buildCard({required _Responsive r, required Widget child}) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(r.cardBorderRadius),
-        border: Border.all(color: borderColor, width: 1),
-      ),
-      child: child,
-    );
-  }
-
-  // =====================================================================
-  // DATE / TIME
-  // =====================================================================
-
-  String _giornoSettimana(DateTime date) {
-    const giorni = [
-      'lunedì',
-      'martedì',
-      'mercoledì',
-      'giovedì',
-      'venerdì',
-      'sabato',
-      'domenica',
     ];
-    return giorni[date.weekday - 1];
   }
 
-  String _formatData(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
-  }
+  Future<void> _apriDettaglio(BuildContext context, int idPartita) async {
+    await Navigator.push<bool>(
+      context,
+      MaterialPageRoute<bool>(
+        builder: (_) => DettaglioPartitaPage(idPartita: idPartita),
+      ),
+    );
 
-  String _formatTime(TimeOfDay time) {
-    return '${time.hour.toString().padLeft(2, '0')}:'
-        '${time.minute.toString().padLeft(2, '0')}';
+    if (context.mounted) {
+      _ricarica(context);
+    }
   }
 }

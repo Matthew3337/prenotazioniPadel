@@ -123,4 +123,15 @@ void main()
       await expectLater(bloc.stream, emitsInOrder([isA<RegistraRisultatoLoading>(), erroreCon(ErroreGenericoServer().messaggio)]));
     });
   });
+
+  test("timeout o rete assente: Loading poi Errore col messaggio generico", () async
+  {
+    repo.erroreRisultato = Exception("timeout");
+    bloc.add(eventoValido());
+
+    await expectLater(bloc.stream, emitsInOrder([
+      isA<RegistraRisultatoLoading>(),
+      erroreCon(ErroreGenericoServer().messaggio),
+    ]));
+  });
 }

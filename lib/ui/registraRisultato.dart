@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:thepadel/bloc/registraRisultato/registraRisultatoBloc.dart';
 import 'package:thepadel/bloc/registraRisultato/registraRisultatoEvent.dart';
 import 'package:thepadel/bloc/registraRisultato/registraRisultatoState.dart';
@@ -8,6 +7,9 @@ import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/setPartita.dart';
+
+import 'campoPadel.dart';
+import 'stileApp.dart';
 
 class RegistraRisultatoPage extends StatelessWidget {
   final DettaglioPartita dettaglio;
@@ -25,30 +27,6 @@ class RegistraRisultatoPage extends StatelessWidget {
   }
 }
 
-/// Helper responsive: stesso sistema usato in home, font scalati sulla
-/// larghezza di un iPhone standard (~390px) e padding clampati.
-class _Responsive {
-  final BuildContext context;
-  final double width;
-  final double height;
-  final bool isTablet;
-  final double textScale;
-
-  _Responsive(this.context)
-    : width = MediaQuery.sizeOf(context).width,
-      height = MediaQuery.sizeOf(context).height,
-      isTablet = MediaQuery.sizeOf(context).width >= 600,
-      textScale = (MediaQuery.sizeOf(context).width / 390).clamp(0.8, 1.1);
-
-  double font(double base) => base * textScale;
-
-  double get horizontalPadding => (width * 0.06).clamp(20.0, 48.0);
-
-  double get cardBorderRadius => isTablet ? 32 : 26;
-
-  double get maxContentWidth => isTablet ? 640 : double.infinity;
-}
-
 class _RegistraRisultatoView extends StatefulWidget {
   final DettaglioPartita dettaglio;
 
@@ -59,17 +37,11 @@ class _RegistraRisultatoView extends StatefulWidget {
 }
 
 class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
-  static const Color backgroundColor = Color(0xFFF7F8FC);
-  static const Color primaryColor = Color(0xFF4564B1);
-  static const Color darkText = Color(0xFF252B3A);
-  static const Color greyText = Color(0xFF7D8597);
-  static const Color borderColor = Color(0xFFE0E3EA);
-
   static const int maxGame = 6;
 
-  // per ogni posto, nello stesso ordine di dettaglio.posti, la squadra
-  // scelta: 1 o 2
-  final List<int> _squadre = [];
+  // quale posto della partita sta in ogni punto del campo: gli indici 0 e 1
+  // sono la squadra 1 (a sinistra), gli indici 2 e 3 la squadra 2
+  final List<int> _ordine = [0, 1, 2, 3];
 
   // i game dei tre set: la posizione nella lista e' il numero del set
   final List<int> _gameSquadra1 = [0, 0, 0];
@@ -77,58 +49,63 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
 
   bool _terzoSetGiocato = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // all'inizio i primi due posti stanno in squadra 1 e gli altri in squadra 2
-    for (int i = 0; i < widget.dettaglio.posti.length; i++) {
-      if (i < 2) {
-        _squadre.add(1);
-      } else {
-        _squadre.add(2);
-      }
-    }
-  }
+  // l'ultimo errore del server, sopra il bottone finche' non si riprova
+  String? _errore;
+
+  int get _numeroSet => _terzoSetGiocato ? 3 : 2;
 
   @override
   Widget build(BuildContext context) {
-    final r = _Responsive(context);
+    final r = Responsive(context);
+    final String titolo =
+        '${conMaiuscola(dataEstesa(widget.dettaglio.dataPartita))}, '
+        '${widget.dettaglio.nomeCampo}';
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Colori.sfondo,
       body: SafeArea(
-        child: BlocConsumer<RegistraRisultatoBloc, RegistraRisultatoState>(
-          listener: (context, state) {
-            if (state is RisultatoRegistrato) {
-              _mostraSnackBar(context, r, 'Risultato registrato');
-              // true dice al dettaglio di ricaricarsi
-              Navigator.pop(context, true);
-            }
-            if (state is RegistraRisultatoErrore) {
-              _mostraSnackBar(context, r, state.messaggio);
-            }
-          },
-          builder: (context, state) {
-            final bool isLoading = state is RegistraRisultatoLoading;
+        child: ContenutoCentrato(
+          child: BlocConsumer<RegistraRisultatoBloc, RegistraRisultatoState>(
+            listener: (context, state) {
+              if (state is RisultatoRegistrato) {
+                mostraSnackBar(context, 'Risultato registrato');
+                // true dice al dettaglio di ricaricarsi
+                Navigator.pop(context, true);
+              }
+              if (state is RegistraRisultatoErrore) {
+                setState(() {
+                  _errore = state.messaggio;
+                });
+              }
+            },
+            builder: (context, state) {
+              final bool isLoading = state is RegistraRisultatoLoading;
 
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: r.maxContentWidth),
-                child:
-                    _registrazioneDisponibile()
-                        ? _buildForm(context, r, isLoading)
-                        : _buildNonDisponibile(context, r),
-              ),
-            );
-          },
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TestataIndietro(titolo: titolo),
+                  Expanded(
+                    child:
+                        _registrazioneDisponibile()
+                            ? _buildForm(context, r, isLoading)
+                            : _buildNonDisponibile(context, r),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 
-  // senza idPosto non possiamo comporre le squadre: succede se il server
-  // non e' ancora aggiornato e non manda il campo
+  // servono quattro giocatori, tutti con il loro idPosto: senza non possiamo
+  // comporre le squadre. Succede se il server non manda il campo
   bool _registrazioneDisponibile() {
+    if (widget.dettaglio.posti.length != 4) {
+      return false;
+    }
     for (final posto in widget.dettaglio.posti) {
       if (posto.idPosto == null) {
         return false;
@@ -137,419 +114,337 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
     return true;
   }
 
-  void _mostraSnackBar(BuildContext context, _Responsive r, String testo) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(testo),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.symmetric(
-          horizontal: r.width * 0.05,
-          vertical: r.height * 0.02,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  Widget _buildNonDisponibile(BuildContext context, Responsive r) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Registra risultato', style: stileTitolo(r)),
+          const SizedBox(height: 12),
+          CardBianca(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Registrazione del risultato non disponibile al momento',
+                  style: stileTesto(r, base: 16, peso: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Non abbiamo potuto caricare i giocatori di questa partita.',
+                  style: stileSecondario(r),
+                ),
+                const SizedBox(height: 12),
+                BottonePieno(
+                  testo: 'Torna indietro',
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  // =====================================================================
-  // HEADER
-  // =====================================================================
+  // ===== FORM =====
 
-  Widget _buildHeader(BuildContext context, _Responsive r) {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(Icons.arrow_back, color: darkText, size: r.font(24)),
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
-            'Registra risultato',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: r.font(24),
-              fontWeight: FontWeight.w700,
-              color: darkText,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =====================================================================
-  // REGISTRAZIONE NON DISPONIBILE
-  // =====================================================================
-
-  Widget _buildNonDisponibile(BuildContext context, _Responsive r) {
+  Widget _buildForm(BuildContext context, Responsive r, bool isLoading) {
     return Column(
-      children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-            r.horizontalPadding,
-            16,
-            r.horizontalPadding,
-            0,
-          ),
-          child: _buildHeader(context, r),
-        ),
-        Expanded(
-          child: Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: r.horizontalPadding),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    color: Colors.redAccent,
-                    size: r.font(32),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Registrazione del risultato non disponibile al momento',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: greyText, fontSize: r.font(15)),
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: Text(
-                      'Torna indietro',
-                      style: TextStyle(
-                        color: primaryColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: r.font(15),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // =====================================================================
-  // FORM
-  // =====================================================================
-
-  Widget _buildForm(BuildContext context, _Responsive r, bool isLoading) {
-    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              r.horizontalPadding,
-              16,
-              r.horizontalPadding,
-              16,
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildHeader(context, r),
-                const SizedBox(height: 22),
-                _buildSquadre(r, isLoading),
-                const SizedBox(height: 18),
+                Text('Chi ha giocato con chi?', style: stileTitolo(r)),
+                const SizedBox(height: 12),
+                _buildCampo(isLoading),
+                const SizedBox(height: 8),
+                _buildNomiSquadre(r),
+                const SizedBox(height: 6),
+                Text(
+                  'Tocca un giocatore per cambiarlo di squadra.',
+                  style: stileSecondario(r, base: 14),
+                ),
+                const SizedBox(height: 12),
                 _buildSet(r, isLoading),
               ],
             ),
           ),
         ),
-        _buildBottoneSalva(context, r, isLoading),
+        _buildFondo(context, r, isLoading),
       ],
     );
   }
 
-  // =====================================================================
-  // SQUADRE
-  // =====================================================================
+  // ===== SQUADRE =====
 
-  Widget _buildSquadre(_Responsive r, bool isLoading) {
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Squadre',
-              style: TextStyle(
-                fontSize: r.font(17),
-                fontWeight: FontWeight.w500,
-                color: greyText,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Tocca un giocatore per spostarlo nell\'altra squadra',
-              style: TextStyle(fontSize: r.font(13), color: greyText),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _colonnaSquadra(r, 1, isLoading)),
-                const SizedBox(width: 12),
-                Expanded(child: _colonnaSquadra(r, 2, isLoading)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _colonnaSquadra(_Responsive r, int squadra, bool isLoading) {
-    final List<Widget> righe = [
-      Text(
-        'Squadra $squadra',
-        style: TextStyle(
-          fontSize: r.font(15),
-          fontWeight: FontWeight.w600,
-          color: darkText,
-        ),
-      ),
-    ];
-
-    for (int i = 0; i < _squadre.length; i++) {
-      if (_squadre[i] == squadra) {
-        righe.add(const SizedBox(height: 10));
-        righe.add(_rigaGiocatore(r, i, isLoading));
-      }
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: righe,
-    );
-  }
-
-  Widget _rigaGiocatore(_Responsive r, int indice, bool isLoading) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      // durante l'invio le squadre restano bloccate
-      onTap:
-          isLoading
-              ? null
-              : () {
-                _cambiaSquadra(indice);
-              },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor, width: 1),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                _nomeGiocatore(widget.dettaglio.posti[indice]),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: r.font(14),
-                  fontWeight: FontWeight.w600,
-                  color: darkText,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(Icons.swap_horiz, color: greyText, size: r.font(20)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _nomeGiocatore(PostoPartita posto) {
+  String _nomePosto(PostoPartita posto) {
     if (posto.tipo == 'CAMPO') {
       return 'Giocatore del campo';
     }
-    return '${posto.nome ?? ''} ${posto.cognome ?? ''}'.trim();
+    return posto.nome ?? '';
   }
 
-  void _cambiaSquadra(int indice) {
+  // il posto toccato si scambia con quello di fronte, cosi' le squadre
+  // restano sempre da due giocatori
+  void _scambia(int punto) {
     setState(() {
-      if (_squadre[indice] == 1) {
-        _squadre[indice] = 2;
-      } else {
-        _squadre[indice] = 1;
-      }
+      final int opposto = (punto + 2) % 4;
+      final int appoggio = _ordine[punto];
+      _ordine[punto] = _ordine[opposto];
+      _ordine[opposto] = appoggio;
+      _errore = null;
     });
   }
 
-  // =====================================================================
-  // SET
-  // =====================================================================
+  Widget _buildCampo(bool isLoading) {
+    // prima del risultato i posti non hanno squadra: postiDaDettaglio li
+    // lascia nell'ordine del server, lo stesso a cui si riferisce _ordine
+    final List<PostoCampo> disegnati = postiDaDettaglio(widget.dettaglio);
 
-  Widget _buildSet(_Responsive r, bool isLoading) {
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Set',
-              style: TextStyle(
-                fontSize: r.font(17),
-                fontWeight: FontWeight.w500,
-                color: greyText,
-              ),
-            ),
-            const SizedBox(height: 14),
-            _rigaSet(r, 'Set 1', 0, !isLoading),
-            const SizedBox(height: 14),
-            _rigaSet(r, 'Set 2', 1, !isLoading),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Terzo set giocato',
-                    style: TextStyle(
-                      fontSize: r.font(15),
-                      fontWeight: FontWeight.w600,
-                      color: darkText,
-                    ),
-                  ),
-                ),
-                Switch(
-                  value: _terzoSetGiocato,
-                  activeTrackColor: primaryColor,
-                  onChanged:
-                      isLoading
-                          ? null
-                          : (valore) {
-                            setState(() {
-                              _terzoSetGiocato = valore;
-                            });
-                          },
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _rigaSet(
-              r,
-              'Set 3 (se giocato)',
-              2,
-              _terzoSetGiocato && !isLoading,
-            ),
-          ],
+    final List<PostoCampo> posti = [];
+    for (int punto = 0; punto < 4; punto++) {
+      final PostoCampo base = disegnati[_ordine[punto]];
+      final String nome = _nomePosto(widget.dettaglio.posti[_ordine[punto]]);
+      posti.add(
+        PostoCampo(
+          iniziali: base.iniziali,
+          sfondo: base.sfondo,
+          colore: base.colore,
+          descrizione: "$nome: sposta nell'altra squadra",
+          onTap:
+              isLoading
+                  ? null
+                  : () {
+                    _scambia(punto);
+                  },
         ),
-      ),
+      );
+    }
+
+    return CampoPadel(
+      altezza: 164,
+      dimensionePosto: 48,
+      arrotondato: true,
+      posti: posti,
     );
   }
 
-  Widget _rigaSet(_Responsive r, String titolo, int indiceSet, bool abilitato) {
-    return Column(
+  String _nomiSquadra(int primo, int secondo) {
+    final String nomePrimo = _nomePosto(widget.dettaglio.posti[_ordine[primo]]);
+    final String nomeSecondo = _nomePosto(
+      widget.dettaglio.posti[_ordine[secondo]],
+    );
+    return unisciNomi([nomePrimo, nomeSecondo]);
+  }
+
+  Widget _buildNomiSquadre(Responsive r) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          titolo,
-          style: TextStyle(
-            fontSize: r.font(15),
-            fontWeight: FontWeight.w600,
-            color: abilitato ? darkText : greyText,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(child: _stepperGame(r, indiceSet, 1, abilitato)),
-            const SizedBox(width: 12),
-            Expanded(child: _stepperGame(r, indiceSet, 2, abilitato)),
-          ],
-        ),
+        Expanded(child: _colonnaSquadra(r, 'Squadra 1', _nomiSquadra(0, 1))),
+        const SizedBox(width: 8),
+        Expanded(child: _colonnaSquadra(r, 'Squadra 2', _nomiSquadra(2, 3))),
       ],
     );
   }
 
-  Widget _stepperGame(
-    _Responsive r,
-    int indiceSet,
-    int squadra,
-    bool abilitato,
-  ) {
-    int valore = _gameSquadra1[indiceSet];
-    if (squadra == 2) {
-      valore = _gameSquadra2[indiceSet];
-    }
-
+  Widget _colonnaSquadra(Responsive r, String titolo, String nomi) {
     return Column(
-      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Squadra $squadra',
-          style: TextStyle(fontSize: r.font(13), color: greyText),
+        Text(titolo, style: stileTesto(r, peso: FontWeight.w700)),
+        Text(nomi, style: stileSecondario(r)),
+      ],
+    );
+  }
+
+  // ===== SET =====
+
+  // Il primo set in parita', oppure -1. Un set ancora 0-0 non e' un errore:
+  // la pagina si apre cosi' e diventare subito rossa non avrebbe senso.
+  int _primoSetInParita() {
+    for (int i = 0; i < _numeroSet; i++) {
+      final int a = _gameSquadra1[i];
+      final int b = _gameSquadra2[i];
+      if (a == b && a != 0) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  bool _haSetVuoti() {
+    for (int i = 0; i < _numeroSet; i++) {
+      if (_gameSquadra1[i] == 0 && _gameSquadra2[i] == 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Widget _buildSet(Responsive r, bool isLoading) {
+    final int setInParita = _primoSetInParita();
+
+    final List<Widget> righe = [];
+    for (int i = 0; i < _numeroSet; i++) {
+      righe.add(_rigaSet(r, i, isLoading));
+    }
+    if (setInParita >= 0) {
+      righe.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 6, bottom: 2),
+          child: Text(
+            'Un set non può finire in parità: correggi il set ${setInParita + 1}.',
+            style: stileTesto(r, peso: FontWeight.w600, colore: Colori.rosso),
+          ),
         ),
-        Row(
-          children: [
-            _bottoneStepper(
-              r,
-              icona: Icons.remove,
-              abilitato: abilitato && valore > 0,
-              onPressed: () {
-                _cambiaGame(indiceSet, squadra, valore - 1);
-              },
-            ),
-            Expanded(
-              child: Text(
-                '$valore',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: r.font(18),
-                  fontWeight: FontWeight.w700,
-                  color: abilitato ? darkText : greyText,
-                ),
+      );
+    }
+    righe.add(
+      Align(
+        alignment: Alignment.centerLeft,
+        child: LinkTesto(
+          testo: _terzoSetGiocato ? 'Togli il terzo set' : 'Aggiungi il terzo set',
+          onPressed:
+              isLoading
+                  ? null
+                  : () {
+                    setState(() {
+                      _terzoSetGiocato = !_terzoSetGiocato;
+                      _errore = null;
+                    });
+                  },
+        ),
+      ),
+    );
+
+    return CardBianca(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: righe,
+      ),
+    );
+  }
+
+  Widget _rigaSet(Responsive r, int indice, bool isLoading) {
+    final int a = _gameSquadra1[indice];
+    final int b = _gameSquadra2[indice];
+    final bool inParita = a == b && a != 0;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 52),
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: inParita ? Colori.rossoChiaro : null,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: r.font(44),
+            child: Text(
+              'Set ${indice + 1}',
+              style: stileTesto(
+                r,
+                peso: FontWeight.w700,
+                colore: inParita ? Colori.rosso : Colori.testo,
               ),
             ),
-            _bottoneStepper(
-              r,
-              icona: Icons.add,
-              abilitato: abilitato && valore < maxGame,
-              onPressed: () {
-                _cambiaGame(indiceSet, squadra, valore + 1);
-              },
-            ),
-          ],
+          ),
+          const SizedBox(width: 4),
+          Expanded(child: _stepper(r, indice, 1, a, inParita, isLoading)),
+          const SizedBox(width: 6),
+          Expanded(child: _stepper(r, indice, 2, b, inParita, isLoading)),
+        ],
+      ),
+    );
+  }
+
+  Widget _stepper(
+    Responsive r,
+    int indiceSet,
+    int squadra,
+    int valore,
+    bool inParita,
+    bool isLoading,
+  ) {
+    final String nome = 'Set ${indiceSet + 1}, squadra $squadra';
+
+    return Row(
+      children: [
+        _bottoneStepper(
+          r,
+          testo: '−',
+          descrizione: '$nome, meno uno',
+          sfondo: inParita ? Colors.white : Colori.sfondo,
+          abilitato: !isLoading && valore > 0,
+          onPressed: () {
+            _cambiaGame(indiceSet, squadra, valore - 1);
+          },
+        ),
+        Expanded(
+          child: Text(
+            '$valore',
+            textAlign: TextAlign.center,
+            style: stileNumero(r, 22),
+          ),
+        ),
+        _bottoneStepper(
+          r,
+          testo: '+',
+          descrizione: '$nome, più uno',
+          sfondo: inParita ? Colors.white : Colori.sfondo,
+          abilitato: !isLoading && valore < maxGame,
+          onPressed: () {
+            _cambiaGame(indiceSet, squadra, valore + 1);
+          },
         ),
       ],
     );
   }
 
   Widget _bottoneStepper(
-    _Responsive r, {
-    required IconData icona,
+    Responsive r, {
+    required String testo,
+    required String descrizione,
+    required Color sfondo,
     required bool abilitato,
     required VoidCallback onPressed,
   }) {
-    return IconButton(
-      // con onPressed a null il bottone si disabilita da solo
-      onPressed: abilitato ? onPressed : null,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      color: primaryColor,
-      disabledColor: borderColor,
-      icon: Icon(icona, size: r.font(20)),
+    return Semantics(
+      button: true,
+      label: descrizione,
+      child: Material(
+        color: sfondo,
+        clipBehavior: Clip.antiAlias,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: abilitato ? onPressed : null,
+          child: SizedBox(
+            width: 36,
+            height: 44,
+            child: Center(
+              child: Text(
+                testo,
+                style: TextStyle(
+                  fontSize: r.font(20),
+                  color: abilitato ? Colori.testo : Colori.grigio,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -560,39 +455,56 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
       } else {
         _gameSquadra2[indiceSet] = nuovoValore;
       }
+      _errore = null;
     });
   }
 
-  // =====================================================================
-  // BOTTONE SALVA
-  // =====================================================================
+  // ===== ESITO E SALVA =====
+
+  String _testoEsito() {
+    if (_haSetVuoti()) {
+      return 'Inserisci il punteggio dei set';
+    }
+    int vinti1 = 0;
+    int vinti2 = 0;
+    for (int i = 0; i < _numeroSet; i++) {
+      if (_gameSquadra1[i] > _gameSquadra2[i]) {
+        vinti1++;
+      }
+      if (_gameSquadra2[i] > _gameSquadra1[i]) {
+        vinti2++;
+      }
+    }
+    if (vinti1 > vinti2) {
+      return 'Vince la squadra 1, $vinti1 set a $vinti2';
+    }
+    if (vinti2 > vinti1) {
+      return 'Vince la squadra 2, $vinti2 set a $vinti1';
+    }
+    return 'Parità: controlla i punteggi';
+  }
 
   // i controlli su squadre e set li fa il BLoC: qui raccogliamo solo i dati
   void _salva(BuildContext context) {
     final List<int> squadra1 = [];
     final List<int> squadra2 = [];
-
-    for (int i = 0; i < _squadre.length; i++) {
-      final int? idPosto = widget.dettaglio.posti[i].idPosto;
-      if (idPosto != null) {
-        if (_squadre[i] == 1) {
-          squadra1.add(idPosto);
-        } else {
-          squadra2.add(idPosto);
-        }
+    for (int punto = 0; punto < 4; punto++) {
+      final int idPosto = widget.dettaglio.posti[_ordine[punto]].idPosto!;
+      if (punto < 2) {
+        squadra1.add(idPosto);
+      } else {
+        squadra2.add(idPosto);
       }
     }
 
-    final List<SetPartita> set = [
-      SetPartita(squadra1: _gameSquadra1[0], squadra2: _gameSquadra2[0]),
-      SetPartita(squadra1: _gameSquadra1[1], squadra2: _gameSquadra2[1]),
-    ];
-    if (_terzoSetGiocato) {
-      set.add(
-        SetPartita(squadra1: _gameSquadra1[2], squadra2: _gameSquadra2[2]),
-      );
+    final List<SetPartita> set = [];
+    for (int i = 0; i < _numeroSet; i++) {
+      set.add(SetPartita(squadra1: _gameSquadra1[i], squadra2: _gameSquadra2[i]));
     }
 
+    setState(() {
+      _errore = null;
+    });
     context.read<RegistraRisultatoBloc>().add(
       RegistraRisultatoRichiesto(
         idPartita: widget.dettaglio.id,
@@ -603,76 +515,41 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
     );
   }
 
-  Widget _buildBottoneSalva(
-    BuildContext context,
-    _Responsive r,
-    bool isLoading,
-  ) {
-    final double altezza = (r.height * 0.065).clamp(48.0, 60.0);
+  Widget _buildFondo(BuildContext context, Responsive r, bool isLoading) {
+    // un 6-6 e un 0-0 sono entrambi set in parita': il server li rifiuterebbe
+    final bool salvabile = _primoSetInParita() < 0 && !_haSetVuoti();
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        r.horizontalPadding,
-        8,
-        r.horizontalPadding,
-        16,
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        height: altezza,
-        child: ElevatedButton(
-          onPressed:
-              isLoading
-                  ? null
-                  : () {
-                    _salva(context);
-                  },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor,
-            disabledBackgroundColor: const Color(0xFF9AA8C8),
-            foregroundColor: Colors.white,
-            elevation: 3,
-            shadowColor: primaryColor.withValues(alpha: 0.3),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_errore != null) ...[
+            RiquadroMessaggio(testo: _errore!),
+            const SizedBox(height: 8),
+          ],
+          if (_primoSetInParita() < 0) ...[
+            Text(
+              _testoEsito(),
+              textAlign: TextAlign.center,
+              style: stileTesto(r, peso: FontWeight.w600),
             ),
+            const SizedBox(height: 8),
+          ],
+          BottonePieno(
+            testo: 'Salva risultato',
+            altezza: 52,
+            baseFont: 16,
+            inCaricamento: isLoading,
+            onPressed:
+                salvabile
+                    ? () {
+                      _salva(context);
+                    }
+                    : null,
           ),
-          child:
-              isLoading
-                  ? SizedBox(
-                    width: r.font(22),
-                    height: r.font(22),
-                    child: const CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                  : Text(
-                    'Salva risultato',
-                    style: TextStyle(
-                      fontSize: r.font(16),
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-        ),
+        ],
       ),
-    );
-  }
-
-  // =====================================================================
-  // CARD GENERICA
-  // =====================================================================
-
-  Widget _buildCard({required _Responsive r, required Widget child}) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(r.cardBorderRadius),
-        border: Border.all(color: borderColor, width: 1),
-      ),
-      child: child,
     );
   }
 }

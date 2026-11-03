@@ -79,6 +79,11 @@ class FakePrenotazioneRepo extends PrenotazioneRepoImpl
   String? oraInizioRicevuta;
   String? tipoRicevuto;
 
+  //prossima partita: null vuol dire nessuna partita in programma
+  Prenotazione? prossima;
+  Exception? erroreProssima;
+  int chiamateProssima = 0;
+
   //metodi
   FakePrenotazioneRepo() : super(dsPrenotazione: DataSourcePrenotazione(c: Client(c: MockClient((_) async => http.Response('', 500))), elencoUrl: urlDiTest()));
 
@@ -100,5 +105,17 @@ class FakePrenotazioneRepo extends PrenotazioneRepoImpl
       throw errore!;
     }
     return risposta ?? prenotazioneDiTest(tipo: tipo);
+  }
+
+  @override
+  Future<Prenotazione?> getProssimaPartita() async
+  {
+    chiamateProssima++;
+
+    if(erroreProssima != null)
+    {
+      throw erroreProssima!;
+    }
+    return prossima;
   }
 }

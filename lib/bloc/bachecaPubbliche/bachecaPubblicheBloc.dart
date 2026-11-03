@@ -48,6 +48,10 @@ class BachecaPubblicheBloc extends Bloc<BachecaPubblicheEvent, BachecaPubblicheS
     {
       emit(IngressoErrore(partite: partite, messaggio: e.messaggio));
     }
+    on Exception //timeout o rete assente: il Client li lascia passare cosi come sono, senza questo la pagina resterebbe ferma
+    {
+      emit(IngressoErrore(partite: partite, messaggio: ErroreGenericoServer().messaggio));
+    }
 
     //se l'ingresso e fallito la bacheca e probabilmente cambiata (partita piena, chiusa o annullata),
     //quindi la ricarico subito; non emetto il Loading cosi la lista resta a schermo finche non arriva quella nuova
@@ -64,6 +68,10 @@ class BachecaPubblicheBloc extends Bloc<BachecaPubblicheEvent, BachecaPubblicheS
     on ErroreGenericoServer catch (e)
     {
       emit(BachecaPubblicheErrore(messaggio: e.messaggio));
+    }
+    on Exception
+    {
+      emit(BachecaPubblicheErrore(messaggio: ErroreGenericoServer().messaggio));
     }
   }
 }

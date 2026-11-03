@@ -155,4 +155,28 @@ void main()
       throwsA(isA<ErroreGenericoServer>()),
     );
   });
+
+  group("getProssimaPartita", ()
+  {
+    test("risposta senza body (token scaduto): ErroreGenericoServer", ()
+    {
+      final ds = creaDataSource(401, '', richieste);
+
+      expect(ds.getProssimaPartita(), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("404: nessuna partita in programma", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Nessuna prenotazione"), richieste);
+
+      expect(await ds.getProssimaPartita(), isNull);
+    });
+
+    test("altro errore del server: ErroreGenericoServer", ()
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore"), richieste);
+
+      expect(ds.getProssimaPartita(), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
 }

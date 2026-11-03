@@ -2,25 +2,36 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thepadel/bloc/bachecaInviti/bachecaInvitiBloc.dart';
 import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
+import 'package:thepadel/domainLayer/enetity/partitaPubblica.dart';
+import 'package:thepadel/ui/bachecaInviti.dart';
 import 'package:thepadel/ui/bachecaPubbliche.dart';
+import 'package:thepadel/ui/campoPadel.dart';
 import 'package:thepadel/ui/dettaglioPartita.dart';
+import 'package:thepadel/ui/stileApp.dart';
+import 'package:thepadel/useCase/bachecaInvitiUseCase.dart';
 import 'package:thepadel/useCase/bachecaPubblicheUseCase.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 
 import '../fake/fakePartitaRepo.dart';
+import '../fake/fakePreferenze.dart';
+import '../fake/temaDiTest.dart';
 
 void main()
 {
+  setUpAll(caricaFontDellApp);
+
   late FakePartitaRepo repo;
 
   setUp(() async
   {
     await sl.reset();
+    await registraPreferenzeDiTest();
     repo = FakePartitaRepo();
     sl.registerFactory<BachecaPubblicheBloc>(() => BachecaPubblicheBloc(
       partitePubblicheUseCase: PartitePubblicheUseCase(repo: repo),
@@ -42,7 +53,7 @@ void main()
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(const MaterialApp(home: BachecaPubblichePage()));
+    await tester.pumpWidget(MaterialApp(theme: temaDiTest(), home: const BachecaPubblichePage()));
     await tester.pumpAndSettle();
   }
 
@@ -51,14 +62,25 @@ void main()
     await apriPagina(tester);
 
     expect(repo.chiamatePubbliche, 1);
-    expect(find.text("Partite pubbliche"), findsOneWidget);
-    expect(find.text("Campo Centrale"), findsOneWidget);
+    //il titolo della pagina e la voce della barra
+    expect(find.text("Partite"), findsNWidgets(2));
+    expect(find.text("1 aperta"), findsOneWidget);
+    expect(find.text("Campo Centrale · ${giornoEMese(DateTime(2026, 11, 2))}, 18:30 - 20:00"), findsOneWidget);
     expect(find.text("2 posti liberi"), findsOneWidget);
-    expect(find.text("lunedì 02/11/2026"), findsOneWidget);
-    expect(find.text("18:30 - 20:00"), findsOneWidget);
     expect(find.text("Mario Rossi · Livello 2.5"), findsOneWidget);
+    expect(find.byType(MiniCampo), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, "Entra"), findsOneWidget);
     expect(find.text("Nessuna partita pubblica disponibile al momento"), findsNothing);
+  });
+
+  testWidgets("una partita di oggi non ripete la data", (tester) async
+  {
+    final oggi = DateTime.now();
+    repo.partitePubbliche = [PartitaPubblica(id: 10, idCampo: 3, nomeCampo: "Campo Centrale", dataPartita: oggi, oraInizio: const TimeOfDay(hour: 18, minute: 30), oraFine: const TimeOfDay(hour: 20, minute: 0), nomeCreatore: "Mario", cognomeCreatore: "Rossi", livelloCreatore: 2.5, postiLiberi: 2)];
+    await apriPagina(tester);
+
+    expect(find.text("Oggi, 18:30"), findsOneWidget);
+    expect(find.text("Campo Centrale · 18:30 - 20:00"), findsOneWidget);
   });
 
   testWidgets("con un solo posto libero il badge e al singolare", (tester) async
@@ -69,12 +91,26 @@ void main()
     expect(find.text("1 posto libero"), findsOneWidget);
   });
 
+  testWidgets("la scheda Inviti apre la bacheca degli inviti", (tester) async
+  {
+    sl.registerFactory<BachecaInvitiBloc>(() => BachecaInvitiBloc(invitiConStatoUseCase: InvitiConStatoUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo)));
+    await apriPagina(tester);
+
+    await tester.tap(find.text("Inviti"));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BachecaInvitiPage), findsOneWidget);
+    expect(find.byType(BachecaPubblichePage), findsNothing);
+  });
+
   testWidgets("bacheca vuota: mostra il messaggio e nessun bottone Entra", (tester) async
   {
     repo.partitePubbliche = [];
     await apriPagina(tester);
 
     expect(find.text("Nessuna partita pubblica disponibile al momento"), findsOneWidget);
+    expect(find.text("Prenota un campo"), findsOneWidget);
+    expect(find.text("0 aperte"), findsOneWidget);
     expect(find.text("Entra"), findsNothing);
   });
 
@@ -83,6 +119,7 @@ void main()
     repo.errorePubbliche = ErroreGenericoServer();
     await apriPagina(tester);
 
+    expect(find.text("Non siamo riusciti a caricare le partite"), findsOneWidget);
     expect(find.text(ErroreGenericoServer().messaggio), findsOneWidget);
 
     repo.errorePubbliche = null;
@@ -90,7 +127,7 @@ void main()
     await tester.pumpAndSettle();
 
     expect(repo.chiamatePubbliche, 2);
-    expect(find.text("Campo Centrale"), findsOneWidget);
+    expect(find.widgetWithText(ElevatedButton, "Entra"), findsOneWidget);
   });
 
   testWidgets("durante l'ingresso lo spinner compare solo sulla card scelta", (tester) async
@@ -109,12 +146,12 @@ void main()
 
     expect(repo.idEntraRicevuto, 10);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    //la seconda card ha ancora il suo bottone attivo
+    //un ingresso per volta: anche la seconda card ha il bottone spento, ma senza spinner
     expect(find.text("Entra"), findsOneWidget);
     final bottoni = tester.widgetList<ElevatedButton>(find.byType(ElevatedButton)).toList();
     expect(bottoni.length, 2);
     expect(bottoni[0].onPressed, isNull);
-    expect(bottoni[1].onPressed, isNotNull);
+    expect(bottoni[1].onPressed, isNull);
     //lo spinner sta nel bottone della prima card
     expect(find.descendant(of: find.byWidget(bottoni[0]), matching: find.byType(CircularProgressIndicator)), findsOneWidget);
 
