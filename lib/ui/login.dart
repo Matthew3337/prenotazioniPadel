@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/bloc/autenticazione/authBloc.dart';
 import 'package:thepadel/bloc/autenticazione/authState.dart';
 import 'package:thepadel/bloc/autenticazione/authevent.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 
 import 'home.dart';
+import 'homeAdmin.dart';
 import 'registrazione.dart';
 import 'stileApp.dart';
 
@@ -58,9 +60,16 @@ class _LoginFormState extends State<_LoginForm> {
             child: BlocConsumer<AuthBloc, AuthState>(
               listener: (context, state) {
                 if (state is LoginSuccess) {
+                  // l'admin ha una home tutta sua
+                  final bool isAdmin =
+                      sl<SharedPreferences>().getBool('isAdmin') == true;
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute<void>(
-                      builder: (BuildContext context) => const HomePage(),
+                      builder:
+                          (BuildContext context) =>
+                              isAdmin
+                                  ? const HomeAdminPage()
+                                  : const HomePage(),
                     ),
                   );
                 }
