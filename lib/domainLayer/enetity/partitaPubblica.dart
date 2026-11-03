@@ -11,7 +11,8 @@ class PartitaPubblica {
   final TimeOfDay oraFine;
   final String nomeCreatore;
   final String cognomeCreatore;
-  final double livelloCreatore;
+  //null quando il creatore della partita e un admin
+  final double? livelloCreatore;
   final int postiLiberi;
 
   PartitaPubblica({required this.id, required this.idCampo, required this.nomeCampo, required this.dataPartita, required this.oraInizio, required this.oraFine, required this.nomeCreatore, required this.cognomeCreatore, required this.livelloCreatore, required this.postiLiberi});

@@ -3,6 +3,33 @@ import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 import 'package:thepadel/repositoryImpl/partitaRepoImpl.dart';
 import 'package:thepadel/useCase/eccezioniUseCase.dart';
 
+//la regola sul punteggio di un set, usata anche da ModificaRisultatoUseCase.
+//Chi vince ha 6 game e l'altra squadra al massimo 4, oppure il set finisce 7-5 o 7-6
+bool setValido(SetPartita s)
+{
+  int vincente = s.squadra1;
+  int perdente = s.squadra2;
+  if(s.squadra2 > s.squadra1)
+  {
+    vincente = s.squadra2;
+    perdente = s.squadra1;
+  }
+
+  if(perdente < 0)
+  {
+    return false;
+  }
+  if(vincente == 6 && perdente <= 4)
+  {
+    return true;
+  }
+  if(vincente == 7 && (perdente == 5 || perdente == 6))
+  {
+    return true;
+  }
+  return false;
+}
+
 class RegistraRisultatoUseCase {
 
   final PartitaRepoImpl repo;
@@ -33,7 +60,7 @@ class RegistraRisultatoUseCase {
 
     for (SetPartita s in set)
     {
-      if(s.squadra1 < 0 || s.squadra1 > 6 || s.squadra2 < 0 || s.squadra2 > 6 || s.squadra1 == s.squadra2)
+      if(!setValido(s))
       {
         throw SetNonValido();
       }

@@ -5,6 +5,7 @@ import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 import 'package:thepadel/domainLayer/enetity/utenteAdmin.dart';
 import 'package:thepadel/repositoryImpl/adminRepoImpl.dart';
 import 'package:thepadel/useCase/eccezioniUseCase.dart';
+import 'package:thepadel/useCase/registraRisultatoUseCase.dart';
 
 class PartiteGiornoUseCase {
 
@@ -115,7 +116,7 @@ class ModificaRisultatoUseCase {
 
     for (SetPartita s in set)
     {
-      if(s.squadra1 < 0 || s.squadra1 > 6 || s.squadra2 < 0 || s.squadra2 > 6 || s.squadra1 == s.squadra2)
+      if(!setValido(s))
       {
         throw SetNonValido();
       }
