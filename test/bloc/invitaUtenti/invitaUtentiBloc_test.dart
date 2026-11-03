@@ -280,4 +280,31 @@ void main()
       ]));
     });
   });
+
+  group("timeout o rete assente", ()
+  {
+    test("al caricamento: InvitabiliErrore col messaggio generico", () async
+    {
+      repo.erroreInvitabili = Exception("timeout");
+      bloc.add(const InvitabiliRichiesti(idPartita: 10, cerca: ""));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<InvitaUtentiLoading>(),
+        isA<InvitabiliErrore>().having((s) => s.messaggio, "messaggio", ErroreGenericoServer().messaggio),
+      ]));
+    });
+
+    test("sull'invito: InvitoErrore col messaggio generico, poi la lista ricaricata", () async
+    {
+      await carica();
+      repo.erroreInvita = Exception("timeout");
+      bloc.add(const InvitoRichiesto(idPartita: 10, telefono: luca));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<InvitoInCorso>(),
+        isA<InvitoErrore>().having((s) => s.messaggio, "messaggio", ErroreGenericoServer().messaggio),
+        caricatiCon([luca, anna], 2),
+      ]));
+    });
+  });
 }

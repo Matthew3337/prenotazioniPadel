@@ -1049,4 +1049,12 @@ void main()
       await expectLater(ds.registraRisultato(7, squadra1, squadra2, set), throwsA(isA<ErroreGenericoServer>()));
     });
   });
+
+  test("getTelefonoUtente legge il telefono salvato al login, anche dal repository", ()
+  {
+    final ds = creaDataSource(200, '', <http.Request>[]);
+
+    expect(ds.getTelefonoUtente(), sl<SharedPreferences>().getString("telefono"));
+    expect(PartitaRepoImpl(dsPartita: ds).getTelefonoUtente(), sl<SharedPreferences>().getString("telefono"));
+  });
 }

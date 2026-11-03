@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourcePartita.dart';
+import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/azioniPartita.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/partitaInvito.dart';
@@ -24,13 +25,13 @@ AzioniPartita azioniDiTest({bool puoInvitare = false, bool puoEliminare = false,
 }
 
 //partita con il creatore (Mario Rossi) e un giocatore del campo: restano 2 posti liberi
-DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata", RisultatoPartita? risultato})
+DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata", RisultatoPartita? risultato, int id = 10, DateTime? dataPartita})
 {
   return DettaglioPartita(
-    id: 10,
+    id: id,
     idCampo: 3,
     nomeCampo: "Campo Centrale",
-    dataPartita: DateTime(2026, 11, 2),
+    dataPartita: dataPartita ?? DateTime(2026, 11, 2),
     oraInizio: const TimeOfDay(hour: 18, minute: 30),
     oraFine: const TimeOfDay(hour: 20, minute: 0),
     stato: stato,
@@ -75,14 +76,14 @@ PartitaPubblica partitaPubblicaDiTest({int id = 10, String nomeCampo = "Campo Ce
 }
 
 //partita dello storico: di default e quella di dettaglioDiTest, ancora senza risultato
-PartitaStorico partitaStoricoDiTest({int id = 10, String nomeCampo = "Campo Centrale", String stato = "creata", RisultatoPartita? risultato})
+PartitaStorico partitaStoricoDiTest({int id = 10, int idCampo = 3, String nomeCampo = "Campo Centrale", String stato = "creata", RisultatoPartita? risultato, DateTime? dataPartita, TimeOfDay oraInizio = const TimeOfDay(hour: 18, minute: 30)})
 {
   return PartitaStorico(
     id: id,
-    idCampo: 3,
+    idCampo: idCampo,
     nomeCampo: nomeCampo,
-    dataPartita: DateTime(2026, 11, 2),
-    oraInizio: const TimeOfDay(hour: 18, minute: 30),
+    dataPartita: dataPartita ?? DateTime(2026, 11, 2),
+    oraInizio: oraInizio,
     oraFine: const TimeOfDay(hour: 20, minute: 0),
     stato: stato,
     tipo: "PUBBLICA",
@@ -151,6 +152,13 @@ class FakePartitaRepo extends PartitaRepoImpl
 
   int chiamate = 0;
   int? idRicevuto;
+
+  //il telefono dell'utente loggato, uguale a quello del creatore di dettaglioDiTest
+  String telefonoUtente = "3331234567";
+
+  //dettagli diversi per partita, usati quando una lista legge il dettaglio di ogni voce
+  Map<int, DettaglioPartita> dettagliPerId = {};
+  Set<int> dettagliInErrore = {};
 
   //bacheca pubbliche: se partitePubbliche e null restituisce una sola partita di test
   List<PartitaPubblica>? partitePubbliche;
@@ -234,7 +242,17 @@ class FakePartitaRepo extends PartitaRepoImpl
     {
       throw errore!;
     }
-    return risposta ?? dettaglioDiTest();
+    if(dettagliInErrore.contains(idPartita))
+    {
+      throw ErroreGenericoServer();
+    }
+    return dettagliPerId[idPartita] ?? risposta ?? dettaglioDiTest();
+  }
+
+  @override
+  String getTelefonoUtente()
+  {
+    return telefonoUtente;
   }
 
   @override

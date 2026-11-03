@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:thepadel/useCase/creaPartitaUseCase.dart';
 import 'package:thepadel/useCase/eccezioniUseCase.dart';
 
+import '../fake/fakeCampoRepo.dart';
 import '../fake/fakePrenotazioneRepo.dart';
 
 void main()
@@ -53,7 +54,53 @@ void main()
 
     test("il messaggio di TipoPartitaMancante e quello mostrato all'utente", ()
     {
-      expect(TipoPartitaMancante().message, "scegliere se la partita è pubblica o privata");
+      expect(TipoPartitaMancante().message, "Scegli se la partita è pubblica o privata");
+    });
+  });
+
+  group("SlotLiberiDataUseCase", ()
+  {
+    late FakeCampoRepo repoCampo;
+    late SlotLiberiDataUseCase slotLiberi;
+    final data = DateTime(2026, 11, 5);
+
+    setUp(()
+    {
+      repoCampo = FakeCampoRepo();
+      slotLiberi = SlotLiberiDataUseCase(repo: repoCampo);
+    });
+
+    test("tiene solo gli slot disponibili", () async
+    {
+      repoCampo.slots = [slotCampoDiTest(oraInizio: "18:00:00", disponibile: false), slotCampoDiTest(oraInizio: "19:00:00")];
+
+      final slots = await slotLiberi.call(data, DateTime(2026, 11, 5, 9, 0));
+
+      expect(slots.map((s) => s.oraInizio).toList(), ["19:00:00"]);
+      expect(repoCampo.dateRicevute, [data]);
+    });
+
+    test("toglie gli slot gia iniziati, anche quello che inizia proprio adesso", () async
+    {
+      repoCampo.slots = [slotCampoDiTest(oraInizio: "17:00:00"), slotCampoDiTest(oraInizio: "18:00:00"), slotCampoDiTest(oraInizio: "19:00:00")];
+
+      final slots = await slotLiberi.call(data, DateTime(2026, 11, 5, 18, 0));
+
+      expect(slots.map((s) => s.oraInizio).toList(), ["19:00:00"]);
+    });
+
+    test("uno slot dopo mezzanotte va in fondo, campo per campo", () async
+    {
+      repoCampo.campi = [campoDiTest(id: 1, nome: "Uno"), campoDiTest(id: 2, nome: "Due")];
+      repoCampo.slots = [
+        slotCampoDiTest(idCampo: 2, nomeCampo: "Due", oraInizio: "20:00:00"),
+        slotCampoDiTest(idCampo: 1, nomeCampo: "Uno", oraInizio: "00:30:00"),
+        slotCampoDiTest(idCampo: 1, nomeCampo: "Uno", oraInizio: "22:00:00"),
+      ];
+
+      final slots = await slotLiberi.call(data, DateTime(2026, 11, 5, 9, 0));
+
+      expect(slots.map((s) => "${s.nomeCampo} ${s.oraInizio}").toList(), ["Uno 22:00:00", "Uno 00:30:00", "Due 20:00:00"]);
     });
   });
 }
