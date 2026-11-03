@@ -32,6 +32,11 @@ class FakeUtenteRepo extends UtenteRepoImpl
   Completer<void>? attesaRegistrazione;
   int chiamateRegistrazione = 0;
 
+  //logout: se l'errore e null l'operazione riesce
+  Exception? erroreLogout;
+  Completer<void>? attesaLogout;
+  int chiamateLogout = 0;
+
   //metodi
   FakeUtenteRepo() : super(dsUtente: DataSourceUtente(c: Client(c: MockClient((_) async => http.Response('', 500))), elencoUrl: urlDiTest()));
 
@@ -77,5 +82,20 @@ class FakeUtenteRepo extends UtenteRepoImpl
       throw erroreRegistrazione!;
     }
     return 201;
+  }
+
+  @override
+  Future<void> logout() async
+  {
+    chiamateLogout++;
+
+    if(attesaLogout != null)
+    {
+      await attesaLogout!.future;
+    }
+    if(erroreLogout != null)
+    {
+      throw erroreLogout!;
+    }
   }
 }

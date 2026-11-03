@@ -36,9 +36,18 @@ class MyUrl {
 
   final String Classifica;
 
+  final String AdminPartite;
+  final String AdminAvvisi;
+  final String AdminUtenti;
+  final String AdminLivello;
+  final String AdminPartecipanti;
+  final String AdminRisultato;
+  final String AdminStato;
+  final String AdminAnnulla;
+
   //metodi
 
-  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio, required this.PartitePubbliche, required this.PartiteEntra, required this.PartiteElimina, required this.PartiteEsci, required this.PartiteStorico, required this.PartiteInvitabili, required this.PartiteInvita, required this.PartiteInviti, required this.PartiteConferma, required this.PartiteRisultato, required this.Classifica});
+  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio, required this.PartitePubbliche, required this.PartiteEntra, required this.PartiteElimina, required this.PartiteEsci, required this.PartiteStorico, required this.PartiteInvitabili, required this.PartiteInvita, required this.PartiteInviti, required this.PartiteConferma, required this.PartiteRisultato, required this.Classifica, required this.AdminPartite, required this.AdminAvvisi, required this.AdminUtenti, required this.AdminLivello, required this.AdminPartecipanti, required this.AdminRisultato, required this.AdminStato, required this.AdminAnnulla});
 
   factory MyUrl.fromJsom(Map<String, dynamic> json)
   {
@@ -67,7 +76,15 @@ class MyUrl {
       PartiteInviti: json['PartiteInviti'],
       PartiteConferma: json['PartiteConferma'],
       PartiteRisultato: json['PartiteRisultato'],
-      Classifica: json['Classifica']
+      Classifica: json['Classifica'],
+      AdminPartite: json['AdminPartite'],
+      AdminAvvisi: json['AdminAvvisi'],
+      AdminUtenti: json['AdminUtenti'],
+      AdminLivello: json['AdminLivello'],
+      AdminPartecipanti: json['AdminPartecipanti'],
+      AdminRisultato: json['AdminRisultato'],
+      AdminStato: json['AdminStato'],
+      AdminAnnulla: json['AdminAnnulla']
     );
   }
 

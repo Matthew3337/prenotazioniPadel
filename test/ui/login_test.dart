@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/bloc/autenticazione/authBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/ui/home.dart';
+import 'package:thepadel/ui/homeAdmin.dart';
 import 'package:thepadel/ui/login.dart';
 import 'package:thepadel/ui/registrazione.dart';
 import 'package:thepadel/useCase/authUseCase.dart';
@@ -30,7 +32,7 @@ void main()
     await sl.reset();
     await registraPreferenzeDiTest();
     repo = FakeUtenteRepo();
-    sl.registerFactory<AuthBloc>(() => AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo)));
+    sl.registerFactory<AuthBloc>(() => AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo), logoutUseCase: LogoutUseCase(repo: repo)));
     registraBlocDiTest(repoPartita: FakePartitaRepo(), repoCampo: FakeCampoRepo(), repoPrenotazione: FakePrenotazioneRepo(), repoUtente: repo);
   });
 
@@ -134,6 +136,32 @@ void main()
 
     repo.attesaLogin!.complete();
     await tester.pumpAndSettle();
+  });
+
+  testWidgets("login riuscito da admin: la home admin prende il posto del login", (tester) async
+  {
+    //isAdmin lo salva il data source durante il login, qui il repository e finto
+    await sl<SharedPreferences>().setBool("isAdmin", true);
+    await apriPagina(tester);
+    await compila(tester, "3331234567", "segreta");
+
+    await accedi(tester);
+
+    expect(find.byType(HomeAdminPage), findsOneWidget);
+    expect(find.byType(HomePage), findsNothing);
+    expect(find.byType(LoginPage), findsNothing);
+  });
+
+  testWidgets("login riuscito con isAdmin a false: si apre la home utente", (tester) async
+  {
+    await sl<SharedPreferences>().setBool("isAdmin", false);
+    await apriPagina(tester);
+    await compila(tester, "3331234567", "segreta");
+
+    await accedi(tester);
+
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(find.byType(HomeAdminPage), findsNothing);
   });
 
   testWidgets("login riuscito: la home prende il posto del login", (tester) async

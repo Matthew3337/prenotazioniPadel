@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
@@ -219,6 +220,7 @@ void main()
 
     testWidgets("errore sulla prossima partita: saluto col nome e Riprova ricarica solo quella", (tester) async
     {
+      await sl<SharedPreferences>().setString("nome", "Mario");
       repoProssima.erroreProssima = ErroreGenericoServer();
       await apriHome(tester);
 
@@ -235,14 +237,15 @@ void main()
       expect(repoUtente.chiamate, 1);
     });
 
-    testWidgets("l'avatar ha l'iniziale del nome preso dalla classifica", (tester) async
+    testWidgets("l'avatar ha l'iniziale del nome salvato al login", (tester) async
     {
+      await sl<SharedPreferences>().setString("nome", "Mario");
       await apriHome(tester);
 
       expect(find.text("M"), findsOneWidget);
     });
 
-    testWidgets("senza riga in classifica (admin) il saluto e senza nome e l'avatar e l'icona", (tester) async
+    testWidgets("senza nome salvato (login fatto con una versione vecchia) il saluto e senza nome e l'avatar e l'icona", (tester) async
     {
       repoUtente.voci = [voceDiTest(posizione: 1, nome: "Anna", cognome: "Verdi")];
       repoProssima.erroreProssima = ErroreGenericoServer();

@@ -48,3 +48,18 @@ class SetNonValido implements Exception{
   final String message = "Un set non può finire in parità, e i game vanno da 0 a 6.";
 
 }
+
+class LivelloNonValido implements Exception{
+  final String message = "il livello deve essere tra 0 e 5 con passo 0,5";
+
+}
+
+class PartecipantiMancanti implements Exception{
+  final String message = "almeno un giocatore deve essere un utente";
+
+}
+
+class TroppiPartecipanti implements Exception{
+  final String message = "una partita può avere al massimo 4 giocatori";
+
+}

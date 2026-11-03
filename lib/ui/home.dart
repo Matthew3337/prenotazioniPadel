@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheBloc.dart';
 import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheEvent.dart';
 import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheState.dart';
@@ -17,6 +18,7 @@ import 'package:thepadel/domainLayer/enetity/voceClassifica.dart';
 import 'bachecaInviti.dart';
 import 'bachecaPubbliche.dart';
 import 'barraNavigazione.dart';
+import 'bottoneEsci.dart';
 import 'campoPadel.dart';
 import 'classifica.dart';
 import 'creaPartita.dart';
@@ -112,6 +114,8 @@ class _HomeView extends StatelessWidget {
           _buildCampiLiberi(context, r, state),
           const SizedBox(height: 12),
           _buildClassifica(context, r, state, false),
+          const SizedBox(height: 4),
+          const BottoneEsci(),
         ],
       ),
     );
@@ -155,6 +159,8 @@ class _HomeView extends StatelessWidget {
           _buildTabelloneOggi(context, r, state),
           const SizedBox(height: 16),
           _buildPubblicheTablet(context, r),
+          const SizedBox(height: 4),
+          const BottoneEsci(),
         ],
       ),
     );
@@ -200,7 +206,7 @@ class _HomeView extends StatelessWidget {
     } else if (sezione is SectionEmpty) {
       testi = Text('Nessuna partita in programma', style: stile);
     } else {
-      testi = Text(_saluto(state), style: stile);
+      testi = Text(_saluto(), style: stile);
     }
 
     return Row(
@@ -208,31 +214,27 @@ class _HomeView extends StatelessWidget {
       children: [
         Expanded(child: testi),
         const SizedBox(width: 12),
-        _buildAvatar(r, state),
+        _buildAvatar(r),
       ],
     );
   }
 
-  // il nome dell'utente non e' salvato da nessuna parte: l'unico posto in cui
-  // la home lo riceve e' la sua riga di classifica
-  String? _nomeUtente(HomeState state) {
-    final sezione = state.classifica;
-    if (sezione is SectionSuccess<VoceClassifica>) {
-      return sezione.data.nome;
-    }
-    return null;
+  // il nome lo salva il login, quindi c'e' subito e non dipende dalle chiamate
+  // della home; manca solo a chi e' entrato con una versione vecchia dell'app
+  String? _nomeUtente() {
+    return sl<SharedPreferences>().getString('nome');
   }
 
-  String _saluto(HomeState state) {
-    final String? nome = _nomeUtente(state);
-    if (nome == null) {
+  String _saluto() {
+    final String? nome = _nomeUtente();
+    if (nome == null || nome.isEmpty) {
       return 'Ciao';
     }
     return 'Ciao, $nome';
   }
 
-  Widget _buildAvatar(Responsive r, HomeState state) {
-    final String? nome = _nomeUtente(state);
+  Widget _buildAvatar(Responsive r) {
+    final String? nome = _nomeUtente();
 
     Widget contenuto = const Icon(
       Icons.person_outline,

@@ -6,6 +6,7 @@ import 'package:thepadel/bloc/registraRisultato/registraRisultatoState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
+import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 
 import 'campoPadel.dart';
@@ -37,22 +38,8 @@ class _RegistraRisultatoView extends StatefulWidget {
 }
 
 class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
-  static const int maxGame = 6;
-
-  // quale posto della partita sta in ogni punto del campo: gli indici 0 e 1
-  // sono la squadra 1 (a sinistra), gli indici 2 e 3 la squadra 2
-  final List<int> _ordine = [0, 1, 2, 3];
-
-  // i game dei tre set: la posizione nella lista e' il numero del set
-  final List<int> _gameSquadra1 = [0, 0, 0];
-  final List<int> _gameSquadra2 = [0, 0, 0];
-
-  bool _terzoSetGiocato = false;
-
   // l'ultimo errore del server, sopra il bottone finche' non si riprova
   String? _errore;
-
-  int get _numeroSet => _terzoSetGiocato ? 3 : 2;
 
   @override
   Widget build(BuildContext context) {
@@ -87,8 +74,8 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
                   TestataIndietro(titolo: titolo),
                   Expanded(
                     child:
-                        _registrazioneDisponibile()
-                            ? _buildForm(context, r, isLoading)
+                        squadreComponibili(widget.dettaglio)
+                            ? _buildForm(context, isLoading)
                             : _buildNonDisponibile(context, r),
                   ),
                 ],
@@ -100,18 +87,27 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
     );
   }
 
-  // servono quattro giocatori, tutti con il loro idPosto: senza non possiamo
-  // comporre le squadre. Succede se il server non manda il campo
-  bool _registrazioneDisponibile() {
-    if (widget.dettaglio.posti.length != 4) {
-      return false;
-    }
-    for (final posto in widget.dettaglio.posti) {
-      if (posto.idPosto == null) {
-        return false;
-      }
-    }
-    return true;
+  Widget _buildForm(BuildContext context, bool isLoading) {
+    return FormRisultato(
+      dettaglio: widget.dettaglio,
+      isLoading: isLoading,
+      errore: _errore,
+      onCambiato: () {
+        setState(() {
+          _errore = null;
+        });
+      },
+      onSalva: (squadra1, squadra2, set) {
+        context.read<RegistraRisultatoBloc>().add(
+          RegistraRisultatoRichiesto(
+            idPartita: widget.dettaglio.id,
+            squadra1: squadra1,
+            squadra2: squadra2,
+            set: set,
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildNonDisponibile(BuildContext context, Responsive r) {
@@ -151,9 +147,100 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
     );
   }
 
-  // ===== FORM =====
+}
 
-  Widget _buildForm(BuildContext context, Responsive r, bool isLoading) {
+// servono quattro giocatori, tutti con il loro idPosto: senza non possiamo
+// comporre le squadre. Succede se il server non manda il campo
+bool squadreComponibili(DettaglioPartita dettaglio) {
+  if (dettaglio.posti.length != 4) {
+    return false;
+  }
+  for (final posto in dettaglio.posti) {
+    if (posto.idPosto == null) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Il form con squadre e set, senza bloc: lo usano sia la pagina dell'utente
+// sia quella dell'admin, ognuna manda al proprio bloc quello che riceve in
+// onSalva. Se la partita ha gia' un risultato parte da quello.
+class FormRisultato extends StatefulWidget {
+  final DettaglioPartita dettaglio;
+  final bool isLoading;
+  final String? errore;
+  // avvisa la pagina che l'utente ha toccato qualcosa: l'errore non vale piu'
+  final VoidCallback onCambiato;
+  final void Function(
+    List<int> squadra1,
+    List<int> squadra2,
+    List<SetPartita> set,
+  )
+  onSalva;
+
+  const FormRisultato({
+    super.key,
+    required this.dettaglio,
+    required this.isLoading,
+    required this.errore,
+    required this.onCambiato,
+    required this.onSalva,
+  });
+
+  @override
+  State<FormRisultato> createState() => _FormRisultatoState();
+}
+
+class _FormRisultatoState extends State<FormRisultato> {
+  static const int maxGame = 6;
+
+  // i posti nello stesso ordine in cui li disegna postiDaDettaglio: quelli
+  // della squadra 1 davanti, cosi' un risultato esistente parte gia' diviso
+  final List<PostoPartita> _posti = [];
+
+  // quale posto di _posti sta in ogni punto del campo: gli indici 0 e 1
+  // sono la squadra 1 (a sinistra), gli indici 2 e 3 la squadra 2
+  final List<int> _ordine = [0, 1, 2, 3];
+
+  // i game dei tre set: la posizione nella lista e' il numero del set
+  final List<int> _gameSquadra1 = [0, 0, 0];
+  final List<int> _gameSquadra2 = [0, 0, 0];
+
+  bool _terzoSetGiocato = false;
+
+  int get _numeroSet => _terzoSetGiocato ? 3 : 2;
+
+  @override
+  void initState() {
+    super.initState();
+
+    for (final posto in widget.dettaglio.posti) {
+      if (posto.squadra == 1) {
+        _posti.add(posto);
+      }
+    }
+    for (final posto in widget.dettaglio.posti) {
+      if (posto.squadra != 1) {
+        _posti.add(posto);
+      }
+    }
+
+    final RisultatoPartita? risultato = widget.dettaglio.risultato;
+    if (risultato != null) {
+      for (int i = 0; i < risultato.set.length && i < 3; i++) {
+        _gameSquadra1[i] = risultato.set[i].squadra1;
+        _gameSquadra2[i] = risultato.set[i].squadra2;
+      }
+      _terzoSetGiocato = risultato.set.length >= 3;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = Responsive(context);
+    final bool isLoading = widget.isLoading;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -179,7 +266,7 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
             ),
           ),
         ),
-        _buildFondo(context, r, isLoading),
+        _buildFondo(r, isLoading),
       ],
     );
   }
@@ -201,19 +288,18 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
       final int appoggio = _ordine[punto];
       _ordine[punto] = _ordine[opposto];
       _ordine[opposto] = appoggio;
-      _errore = null;
     });
+    widget.onCambiato();
   }
 
   Widget _buildCampo(bool isLoading) {
-    // prima del risultato i posti non hanno squadra: postiDaDettaglio li
-    // lascia nell'ordine del server, lo stesso a cui si riferisce _ordine
+    // postiDaDettaglio mette i posti nello stesso ordine di _posti
     final List<PostoCampo> disegnati = postiDaDettaglio(widget.dettaglio);
 
     final List<PostoCampo> posti = [];
     for (int punto = 0; punto < 4; punto++) {
       final PostoCampo base = disegnati[_ordine[punto]];
-      final String nome = _nomePosto(widget.dettaglio.posti[_ordine[punto]]);
+      final String nome = _nomePosto(_posti[_ordine[punto]]);
       posti.add(
         PostoCampo(
           iniziali: base.iniziali,
@@ -239,10 +325,8 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
   }
 
   String _nomiSquadra(int primo, int secondo) {
-    final String nomePrimo = _nomePosto(widget.dettaglio.posti[_ordine[primo]]);
-    final String nomeSecondo = _nomePosto(
-      widget.dettaglio.posti[_ordine[secondo]],
-    );
+    final String nomePrimo = _nomePosto(_posti[_ordine[primo]]);
+    final String nomeSecondo = _nomePosto(_posti[_ordine[secondo]]);
     return unisciNomi([nomePrimo, nomeSecondo]);
   }
 
@@ -320,8 +404,8 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
                   : () {
                     setState(() {
                       _terzoSetGiocato = !_terzoSetGiocato;
-                      _errore = null;
                     });
+                    widget.onCambiato();
                   },
         ),
       ),
@@ -455,8 +539,8 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
       } else {
         _gameSquadra2[indiceSet] = nuovoValore;
       }
-      _errore = null;
     });
+    widget.onCambiato();
   }
 
   // ===== ESITO E SALVA =====
@@ -485,11 +569,11 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
   }
 
   // i controlli su squadre e set li fa il BLoC: qui raccogliamo solo i dati
-  void _salva(BuildContext context) {
+  void _salva() {
     final List<int> squadra1 = [];
     final List<int> squadra2 = [];
     for (int punto = 0; punto < 4; punto++) {
-      final int idPosto = widget.dettaglio.posti[_ordine[punto]].idPosto!;
+      final int idPosto = _posti[_ordine[punto]].idPosto!;
       if (punto < 2) {
         squadra1.add(idPosto);
       } else {
@@ -502,20 +586,11 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
       set.add(SetPartita(squadra1: _gameSquadra1[i], squadra2: _gameSquadra2[i]));
     }
 
-    setState(() {
-      _errore = null;
-    });
-    context.read<RegistraRisultatoBloc>().add(
-      RegistraRisultatoRichiesto(
-        idPartita: widget.dettaglio.id,
-        squadra1: squadra1,
-        squadra2: squadra2,
-        set: set,
-      ),
-    );
+    widget.onCambiato();
+    widget.onSalva(squadra1, squadra2, set);
   }
 
-  Widget _buildFondo(BuildContext context, Responsive r, bool isLoading) {
+  Widget _buildFondo(Responsive r, bool isLoading) {
     // un 6-6 e un 0-0 sono entrambi set in parita': il server li rifiuterebbe
     final bool salvabile = _primoSetInParita() < 0 && !_haSetVuoti();
 
@@ -524,8 +599,8 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_errore != null) ...[
-            RiquadroMessaggio(testo: _errore!),
+          if (widget.errore != null) ...[
+            RiquadroMessaggio(testo: widget.errore!),
             const SizedBox(height: 8),
           ],
           if (_primoSetInParita() < 0) ...[
@@ -543,9 +618,7 @@ class _RegistraRisultatoViewState extends State<_RegistraRisultatoView> {
             inCaricamento: isLoading,
             onPressed:
                 salvabile
-                    ? () {
-                      _salva(context);
-                    }
+                    ? _salva
                     : null,
           ),
         ],

@@ -22,7 +22,7 @@ void main()
   setUp(()
   {
     repo = FakeUtenteRepo();
-    bloc = AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo));
+    bloc = AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo), logoutUseCase: LogoutUseCase(repo: repo));
   });
 
   tearDown(() async
@@ -163,6 +163,25 @@ void main()
     {
       repo.erroreRegistrazione = Exception("timeout");
       bloc.add(evento());
+
+      await expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), erroreCon(ErroreGenericoServer().messaggio, CampoErroreAuth.nessuno)]));
+    });
+  });
+
+  group("logout", ()
+  {
+    test("successo: Loading poi LogoutSuccess", () async
+    {
+      bloc.add(LogoutRichiesto());
+
+      await expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), isA<LogoutSuccess>()]));
+      expect(repo.chiamateLogout, 1);
+    });
+
+    test("errore durante il logout: Loading poi errore generale col messaggio generico", () async
+    {
+      repo.erroreLogout = Exception("preferenze non scrivibili");
+      bloc.add(LogoutRichiesto());
 
       await expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), erroreCon(ErroreGenericoServer().messaggio, CampoErroreAuth.nessuno)]));
     });

@@ -177,6 +177,17 @@ String unisciNomi(List<String> nomi) {
   return risultato;
 }
 
+// "1 posto libero", "3 posti liberi"
+String testoPostiLiberi(int posti) {
+  if (posti == 0) {
+    return 'Nessun posto libero';
+  }
+  if (posti == 1) {
+    return '1 posto libero';
+  }
+  return '$posti posti liberi';
+}
+
 // ===== SNACKBAR =====
 
 void mostraSnackBar(BuildContext context, String testo) {
@@ -268,6 +279,36 @@ class Pillola extends StatelessWidget {
         testo,
         style: stileTesto(r, base: 13, peso: FontWeight.w600, colore: colore),
       ),
+    );
+  }
+}
+
+// lo stato di una partita, che il server manda in minuscolo
+class PillolaStato extends StatelessWidget {
+  final String stato;
+
+  const PillolaStato({super.key, required this.stato});
+
+  @override
+  Widget build(BuildContext context) {
+    if (stato == 'confermata') {
+      return const Pillola(
+        testo: 'Confermata',
+        sfondo: Colori.verdeChiaro,
+        colore: Colori.verde,
+      );
+    }
+    if (stato == 'creata') {
+      return const Pillola(
+        testo: 'Creata',
+        sfondo: Colori.arancioChiaro,
+        colore: Colori.arancio,
+      );
+    }
+    return Pillola(
+      testo: conMaiuscola(stato),
+      sfondo: Colori.bordo,
+      colore: Colori.testo,
     );
   }
 }
@@ -367,6 +408,58 @@ class LinkTesto extends StatelessWidget {
         testo,
         style: TextStyle(fontSize: r.font(15), fontWeight: peso),
       ),
+    );
+  }
+}
+
+// il campo per cercare un utente per nome: il debounce lo fa la pagina
+class CampoRicerca extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const CampoRicerca({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = Responsive(context);
+    const OutlineInputBorder bordo = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(10)),
+      borderSide: BorderSide(color: Colori.grigio),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Cerca per nome', style: stileTesto(r, peso: FontWeight.w600)),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          onChanged: onChanged,
+          textInputAction: TextInputAction.search,
+          style: stileTesto(r),
+          decoration: InputDecoration(
+            hintText: 'Nome o cognome',
+            hintStyle: stileSecondario(r),
+            filled: true,
+            fillColor: Colors.white,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: bordo,
+            enabledBorder: bordo,
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: Colori.azzurro, width: 2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
