@@ -193,7 +193,7 @@ class FormRisultato extends StatefulWidget {
 }
 
 class _FormRisultatoState extends State<FormRisultato> {
-  static const int maxGame = 6;
+  static const int maxGame = 7;
 
   // i posti nello stesso ordine in cui li disegna postiDaDettaglio: quelli
   // della squadra 1 davanti, cosi' un risultato esistente parte gia' diviso
@@ -353,19 +353,6 @@ class _FormRisultatoState extends State<FormRisultato> {
 
   // ===== SET =====
 
-  // Il primo set in parita', oppure -1. Un set ancora 0-0 non e' un errore:
-  // la pagina si apre cosi' e diventare subito rossa non avrebbe senso.
-  int _primoSetInParita() {
-    for (int i = 0; i < _numeroSet; i++) {
-      final int a = _gameSquadra1[i];
-      final int b = _gameSquadra2[i];
-      if (a == b && a != 0) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
   bool _haSetVuoti() {
     for (int i = 0; i < _numeroSet; i++) {
       if (_gameSquadra1[i] == 0 && _gameSquadra2[i] == 0) {
@@ -376,22 +363,9 @@ class _FormRisultatoState extends State<FormRisultato> {
   }
 
   Widget _buildSet(Responsive r, bool isLoading) {
-    final int setInParita = _primoSetInParita();
-
     final List<Widget> righe = [];
     for (int i = 0; i < _numeroSet; i++) {
       righe.add(_rigaSet(r, i, isLoading));
-    }
-    if (setInParita >= 0) {
-      righe.add(
-        Padding(
-          padding: const EdgeInsets.only(top: 6, bottom: 2),
-          child: Text(
-            'Un set non può finire in parità: correggi il set ${setInParita + 1}.',
-            style: stileTesto(r, peso: FontWeight.w600, colore: Colori.rosso),
-          ),
-        ),
-      );
     }
     righe.add(
       Align(
@@ -423,32 +397,23 @@ class _FormRisultatoState extends State<FormRisultato> {
   Widget _rigaSet(Responsive r, int indice, bool isLoading) {
     final int a = _gameSquadra1[indice];
     final int b = _gameSquadra2[indice];
-    final bool inParita = a == b && a != 0;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 52),
       padding: const EdgeInsets.symmetric(horizontal: 6),
-      decoration: BoxDecoration(
-        color: inParita ? Colori.rossoChiaro : null,
-        borderRadius: BorderRadius.circular(10),
-      ),
       child: Row(
         children: [
           SizedBox(
             width: r.font(44),
             child: Text(
               'Set ${indice + 1}',
-              style: stileTesto(
-                r,
-                peso: FontWeight.w700,
-                colore: inParita ? Colori.rosso : Colori.testo,
-              ),
+              style: stileTesto(r, peso: FontWeight.w700),
             ),
           ),
           const SizedBox(width: 4),
-          Expanded(child: _stepper(r, indice, 1, a, inParita, isLoading)),
+          Expanded(child: _stepper(r, indice, 1, a, isLoading)),
           const SizedBox(width: 6),
-          Expanded(child: _stepper(r, indice, 2, b, inParita, isLoading)),
+          Expanded(child: _stepper(r, indice, 2, b, isLoading)),
         ],
       ),
     );
@@ -459,7 +424,6 @@ class _FormRisultatoState extends State<FormRisultato> {
     int indiceSet,
     int squadra,
     int valore,
-    bool inParita,
     bool isLoading,
   ) {
     final String nome = 'Set ${indiceSet + 1}, squadra $squadra';
@@ -470,7 +434,6 @@ class _FormRisultatoState extends State<FormRisultato> {
           r,
           testo: '−',
           descrizione: '$nome, meno uno',
-          sfondo: inParita ? Colors.white : Colori.sfondo,
           abilitato: !isLoading && valore > 0,
           onPressed: () {
             _cambiaGame(indiceSet, squadra, valore - 1);
@@ -487,7 +450,6 @@ class _FormRisultatoState extends State<FormRisultato> {
           r,
           testo: '+',
           descrizione: '$nome, più uno',
-          sfondo: inParita ? Colors.white : Colori.sfondo,
           abilitato: !isLoading && valore < maxGame,
           onPressed: () {
             _cambiaGame(indiceSet, squadra, valore + 1);
@@ -501,7 +463,6 @@ class _FormRisultatoState extends State<FormRisultato> {
     Responsive r, {
     required String testo,
     required String descrizione,
-    required Color sfondo,
     required bool abilitato,
     required VoidCallback onPressed,
   }) {
@@ -509,7 +470,7 @@ class _FormRisultatoState extends State<FormRisultato> {
       button: true,
       label: descrizione,
       child: Material(
-        color: sfondo,
+        color: Colori.sfondo,
         clipBehavior: Clip.antiAlias,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
@@ -568,7 +529,7 @@ class _FormRisultatoState extends State<FormRisultato> {
     return 'Parità: controlla i punteggi';
   }
 
-  // i controlli su squadre e set li fa il BLoC: qui raccogliamo solo i dati
+  // i controlli su squadre e set li fa lo use case: qui raccogliamo solo i dati
   void _salva() {
     final List<int> squadra1 = [];
     final List<int> squadra2 = [];
@@ -591,8 +552,10 @@ class _FormRisultatoState extends State<FormRisultato> {
   }
 
   Widget _buildFondo(Responsive r, bool isLoading) {
-    // un 6-6 e un 0-0 sono entrambi set in parita': il server li rifiuterebbe
-    final bool salvabile = _primoSetInParita() < 0 && !_haSetVuoti();
+    // un set ancora 0-0 vuol dire che non e' stato inserito. Il punteggio degli
+    // altri lo controlla lo use case al salvataggio: mentre si tocca il + si
+    // passa per forza da valori come 1-0, e segnalarli non avrebbe senso
+    final bool salvabile = !_haSetVuoti();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -603,14 +566,12 @@ class _FormRisultatoState extends State<FormRisultato> {
             RiquadroMessaggio(testo: widget.errore!),
             const SizedBox(height: 8),
           ],
-          if (_primoSetInParita() < 0) ...[
-            Text(
-              _testoEsito(),
-              textAlign: TextAlign.center,
-              style: stileTesto(r, peso: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-          ],
+          Text(
+            _testoEsito(),
+            textAlign: TextAlign.center,
+            style: stileTesto(r, peso: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
           BottonePieno(
             testo: 'Salva risultato',
             altezza: 52,

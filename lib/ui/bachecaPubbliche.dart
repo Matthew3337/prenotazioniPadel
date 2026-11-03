@@ -105,7 +105,7 @@ class _BachecaPubblicheView extends StatelessWidget {
               } else {
                 elementi.add(
                   Text(
-                    'Partite aperte a giocatori di livello simile al tuo.',
+                    'Partite aperte a cui puoi unirti',
                     style: stileSecondario(r),
                   ),
                 );
@@ -238,6 +238,12 @@ class _BachecaPubblicheView extends StatelessWidget {
           '${partita.nomeCampo} · ${giornoEMese(partita.dataPartita)}, $orario';
     }
 
+    String creatore = '${partita.nomeCreatore} ${partita.cognomeCreatore}';
+    // se il creatore e' un admin il livello non c'e'
+    if (partita.livelloCreatore != null) {
+      creatore += ' · Livello ${partita.livelloCreatore}';
+    }
+
     return CardBianca(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
@@ -257,11 +263,7 @@ class _BachecaPubblicheView extends StatelessWidget {
                       style: stileNumero(r, 20),
                     ),
                     Text(dove, style: stileSecondario(r)),
-                    Text(
-                      '${partita.nomeCreatore} ${partita.cognomeCreatore} · '
-                      'Livello ${partita.livelloCreatore}',
-                      style: stileSecondario(r),
-                    ),
+                    Text(creatore, style: stileSecondario(r)),
                   ],
                 ),
               ),
