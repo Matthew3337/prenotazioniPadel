@@ -27,5 +27,9 @@ class ClassificaBloc extends Bloc<ClassificaEvent, ClassificaState>{
     {
       emit(ClassificaErrore(messaggio: e.messaggio));
     }
+    on Exception //timeout o rete assente: il Client li lascia passare cosi come sono, senza questo la pagina resterebbe ferma
+    {
+      emit(ClassificaErrore(messaggio: ErroreGenericoServer().messaggio));
+    }
   }
 }

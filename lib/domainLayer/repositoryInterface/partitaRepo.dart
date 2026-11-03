@@ -1,4 +1,5 @@
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
+import 'package:thepadel/domainLayer/enetity/invitoBacheca.dart';
 import 'package:thepadel/domainLayer/enetity/partitaInvito.dart';
 import 'package:thepadel/domainLayer/enetity/partitaPubblica.dart';
 import 'package:thepadel/domainLayer/enetity/partitaStorico.dart';
@@ -24,6 +25,10 @@ abstract class PartitaRepo {
   Future<DettaglioPartita> invitaUtente(int idPartita, String telefono);
 
   Future<List<PartitaInvito>> getInviti();
+
+  Future<List<InvitoBacheca>> getInvitiConStato();
+
+  String getTelefonoUtente();
 
   Future<DettaglioPartita> confermaPartita(int idPartita);
 

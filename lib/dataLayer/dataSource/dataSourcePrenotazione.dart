@@ -19,9 +19,13 @@ class DataSourcePrenotazione{
     String telefono =  sl<SharedPreferences>().getString("telefono")!;
     String token = sl<SharedPreferences>().getString("jwt")!;
 
-    Map<String, dynamic> res = await  c.get(elencoUrl.BaseUrl + elencoUrl.PrenotazioniProssima + telefono, token: token);
+    dynamic res = await  c.get(elencoUrl.BaseUrl + elencoUrl.PrenotazioniProssima + telefono, token: token);
 
-    if(res.containsKey("id")) //SUCCESSO PRENOTAZIONE TROVATA 
+    if(res == null) //risposta senza body (es. token scaduto), non c'e niente da leggere
+    {
+      throw ErroreGenericoServer();
+    }
+    else if(res.containsKey("id")) //SUCCESSO PRENOTAZIONE TROVATA 
     {
       return PrenotazioneModel.fromJson(res);
     }

@@ -19,6 +19,12 @@ class DataSourcePartita{
   //metodi
   DataSourcePartita({required this.c, required this.elencoUrl});
 
+  //il telefono salvato al login: serve a riconoscere il posto dell'utente tra quelli di una partita
+  String getTelefonoUtente()
+  {
+    return sl<SharedPreferences>().getString("telefono")!;
+  }
+
   Future<DettaglioPartitaModel> getDettaglioPartita(int idPartita) async
   {
     String token = sl<SharedPreferences>().getString("jwt")!;

@@ -30,16 +30,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final utenteRetrived = await loginUseCase.call(evento.telefono, evento.password);
       emit(LoginSuccess(utente: utenteRetrived));
     }on PwMancante catch (e){
-      emit(AuthErrore(messaggio: e.message));
+      emit(AuthErrore(messaggio: e.message, campo: CampoErroreAuth.password));
     } on FormatoTelefonoNonValido catch(e) {
-        emit(AuthErrore(messaggio: e.message));
+        emit(AuthErrore(messaggio: e.message, campo: CampoErroreAuth.telefono));
     } on TelefonoDuplicatoException catch (e) {
         emit(AuthErrore(messaggio : e.messaggio));
     } on TelOPasswordErrata catch(e) {
       emit(AuthErrore(messaggio : e.messaggio));
     } on ErroreGenericoServer catch (e) {
         emit(AuthErrore(messaggio : e.messaggio));
-    } 
+    } on Exception { //timeout o rete assente: il Client li lascia passare cosi come sono, senza questo la pagina resterebbe ferma
+        emit(AuthErrore(messaggio : ErroreGenericoServer().messaggio));
+    }
   }
 
   Future<void> _onRegistrazioneRichiesta(RegistrazioneRichiesta evento, Emitter<AuthState> emit) async
@@ -49,21 +51,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       int res = await registrazioneUseCase.call(evento.nome, evento.cognome, evento.telefono, evento.dataNascita, evento.pw);
       emit(RegistrazioneSuccess());
     }on PwMancante catch (e){
-      emit(AuthErrore(messaggio: e.message));
+      emit(AuthErrore(messaggio: e.message, campo: CampoErroreAuth.password));
     } on FormatoTelefonoNonValido catch(e) {
-        emit(AuthErrore(messaggio: e.message));
+        emit(AuthErrore(messaggio: e.message, campo: CampoErroreAuth.telefono));
     } on NomeMancante catch (e) {
-        emit(AuthErrore(messaggio : e.message));
+        emit(AuthErrore(messaggio : e.message, campo: CampoErroreAuth.nome));
     } on CognomeMancante catch(e) {
-      emit(AuthErrore(messaggio : e.message));
+      emit(AuthErrore(messaggio : e.message, campo: CampoErroreAuth.cognome));
     } on DataNascitaMancante catch (e) {
-        emit(AuthErrore(messaggio : e.message));
+        emit(AuthErrore(messaggio : e.message, campo: CampoErroreAuth.dataNascita));
     } on TelefonoDuplicatoException catch(e) {
       emit(AuthErrore(messaggio : e.messaggio));
     } on DataNonValida catch (e) {
-        emit(AuthErrore(messaggio : e.messaggio));
+        emit(AuthErrore(messaggio : e.messaggio, campo: CampoErroreAuth.dataNascita));
     } on ErroreGenericoServer catch(e){
       emit(AuthErrore(messaggio : e.messaggio));
+    } on Exception {
+      emit(AuthErrore(messaggio : ErroreGenericoServer().messaggio));
     }
   }
 

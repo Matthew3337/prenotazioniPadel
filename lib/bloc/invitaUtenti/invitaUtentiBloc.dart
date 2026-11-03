@@ -66,6 +66,10 @@ class InvitaUtentiBloc extends Bloc<InvitaUtentiEvent, InvitaUtentiState>{
     {
       emit(InvitoErrore(utenti: utenti, messaggio: e.messaggio));
     }
+    on Exception //timeout o rete assente: il Client li lascia passare cosi come sono, senza questo la pagina resterebbe ferma
+    {
+      emit(InvitoErrore(utenti: utenti, messaggio: ErroreGenericoServer().messaggio));
+    }
 
     //se l'invito e fallito la partita o l'elenco sono probabilmente cambiati (posti finiti, utente entrato da solo),
     //quindi ricarico subito; non emetto il Loading cosi la lista resta a schermo finche non arriva quella nuova
@@ -92,6 +96,10 @@ class InvitaUtentiBloc extends Bloc<InvitaUtentiEvent, InvitaUtentiState>{
     on ErroreGenericoServer catch (e)
     {
       emit(InvitabiliErrore(messaggio: e.messaggio));
+    }
+    on Exception
+    {
+      emit(InvitabiliErrore(messaggio: ErroreGenericoServer().messaggio));
     }
   }
 }

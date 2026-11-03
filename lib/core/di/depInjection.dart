@@ -10,6 +10,7 @@ import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
+import 'package:thepadel/bloc/prenota/prenotaBloc.dart';
 import 'package:thepadel/bloc/registraRisultato/registraRisultatoBloc.dart';
 import 'package:thepadel/bloc/storico/storicoBloc.dart';
 import 'package:thepadel/core/network/client.dart';
@@ -30,6 +31,7 @@ import 'package:thepadel/useCase/creaPartitaUseCase.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
 import 'package:thepadel/useCase/invitaUtentiUseCase.dart';
+import 'package:thepadel/useCase/prenotaUseCase.dart';
 import 'package:thepadel/useCase/registraRisultatoUseCase.dart';
 import 'package:thepadel/useCase/storicoUseCase.dart';
 
@@ -67,15 +69,19 @@ void init()
 
   sl.registerLazySingleton<SlotDisponibiliUseCase>(() => SlotDisponibiliUseCase(repo: sl()));
 
+  sl.registerLazySingleton<SlotOggiUseCase>(() => SlotOggiUseCase(repo: sl()));
+
   sl.registerLazySingleton<ClassificaUseCase>(() => ClassificaUseCase(repo: sl()));
 
   sl.registerFactory<ClassificaBloc>(() => ClassificaBloc(classificaUseCase: sl()));
 
-  sl.registerFactory<HomeBloc>(()=> HomeBloc(prossimaPartitaUseCase: sl(), slotUseCase: sl(), classificaUseCase: sl()));
+  sl.registerFactory<HomeBloc>(()=> HomeBloc(prossimaPartitaUseCase: sl(), slotOggiUseCase: sl(), classificaUseCase: sl(), dettaglioPartitaUseCase: sl(), bachecaInvitiUseCase: sl(), partitePubblicheUseCase: sl()));
 
   sl.registerLazySingleton<CreaPartitaUseCase>(() => CreaPartitaUseCase(repo: sl()));
 
-  sl.registerFactory<CreaPartitaBloc>(() => CreaPartitaBloc(creaPartitaUseCase: sl()));
+  sl.registerLazySingleton<SlotLiberiDataUseCase>(() => SlotLiberiDataUseCase(repo: sl()));
+
+  sl.registerFactory<CreaPartitaBloc>(() => CreaPartitaBloc(creaPartitaUseCase: sl(), slotLiberiDataUseCase: sl()));
 
   sl.registerSingletonWithDependencies<DataSourcePartita>(() => DataSourcePartita(c: sl(), elencoUrl: sl()), dependsOn: [MyUrl]);
 
@@ -109,9 +115,15 @@ void init()
 
   sl.registerLazySingleton<BachecaInvitiUseCase>(() => BachecaInvitiUseCase(repo: sl()));
 
-  sl.registerFactory<BachecaInvitiBloc>(() => BachecaInvitiBloc(bachecaInvitiUseCase: sl()));
+  sl.registerLazySingleton<InvitiConStatoUseCase>(() => InvitiConStatoUseCase(repo: sl()));
+
+  sl.registerFactory<BachecaInvitiBloc>(() => BachecaInvitiBloc(invitiConStatoUseCase: sl(), confermaPartitaUseCase: sl()));
 
   sl.registerLazySingleton<RegistraRisultatoUseCase>(() => RegistraRisultatoUseCase(repo: sl()));
 
   sl.registerFactory<RegistraRisultatoBloc>(() => RegistraRisultatoBloc(registraRisultatoUseCase: sl()));
+
+  sl.registerLazySingleton<ListaCampiUseCase>(() => ListaCampiUseCase(repo: sl()));
+
+  sl.registerFactory<PrenotaBloc>(() => PrenotaBloc(listaCampiUseCase: sl(), slotUseCase: sl(), storicoUseCase: sl()));
 }

@@ -52,5 +52,9 @@ class RegistraRisultatoBloc extends Bloc<RegistraRisultatoEvent, RegistraRisulta
     {
       emit(RegistraRisultatoErrore(messaggio: e.messaggio));
     }
+    on Exception //timeout o rete assente: il Client li lascia passare cosi come sono, senza questo la pagina resterebbe ferma
+    {
+      emit(RegistraRisultatoErrore(messaggio: ErroreGenericoServer().messaggio));
+    }
   }
 }

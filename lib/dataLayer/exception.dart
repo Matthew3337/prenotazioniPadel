@@ -1,19 +1,19 @@
 //AUTH EXCEPTION
 
 class TelefonoDuplicatoException implements Exception {
-  final String messaggio = "il numero di telefono è gia registrato";
+  final String messaggio = "Questo numero è già registrato.";
 }
 
 class ErroreGenericoServer implements Exception{
-  final String messaggio = "errore generico del server, riprova piu tardi";
+  final String messaggio = "Qualcosa è andato storto. Riprova più tardi.";
 }
 
 class TelOPasswordErrata implements Exception{
-  final String messaggio = "telefono o password errati";
+  final String messaggio = "Telefono o password errati. Controlla e riprova.";
 }
 
 class DataNonValida implements Exception{
-  final String messaggio = "la data di nascita non è valida";
+  final String messaggio = "Questa data non esiste";
 }
 
 //PRENOTAZIONE EXCEPTION
