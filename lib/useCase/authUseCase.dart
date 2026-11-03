@@ -49,3 +49,12 @@ class RegistrazioneUseCase {
   }
 
 }
+
+class LogoutUseCase {
+  final UtenteRepoImpl repo;
+  LogoutUseCase({required this.repo});
+
+  Future<void> call() {
+    return repo.logout();
+  }
+}

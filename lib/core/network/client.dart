@@ -36,6 +36,18 @@ class Client {
   
   }
 
+  Future<dynamic> put(String url, Map<String, dynamic> body,{String? token})
+  {
+    if(token != null)
+    {
+      return _handleRequest(()=> c.put(Uri.parse(url), body: jsonEncode(body), headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'}));
+    }
+    else 
+    {
+      return _handleRequest(()=> c.put(Uri.parse(url), body: jsonEncode(body), headers: {'Content-Type': 'application/json'}));
+    } 
+  }
+
   Future<dynamic> delete(String url, {String? token})
   {
     if(token != null)

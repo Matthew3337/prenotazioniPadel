@@ -16,9 +16,8 @@ class UtenteRepoImpl implements UtenteRepo{
   }
 
   @override
-  int logout() {
-    // TODO: implement logout
-    throw UnimplementedError();
+  Future<void> logout() {
+    return dsUtente.logout();
   }
 
   @override

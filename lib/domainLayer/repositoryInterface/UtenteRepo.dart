@@ -8,7 +8,7 @@ abstract class UtenteRepo {
 
   Future<int> registrazione(String nome, String cognome, String telefono, DateTime dataNascita, String password);
 
-  int logout();
+  Future<void> logout();
 
   Future<List<VoceClassifica>> getClassifica();
 

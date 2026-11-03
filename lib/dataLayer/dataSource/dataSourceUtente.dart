@@ -25,6 +25,8 @@ class DataSourceUtente{
       await sl<SharedPreferences>().setBool('isLogged', true);
       await sl<SharedPreferences>().setBool('isAdmin', UtenteModel.fromJson(res).isAdmin);  
       await sl<SharedPreferences>().setString('telefono', UtenteModel.fromJson(res).telefono); 
+      await sl<SharedPreferences>().setString('nome', UtenteModel.fromJson(res).nome); 
+      await sl<SharedPreferences>().setString('cognome', UtenteModel.fromJson(res).cognome); 
       await sl<SharedPreferences>().setString('jwt', res['token']); 
 
       return UtenteModel.fromJson(res);
@@ -37,6 +39,18 @@ class DataSourceUtente{
     { //ALTRI ERRORI 
       throw ErroreGenericoServer();
     }
+  }
+
+  //il server non ha un endpoint di revoca del JWT: uscire significa dimenticare i dati salvati al login
+  Future<void> logout() async
+  {
+    //isLogged va via per primo: se ci si fermasse a meta, all'avvio l'app non cercherebbe di aprire la home senza token
+    await sl<SharedPreferences>().remove('isLogged');
+    await sl<SharedPreferences>().remove('jwt');
+    await sl<SharedPreferences>().remove('isAdmin');
+    await sl<SharedPreferences>().remove('telefono');
+    await sl<SharedPreferences>().remove('nome');
+    await sl<SharedPreferences>().remove('cognome');
   }
 
   Future<int> registrazione(String nome, String cognome, String telefono, DateTime dataNascita, String password) async

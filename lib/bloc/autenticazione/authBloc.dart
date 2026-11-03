@@ -13,11 +13,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   //i vari use case 
   final LoginUseCase loginUseCase;
   final RegistrazioneUseCase registrazioneUseCase;
+  final LogoutUseCase logoutUseCase;
 
   //costruttire
-  AuthBloc({required this.loginUseCase, required this.registrazioneUseCase}) : super(AuthInitial()) {//dichiaro lo stato iniziale 
+  AuthBloc({required this.loginUseCase, required this.registrazioneUseCase, required this.logoutUseCase}) : super(AuthInitial()) {//dichiaro lo stato iniziale
     on<LoginRichiesto>(_onLoginRichiesto); //registra una funzione che verra eseguita ogni qualvolta qualcuno fara add di un oggetto del Tipo tipizzato
     on<RegistrazioneRichiesta>(_onRegistrazioneRichiesta);
+    on<LogoutRichiesto>(_onLogout);
   }
 
 
@@ -66,6 +68,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(AuthErrore(messaggio : e.messaggio, campo: CampoErroreAuth.dataNascita));
     } on ErroreGenericoServer catch(e){
       emit(AuthErrore(messaggio : e.messaggio));
+    } on Exception {
+      emit(AuthErrore(messaggio : ErroreGenericoServer().messaggio));
+    }
+  }
+
+  Future<void> _onLogout(LogoutRichiesto evento, Emitter<AuthState> emit) async
+  {
+    emit(AuthLoading());
+    try{
+      await logoutUseCase.call();
+      emit(LogoutSuccess());
     } on Exception {
       emit(AuthErrore(messaggio : ErroreGenericoServer().messaggio));
     }

@@ -36,7 +36,7 @@ class SlotNonDisponibile implements Exception{ //409: slot occupato, fuori orari
 
 //PARTITA EXCEPTION
 
-class PartitaNonTrovata implements Exception{ //404: la partita non esiste o l'utente non puo vederla
+class PartitaNonTrovata implements Exception{ //404: la partita non esiste o l'utente non puo vederla; nell'area admin anche un utente inesistente, il messaggio del server dice quale
   final String messaggio;
   PartitaNonTrovata({required this.messaggio});
 }
@@ -46,7 +46,7 @@ class IngressoRifiutato implements Exception{ //409: partita al completo, ingres
   IngressoRifiutato({required this.messaggio});
 }
 
-class OperazioneRifiutata implements Exception{ //403 o 409 su elimina, esci, inviti e risultato (su inviti e risultato anche il 400): il messaggio spiega perche l'operazione non e permessa
+class OperazioneRifiutata implements Exception{ //403 o 409 su elimina, esci, inviti, risultato e area admin (su inviti, risultato e area admin anche il 400): il messaggio spiega perche l'operazione non e permessa
   final String messaggio;
   OperazioneRifiutata({required this.messaggio});
 }

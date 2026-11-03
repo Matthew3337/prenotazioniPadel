@@ -28,5 +28,14 @@
   "PartiteConferma": "/api/partite/{id}/conferma",
   "PartiteRisultato": "/api/partite/{id}/risultato",
 
-  "Classifica": "/api/classifica"
+  "Classifica": "/api/classifica",
+
+  "AdminPartite": "/api/admin/partite?data={data}",
+  "AdminAvvisi": "/api/admin/avvisi",
+  "AdminUtenti": "/api/admin/utenti?cerca={cerca}",
+  "AdminLivello": "/api/admin/utenti/{telefono}/livello",
+  "AdminPartecipanti": "/api/admin/partite/{id}/partecipanti",
+  "AdminRisultato": "/api/admin/partite/{id}/risultato",
+  "AdminStato": "/api/admin/partite/{id}/stato",
+  "AdminAnnulla": "/api/admin/partite/{id}/annulla"
 }

@@ -3,26 +3,33 @@ import 'package:http/http.dart' as http;
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/bloc/autenticazione/authBloc.dart';
+import 'package:thepadel/bloc/bachecaAvvisi/bachecaAvvisiBloc.dart';
 import 'package:thepadel/bloc/bachecaInviti/bachecaInvitiBloc.dart';
 import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheBloc.dart';
 import 'package:thepadel/bloc/classifica/classificaBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
+import 'package:thepadel/bloc/dettaglioAdmin/dettaglioAdminBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
+import 'package:thepadel/bloc/gestioneLivelli/gestioneLivelliBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
+import 'package:thepadel/bloc/partiteGiorno/partiteGiornoBloc.dart';
 import 'package:thepadel/bloc/prenota/prenotaBloc.dart';
 import 'package:thepadel/bloc/registraRisultato/registraRisultatoBloc.dart';
 import 'package:thepadel/bloc/storico/storicoBloc.dart';
 import 'package:thepadel/core/network/client.dart';
 import 'package:thepadel/core/network/myUrl.dart';
+import 'package:thepadel/dataLayer/dataSource/dataSourceAdmin.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourceCampo.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourcePartita.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourcePrenotazione.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourceUtente.dart';
+import 'package:thepadel/repositoryImpl/adminRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/campoRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/partitaRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/prenotazioneRepoImpl.dart';
 import 'package:thepadel/repositoryImpl/utenteRepoImpl.dart';
+import 'package:thepadel/useCase/adminUseCase.dart';
 import 'package:thepadel/useCase/authUseCase.dart';
 import 'package:thepadel/useCase/bachecaInvitiUseCase.dart';
 import 'package:thepadel/useCase/bachecaPubblicheUseCase.dart';
@@ -55,7 +62,9 @@ void init()
 
   sl.registerLazySingleton<RegistrazioneUseCase>(() => RegistrazioneUseCase(repo: sl()));
 
-  sl.registerFactory(() => AuthBloc(loginUseCase: sl(), registrazioneUseCase: sl())); //registro solo il bloc non gli eventi o gli stati 
+  sl.registerLazySingleton<LogoutUseCase>(() => LogoutUseCase(repo: sl()));
+
+  sl.registerFactory(() => AuthBloc(loginUseCase: sl(), registrazioneUseCase: sl(), logoutUseCase: sl())); //registro solo il bloc non gli eventi o gli stati 
 
   sl.registerSingletonWithDependencies<DataSourcePrenotazione>(() => DataSourcePrenotazione(c: sl(), elencoUrl: sl()), dependsOn: [MyUrl]);
 
@@ -122,6 +131,34 @@ void init()
   sl.registerLazySingleton<RegistraRisultatoUseCase>(() => RegistraRisultatoUseCase(repo: sl()));
 
   sl.registerFactory<RegistraRisultatoBloc>(() => RegistraRisultatoBloc(registraRisultatoUseCase: sl()));
+
+  sl.registerSingletonWithDependencies<DataSourceAdmin>(() => DataSourceAdmin(c: sl(), elencoUrl: sl()), dependsOn: [MyUrl]);
+
+  sl.registerLazySingleton<AdminRepoImpl>(() => AdminRepoImpl(dsAdmin: sl()));
+
+  sl.registerLazySingleton<PartiteGiornoUseCase>(() => PartiteGiornoUseCase(repo: sl()));
+
+  sl.registerLazySingleton<BachecaAvvisiUseCase>(() => BachecaAvvisiUseCase(repo: sl()));
+
+  sl.registerLazySingleton<UtentiAdminUseCase>(() => UtentiAdminUseCase(repo: sl()));
+
+  sl.registerLazySingleton<CambiaLivelloUseCase>(() => CambiaLivelloUseCase(repo: sl()));
+
+  sl.registerLazySingleton<ModificaPartecipantiUseCase>(() => ModificaPartecipantiUseCase(repo: sl()));
+
+  sl.registerLazySingleton<ModificaRisultatoUseCase>(() => ModificaRisultatoUseCase(repo: sl()));
+
+  sl.registerLazySingleton<ModificaStatoUseCase>(() => ModificaStatoUseCase(repo: sl()));
+
+  sl.registerLazySingleton<AnnullaPartitaUseCase>(() => AnnullaPartitaUseCase(repo: sl()));
+
+  sl.registerFactory<PartiteGiornoBloc>(() => PartiteGiornoBloc(partiteGiornoUseCase: sl()));
+
+  sl.registerFactory<BachecaAvvisiBloc>(() => BachecaAvvisiBloc(bachecaAvvisiUseCase: sl()));
+
+  sl.registerFactory<GestioneLivelliBloc>(() => GestioneLivelliBloc(utentiAdminUseCase: sl(), cambiaLivelloUseCase: sl()));
+
+  sl.registerFactory<DettaglioAdminBloc>(() => DettaglioAdminBloc(dettaglioPartitaUseCase: sl(), modificaPartecipantiUseCase: sl(), modificaRisultatoUseCase: sl(), modificaStatoUseCase: sl(), annullaPartitaUseCase: sl()));
 
   sl.registerLazySingleton<ListaCampiUseCase>(() => ListaCampiUseCase(repo: sl()));
 
