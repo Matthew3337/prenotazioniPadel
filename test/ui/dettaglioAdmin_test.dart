@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
+import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 import 'package:thepadel/ui/dettaglioAdmin.dart';
@@ -87,6 +88,22 @@ void main()
     expect(find.text("Mario Rossi"), findsOneWidget);
     expect(find.text("Organizzatore · Livello 2.5"), findsOneWidget);
     expect(find.text("Giocatore del campo"), findsOneWidget);
+  });
+
+  testWidgets("creatore admin assente dai posti: nessuna etichetta Organizzatore e nessun errore", (tester) async
+  {
+    repoPartita.risposta = dettaglioDiTest(telefonoCreatore: "3330000000", stato: "creata", posti: [
+      PostoPartita(idPosto: 21, tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: false, squadra: null),
+      PostoPartita(idPosto: 22, tipo: "UTENTE", telefono: "3335550002", nome: "Anna", cognome: "Verdi", livello: 2.5, confermata: false, squadra: null),
+    ]);
+    await apriPagina(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text("Giocatori, 2 su 4"), findsOneWidget);
+    expect(find.text("Luca Bianchi"), findsOneWidget);
+    expect(find.text("Anna Verdi"), findsOneWidget);
+    expect(find.text("Posto libero"), findsNWidgets(2));
+    expect(find.textContaining("Organizzatore"), findsNothing);
   });
 
   testWidgets("i posti che mancano compaiono come liberi", (tester) async

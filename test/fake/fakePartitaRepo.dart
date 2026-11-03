@@ -25,7 +25,7 @@ AzioniPartita azioniDiTest({bool puoInvitare = false, bool puoEliminare = false,
 }
 
 //partita con il creatore (Mario Rossi) e un giocatore del campo: restano 2 posti liberi
-DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata", RisultatoPartita? risultato, int id = 10, DateTime? dataPartita})
+DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata", RisultatoPartita? risultato, int id = 10, DateTime? dataPartita, String telefonoCreatore = "3331234567"})
 {
   return DettaglioPartita(
     id: id,
@@ -36,7 +36,7 @@ DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? pos
     oraFine: const TimeOfDay(hour: 20, minute: 0),
     stato: stato,
     tipo: "PUBBLICA",
-    telefonoCreatore: "3331234567",
+    telefonoCreatore: telefonoCreatore,
     posti: posti ?? [
       PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false, squadra: null),
       PostoPartita(idPosto: null, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null),
@@ -59,7 +59,7 @@ List<PostoPartita> quattroPostiDiTest({bool conSquadre = false})
 }
 
 //partita della bacheca pubbliche: di default e quella di dettaglioDiTest vista dalla bacheca
-PartitaPubblica partitaPubblicaDiTest({int id = 10, String nomeCampo = "Campo Centrale", int postiLiberi = 2})
+PartitaPubblica partitaPubblicaDiTest({int id = 10, String nomeCampo = "Campo Centrale", int postiLiberi = 2, double? livelloCreatore = 2.5})
 {
   return PartitaPubblica(
     id: id,
@@ -70,7 +70,7 @@ PartitaPubblica partitaPubblicaDiTest({int id = 10, String nomeCampo = "Campo Ce
     oraFine: const TimeOfDay(hour: 20, minute: 0),
     nomeCreatore: "Mario",
     cognomeCreatore: "Rossi",
-    livelloCreatore: 2.5,
+    livelloCreatore: livelloCreatore,
     postiLiberi: postiLiberi,
   );
 }
