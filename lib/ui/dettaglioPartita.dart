@@ -234,11 +234,12 @@ class _DettaglioPartitaView extends StatelessWidget {
                 const SizedBox(height: 14),
                 _buildCampo(context, dettaglio, isLoading),
                 const SizedBox(height: 14),
-                if (risultato != null)
+                // senza set non c'e' niente da mostrare, anche se il risultato esiste
+                if (risultato != null && risultato.set.isNotEmpty)
                   _buildRisultato(r, dettaglio, risultato)
                 else
                   _buildGiocatori(context, r, dettaglio, isLoading),
-                if (risultato != null) ...[
+                if (risultato != null && risultato.set.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Center(
                     child: LinkTesto(

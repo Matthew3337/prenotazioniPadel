@@ -708,12 +708,17 @@ void main()
     });
 
     //il dettaglio com'era prima della nuova UI: "senza set non c'e' niente da mostrare, anche se il risultato esiste"
-    testWidgets("risultato senza set: la card non compare", (tester) async
+    testWidgets("risultato senza set: niente card ne link allo storico, resta la lista dei giocatori", (tester) async
     {
       repo.risposta = dettaglioDiTest(risultato: RisultatoPartita(set: const [], squadraUtente: 1, esito: "VINTA", puntiAssegnati: 3));
       await apriPagina(tester);
 
       expect(find.text("Risultato"), findsNothing);
+      expect(find.text("Vai allo storico"), findsNothing);
+      expect(find.text("Giocatori, 2 su 4"), findsOneWidget);
+      expect(find.text("Mario Rossi"), findsOneWidget);
+      expect(find.text("Giocatore del campo"), findsOneWidget);
+      expect(find.text("Posto libero"), findsNWidgets(2));
     });
 
     testWidgets("utente in squadra 1: Hai vinto con +3 punti, la sua squadra in alto e i set del server", (tester) async
