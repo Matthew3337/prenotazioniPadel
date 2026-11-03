@@ -45,7 +45,7 @@ class NumeroSetNonValido implements Exception{
 }
 
 class SetNonValido implements Exception{
-  final String message = "Un set non può finire in parità, e i game vanno da 0 a 6.";
+  final String message = "si vince a 6 game con almeno 2 di scarto, oppure 7-5 o 7-6";
 
 }
 

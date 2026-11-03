@@ -57,7 +57,7 @@ String erroreServer(int status, String errore)
 }
 
 //una partita della bacheca come da contratto T4
-Map<String, dynamic> partitaPubblicaJson(int id, num livelloCreatore, int postiLiberi)
+Map<String, dynamic> partitaPubblicaJson(int id, num? livelloCreatore, int postiLiberi)
 {
   return {
     "id": id,
@@ -249,6 +249,20 @@ void main()
 
       expect(partite[0].livelloCreatore, isA<double>());
       expect(partite[0].livelloCreatore, 3.0);
+    });
+
+    test("200 con livelloCreatore null, creatore admin: la partita arriva senza livello", () async
+    {
+      final body = jsonEncode([partitaPubblicaJson(7, null, 2), partitaPubblicaJson(8, 2.5, 1)]);
+      final ds = creaDataSource(200, body, richieste);
+
+      final partite = await ds.getPartitePubbliche();
+
+      expect(partite.length, 2);
+      expect(partite[0].livelloCreatore, isNull);
+      expect(partite[0].nomeCreatore, "Mario");
+      expect(partite[0].postiLiberi, 2);
+      expect(partite[1].livelloCreatore, 2.5);
     });
 
     test("200 con lista vuota: restituisce una lista vuota", () async

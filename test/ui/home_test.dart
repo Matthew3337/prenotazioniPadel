@@ -570,6 +570,26 @@ void main()
       expect(find.widgetWithText(TextButton, "Entra"), findsNWidgets(2));
     });
 
+    testWidgets("su tablet la riga pubblica mostra il livello del creatore", (tester) async
+    {
+      repoPartita.partitePubbliche = [partitaPubblicaDiTest()];
+      await apriHome(tester, schermo: const Size(820, 1180));
+
+      expect(find.textContaining("Mario Rossi, livello 2.5"), findsOneWidget);
+    });
+
+    testWidgets("su tablet con creatore admin la riga pubblica non mostra il livello", (tester) async
+    {
+      repoPartita.partitePubbliche = [partitaPubblicaDiTest(livelloCreatore: null)];
+      await apriHome(tester, schermo: const Size(820, 1180));
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining("Mario Rossi"), findsOneWidget);
+      expect(find.textContaining("livello"), findsNothing);
+      expect(find.textContaining("null"), findsNothing);
+      expect(find.widgetWithText(TextButton, "Entra"), findsOneWidget);
+    });
+
     testWidgets("su tablet Entra apre il dettaglio della partita", (tester) async
     {
       repoPartita.partitePubbliche = [partitaPubblicaDiTest()];

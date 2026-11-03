@@ -73,6 +73,26 @@ void main()
     expect(find.text("Nessuna partita pubblica disponibile al momento"), findsNothing);
   });
 
+  testWidgets("creatore admin: mostra il nome senza livello e si puo entrare", (tester) async
+  {
+    repo.partitePubbliche = [partitaPubblicaDiTest(livelloCreatore: null)];
+    await apriPagina(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text("Mario Rossi"), findsOneWidget);
+    expect(find.textContaining("Livello"), findsNothing);
+    expect(find.textContaining("null"), findsNothing);
+    expect(find.widgetWithText(ElevatedButton, "Entra"), findsOneWidget);
+  });
+
+  testWidgets("il sottotitolo non parla piu di livello simile", (tester) async
+  {
+    await apriPagina(tester);
+
+    expect(find.text("Partite aperte a cui puoi unirti"), findsOneWidget);
+    expect(find.textContaining("livello simile"), findsNothing);
+  });
+
   testWidgets("una partita di oggi non ripete la data", (tester) async
   {
     final oggi = DateTime.now();

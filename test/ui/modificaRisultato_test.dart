@@ -8,6 +8,7 @@ import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 import 'package:thepadel/ui/dettaglioAdmin.dart';
 import 'package:thepadel/ui/modificaRisultato.dart';
 import 'package:thepadel/ui/stileApp.dart';
+import 'package:thepadel/useCase/eccezioniUseCase.dart';
 
 import '../fake/blocDiTest.dart';
 import '../fake/fakeAdminRepo.dart';
@@ -200,6 +201,39 @@ void main()
 
       expect(find.byType(DettaglioAdminPage), findsOneWidget);
       expect(find.byType(ModificaRisultatoPage), findsNothing);
+    });
+  });
+
+  group("regola dei set", ()
+  {
+    testWidgets("un risultato esistente con 7-5 e 7-6 arriva al repository", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest(
+        posti: quattroPostiDiTest(conSquadre: true),
+        stato: "giocata",
+        risultato: risultatoDiTest([SetPartita(squadra1: 7, squadra2: 5), SetPartita(squadra1: 6, squadra2: 7), SetPartita(squadra1: 7, squadra2: 6)]),
+      );
+      await apriPagina(tester);
+
+      await salva(tester);
+
+      expect(repo.setRicevuti!.map((s) => "${s.squadra1}-${s.squadra2}").toList(), ["7-5", "6-7", "7-6"]);
+    });
+
+    testWidgets("un set non valido si puo salvare ma lo use case lo ferma: messaggio nel riquadro e niente chiamata", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest(
+        posti: quattroPostiDiTest(conSquadre: true),
+        stato: "giocata",
+        risultato: risultatoDiTest([SetPartita(squadra1: 5, squadra2: 4), SetPartita(squadra1: 6, squadra2: 2)]),
+      );
+      await apriPagina(tester);
+
+      await salva(tester);
+
+      expect(find.widgetWithText(RiquadroMessaggio, SetNonValido().message), findsOneWidget);
+      expect(repo.chiamateRisultato, 0);
+      expect(find.byType(ModificaRisultatoPage), findsOneWidget);
     });
   });
 }

@@ -11,6 +11,21 @@ SetPartita unSet(int squadra1, int squadra2)
   return SetPartita(squadra1: squadra1, squadra2: squadra2);
 }
 
+//i soli punteggi validi: gli inversi si provano nei test
+const List<List<int>> punteggiValidi = [[6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [7, 5], [7, 6]];
+
+bool punteggioValido(int a, int b)
+{
+  for(final p in punteggiValidi)
+  {
+    if((a == p[0] && b == p[1]) || (a == p[1] && b == p[0]))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
 void main()
 {
   late FakeAdminRepo repo;
@@ -176,8 +191,8 @@ void main()
 
     final setSbagliati = {
       "parita": unSet(4, 4),
-      "game oltre 6 per la squadra 1": unSet(7, 5),
-      "game oltre 6 per la squadra 2": unSet(5, 7),
+      "7-4 per la squadra 1": unSet(7, 4),
+      "7-4 per la squadra 2": unSet(4, 7),
       "game negativi per la squadra 1": unSet(-1, 6),
       "game negativi per la squadra 2": unSet(6, -1),
     };
@@ -206,5 +221,40 @@ void main()
 
     expect(dettaglio.stato, "annullata");
     expect(repo.idAnnullaRicevuto, 7);
+  });
+
+  group("ModificaRisultatoUseCase regola dei set", ()
+  {
+    late ModificaRisultatoUseCase useCase;
+
+    setUp(()
+    {
+      useCase = ModificaRisultatoUseCase(repo: repo);
+    });
+
+    //tutte le coppie da 0 a 8 game: comprende 5-4, 6-5, 7-4, 6-6, 7-7, 0-0 e 8-6
+    for(int a = 0; a <= 8; a++)
+    {
+      for(int b = 0; b <= 8; b++)
+      {
+        if(punteggioValido(a, b))
+        {
+          test("$a-$b passa al repository", () async
+          {
+            await useCase.call(7, [11, 12], [13, 14], [unSet(6, 4), unSet(a, b)]);
+
+            expect(repo.chiamateRisultato, 1);
+          });
+        }
+        else
+        {
+          test("$a-$b: SetNonValido, nessuna chiamata", ()
+          {
+            expect(() => useCase.call(7, [11, 12], [13, 14], [unSet(6, 4), unSet(a, b)]), throwsA(isA<SetNonValido>()));
+            expect(repo.chiamateRisultato, 0);
+          });
+        }
+      }
+    }
   });
 }

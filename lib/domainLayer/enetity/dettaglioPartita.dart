@@ -14,7 +14,7 @@ class DettaglioPartita {
   final String stato; //in minuscolo: creata, confermata, annullata, giocata
   final String tipo; //PUBBLICA o PRIVATA
   final String telefonoCreatore;
-  final List<PostoPartita> posti; //solo i posti occupati, il creatore e sempre il primo
+  final List<PostoPartita> posti; //solo i posti occupati: il creatore e il primo se gioca, un creatore admin non ha un posto
   final AzioniPartita azioni;
   final RisultatoPartita? risultato; //null finche nessuno lo ha registrato
 

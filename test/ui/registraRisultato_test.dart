@@ -9,6 +9,7 @@ import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/ui/registraRisultato.dart';
 import 'package:thepadel/ui/stileApp.dart';
+import 'package:thepadel/useCase/eccezioniUseCase.dart';
 import 'package:thepadel/useCase/registraRisultatoUseCase.dart';
 
 import '../fake/fakePartitaRepo.dart';
@@ -215,7 +216,7 @@ void main()
       expect(valoriGame(tester), ["0", "2", "0", "0"]);
     });
 
-    testWidgets("a 0 il - e disabilitato, a 6 il + e disabilitato", (tester) async
+    testWidgets("a 0 il - e disabilitato, a 7 il + e disabilitato", (tester) async
     {
       await apriPagina(tester);
 
@@ -224,18 +225,24 @@ void main()
 
       await premi(tester, piu, set1Squadra1, volte: 6);
 
+      //a 6 si puo ancora salire: il set puo finire 7-5 o 7-6
       expect(valoriGame(tester)[set1Squadra1], "6");
+      expect(stepperAttivo(tester, piu, set1Squadra1), isTrue);
+
+      await premi(tester, piu, set1Squadra1);
+
+      expect(valoriGame(tester)[set1Squadra1], "7");
       expect(stepperAttivo(tester, piu, set1Squadra1), isFalse);
       expect(stepperAttivo(tester, meno, set1Squadra1), isTrue);
 
-      //un altro tocco sul + non porta a 7
+      //un altro tocco sul + non porta a 8
       await tester.tap(find.text(piu).at(set1Squadra1));
       await tester.pump();
-      expect(valoriGame(tester)[set1Squadra1], "6");
+      expect(valoriGame(tester)[set1Squadra1], "7");
 
       //il - riporta sotto il limite e riattiva il +
       await premi(tester, meno, set1Squadra1);
-      expect(valoriGame(tester)[set1Squadra1], "5");
+      expect(valoriGame(tester)[set1Squadra1], "6");
       expect(stepperAttivo(tester, piu, set1Squadra1), isTrue);
     });
   });
@@ -248,23 +255,102 @@ void main()
       await premi(tester, piu, set1Squadra1, volte: 6);
 
       expect(find.text("Inserisci il punteggio dei set"), findsOneWidget);
-      expect(find.textContaining("non può finire in parità"), findsNothing);
+      expect(find.byType(RiquadroMessaggio), findsNothing);
       expect(bottoneSalva(tester).onPressed, isNull);
     });
 
-    testWidgets("un set in parita indica quale correggere e blocca il salvataggio", (tester) async
+    testWidgets("durante la compilazione non compare nessuna segnalazione, nemmeno con un set in parita", (tester) async
     {
       await apriPagina(tester);
+      await premi(tester, piu, set1Squadra1, volte: 1);
       await premi(tester, piu, set2Squadra1, volte: 3);
       await premi(tester, piu, set2Squadra2, volte: 3);
 
-      expect(find.text("Un set non può finire in parità: correggi il set 2."), findsOneWidget);
-      expect(find.text("Inserisci il punteggio dei set"), findsNothing);
-      expect(bottoneSalva(tester).onPressed, isNull);
-
-      await tester.tap(find.byType(ElevatedButton), warnIfMissed: false);
-      await tester.pump();
+      expect(find.byType(RiquadroMessaggio), findsNothing);
+      expect(find.textContaining("parità"), findsNothing);
+      expect(find.textContaining("non è valido"), findsNothing);
+      //nessuna riga diventa rossa
+      expect(find.byWidgetPredicate((widget)
+      {
+        if(widget is! Container || widget.decoration is! BoxDecoration)
+        {
+          return false;
+        }
+        return (widget.decoration as BoxDecoration).color == Colori.rossoChiaro;
+      }), findsNothing);
+      //nessun set e 0-0: si puo provare a salvare, il controllo lo fa lo use case
+      expect(bottoneSalva(tester).onPressed, isNotNull);
       expect(repo.chiamateRisultato, 0);
+    });
+
+    final setNonValidi = {
+      "5-4": [5, 4],
+      "6-5": [6, 5],
+      "6-6": [6, 6],
+      "7-4": [7, 4],
+      "7-7": [7, 7],
+      "4-7": [4, 7],
+    };
+    setNonValidi.forEach((punteggio, game)
+    {
+      testWidgets("un set $punteggio si puo salvare ma lo use case lo ferma: messaggio nel riquadro e niente chiamata", (tester) async
+      {
+        await apriPagina(tester);
+        await premi(tester, piu, set1Squadra1, volte: game[0]);
+        await premi(tester, piu, set1Squadra2, volte: game[1]);
+        await premi(tester, piu, set2Squadra1, volte: 6);
+        expect(bottoneSalva(tester).onPressed, isNotNull);
+
+        await salva(tester);
+
+        expect(find.widgetWithText(RiquadroMessaggio, SetNonValido().message), findsOneWidget);
+        expect(repo.chiamateRisultato, 0);
+        expect(find.byType(RegistraRisultatoPage), findsOneWidget);
+        expect(paginaChiusa, isFalse);
+      });
+    });
+
+    testWidgets("corretto il set, il messaggio sparisce e il salvataggio parte", (tester) async
+    {
+      await apriPagina(tester);
+      await premi(tester, piu, set1Squadra1, volte: 5);
+      await premi(tester, piu, set1Squadra2, volte: 4);
+      await premi(tester, piu, set2Squadra1, volte: 6);
+      await salva(tester);
+      expect(find.byType(RiquadroMessaggio), findsOneWidget);
+
+      await premi(tester, piu, set1Squadra1);
+      expect(find.byType(RiquadroMessaggio), findsNothing);
+
+      //6-4 e 6-0
+      await salva(tester);
+
+      expect(repo.chiamateRisultato, 1);
+      expect(valoreDelPop, isTrue);
+    });
+
+    final setLunghi = {
+      "7-5": [7, 5],
+      "5-7": [5, 7],
+      "7-6": [7, 6],
+      "6-7": [6, 7],
+    };
+    setLunghi.forEach((punteggio, game)
+    {
+      testWidgets("un set $punteggio arriva al repository", (tester) async
+      {
+        await apriPagina(tester);
+        await premi(tester, piu, set1Squadra1, volte: game[0]);
+        await premi(tester, piu, set1Squadra2, volte: game[1]);
+        await premi(tester, piu, set2Squadra1, volte: 6);
+
+        await salva(tester);
+
+        expect(repo.chiamateRisultato, 1);
+        expect(repo.setRicevuti![0].squadra1, game[0]);
+        expect(repo.setRicevuti![0].squadra2, game[1]);
+        expect(valoreDelPop, isTrue);
+      });
     });
 
     testWidgets("mostra chi vince e quanti set, dal punto di vista della squadra vincente", (tester) async
@@ -416,6 +502,20 @@ void main()
 
       expect(repo.chiamateRisultato, 2);
       expect(valoreDelPop, isTrue);
+    });
+
+    testWidgets("un punteggio rifiutato dal server: il suo messaggio compare nel riquadro", (tester) async
+    {
+      const messaggio = "Il set 1 non è valido: si vince a 6 game con almeno 2 di scarto, oppure 7-5 o 7-6";
+      repo.erroreRisultato = OperazioneRifiutata(messaggio: messaggio);
+      await apriPagina(tester);
+      await compilaDueSet(tester);
+
+      await salva(tester);
+
+      expect(find.widgetWithText(RiquadroMessaggio, messaggio), findsOneWidget);
+      expect(find.byType(RegistraRisultatoPage), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
     });
 
     testWidgets("cambiare un punteggio toglie il messaggio d'errore", (tester) async

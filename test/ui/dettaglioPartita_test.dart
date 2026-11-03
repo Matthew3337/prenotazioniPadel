@@ -92,6 +92,24 @@ void main()
     expect(find.text("Posto libero"), findsNWidgets(2));
   });
 
+  testWidgets("creatore admin assente dai posti: nessuna etichetta Organizzatore e nessun errore", (tester) async
+  {
+    repo.risposta = dettaglioDiTest(telefonoCreatore: "3330000000", posti: [
+      PostoPartita(idPosto: 21, tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: false, squadra: null),
+      PostoPartita(idPosto: 22, tipo: "UTENTE", telefono: "3335550002", nome: "Anna", cognome: "Verdi", livello: 2.5, confermata: false, squadra: null),
+    ]);
+    await apriPagina(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text("Giocatori, 2 su 4"), findsOneWidget);
+    expect(find.text("Luca Bianchi"), findsOneWidget);
+    expect(find.text("Livello 3.0"), findsOneWidget);
+    expect(find.text("Anna Verdi"), findsOneWidget);
+    expect(find.text("Livello 2.5"), findsOneWidget);
+    expect(find.text("Posto libero"), findsNWidgets(2));
+    expect(find.textContaining("Organizzatore"), findsNothing);
+  });
+
   group("stato della partita", ()
   {
     testWidgets("un solo posto libero: Manca un giocatore", (tester) async
@@ -803,11 +821,14 @@ void main()
       //il dettaglio ricaricato e quello che il server restituisce dopo la registrazione
       repo.risposta = dettaglioDiTest(azioni: azioniDiTest(), posti: quattroPostiDiTest(conSquadre: true), stato: "giocata", risultato: risultatoDiTest(squadraUtente: 1, esito: "VINTA", puntiAssegnati: null));
 
-      //primo set 1-0 e secondo set 0-1: basta che nessun set finisca in parita
-      await tester.tap(find.text("+").at(0));
-      await tester.pump();
-      await tester.tap(find.text("+").at(3));
-      await tester.pump();
+      //primo set 6-0 e secondo set 0-6: lo use case accetta solo punteggi validi
+      for(int i = 0; i < 6; i++)
+      {
+        await tester.tap(find.text("+").at(0));
+        await tester.pump();
+        await tester.tap(find.text("+").at(3));
+        await tester.pump();
+      }
       await tester.tap(find.text("Salva risultato"));
       await tester.pumpAndSettle();
 

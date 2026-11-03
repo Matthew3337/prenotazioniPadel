@@ -1129,9 +1129,13 @@ class _HomeView extends StatelessWidget {
     final String quando =
         '${conMaiuscola(giornoRelativo(partita.dataPartita))}, '
         '${formattaOra(partita.oraInizio)}';
-    final String dove =
+    String dove =
         ' · ${partita.nomeCampo} · ${partita.nomeCreatore} '
-        '${partita.cognomeCreatore}, livello ${partita.livelloCreatore}';
+        '${partita.cognomeCreatore}';
+    // se il creatore e' un admin il livello non c'e'
+    if (partita.livelloCreatore != null) {
+      dove += ', livello ${partita.livelloCreatore}';
+    }
 
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 60),

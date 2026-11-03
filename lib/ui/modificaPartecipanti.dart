@@ -105,6 +105,15 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
 
   int get _postiOccupati => _utenti.length + _postiCampo.length;
 
+  bool _organizzatoreTraIPartecipanti() {
+    for (final posto in _utenti) {
+      if (posto.telefono == widget.dettaglio.telefonoCreatore) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   void _rimuovi(PostoPartita posto) {
     setState(() {
       _utenti.remove(posto);
@@ -181,6 +190,13 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
                           ),
                           const SizedBox(height: 12),
                           _buildPartecipanti(r, isLoading),
+                          if (_organizzatoreTraIPartecipanti()) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              "Se togli l'organizzatore, la partita passa a te",
+                              style: stileSecondario(r, base: 14),
+                            ),
+                          ],
                           const SizedBox(height: 16),
                           CampoRicerca(
                             controller: _cercaController,
@@ -243,6 +259,15 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
       }
       figli.add(righe[i]);
     }
+    // ora si possono togliere tutti: il controllo arriva solo al salvataggio
+    if (figli.isEmpty) {
+      figli.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text('Nessun giocatore', style: stileSecondario(r)),
+        ),
+      );
+    }
 
     return CardBianca(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -254,15 +279,21 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
   }
 
   Widget _rigaUtente(Responsive r, PostoPartita posto, bool isLoading) {
-    Widget azione;
+    Widget? etichetta;
     if (posto.telefono == widget.dettaglio.telefonoCreatore) {
-      azione = const Pillola(
+      etichetta = const Pillola(
         testo: 'Organizzatore',
         sfondo: Colori.azzurroChiaro,
         colore: Colori.azzurro,
       );
-    } else {
-      azione = LinkTesto(
+    }
+
+    return _rigaPartecipante(
+      r,
+      nome: '${posto.nome ?? ''} ${posto.cognome ?? ''}'.trim(),
+      dettagli: posto.livello == null ? null : 'Livello ${posto.livello}',
+      etichetta: etichetta,
+      azione: LinkTesto(
         testo: 'Rimuovi',
         colore: Colori.rosso,
         onPressed:
@@ -271,14 +302,7 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
                 : () {
                   _rimuovi(posto);
                 },
-      );
-    }
-
-    return _rigaPartecipante(
-      r,
-      nome: '${posto.nome ?? ''} ${posto.cognome ?? ''}'.trim(),
-      dettagli: posto.livello == null ? null : 'Livello ${posto.livello}',
-      azione: azione,
+      ),
     );
   }
 
@@ -287,6 +311,8 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
     required String nome,
     required String? dettagli,
     required Widget? azione,
+    // sta sotto il nome: accanto a "Rimuovi" non ci entra sui telefoni piccoli
+    Widget? etichetta,
   }) {
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 52),
@@ -301,6 +327,10 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
                   Text(nome, style: stileTesto(r, peso: FontWeight.w600)),
                   if (dettagli != null)
                     Text(dettagli, style: stileSecondario(r, base: 13)),
+                  if (etichetta != null) ...[
+                    const SizedBox(height: 4),
+                    etichetta,
+                  ],
                 ],
               ),
             ),

@@ -82,14 +82,14 @@ void main()
 
   group("rimuovi", ()
   {
-    testWidgets("il creatore non si puo rimuovere, e nemmeno il posto del campo", (tester) async
+    testWidgets("tutti gli utenti si possono rimuovere, creatore compreso, il posto del campo no", (tester) async
     {
       await apriPagina(tester);
 
       expect(find.text("Organizzatore"), findsOneWidget);
-      expect(rimuoviDi("Mario Rossi"), findsNothing);
+      expect(rimuoviDi("Mario Rossi"), findsOneWidget);
       expect(rimuoviDi("Giocatore del campo"), findsNothing);
-      expect(find.widgetWithText(TextButton, "Rimuovi"), findsNWidgets(2));
+      expect(find.widgetWithText(TextButton, "Rimuovi"), findsNWidgets(3));
     });
 
     testWidgets("togliere un giocatore aggiorna il conto e lo ripropone nella ricerca, senza chiamare il server", (tester) async
@@ -277,5 +277,148 @@ void main()
 
     expect(repo.statoRicevuto, "giocata");
     expect(tester.takeException(), isNull);
+  });
+
+  group("creatore", ()
+  {
+    const String spiegazione = "Se togli l'organizzatore, la partita passa a te";
+
+    testWidgets("la riga di spiegazione c'e finche l'organizzatore e tra i partecipanti", (tester) async
+    {
+      await apriPagina(tester);
+      expect(find.text(spiegazione), findsOneWidget);
+
+      await tester.tap(rimuoviDi("Mario Rossi"));
+      await tester.pumpAndSettle();
+
+      expect(find.text(spiegazione), findsNothing);
+      expect(find.text("Organizzatore"), findsNothing);
+      expect(find.text("Mario Rossi"), findsNothing);
+      expect(find.text("Giocatori, 3 su 4"), findsOneWidget);
+      expect(repo.chiamatePartecipanti, 0);
+    });
+
+    testWidgets("se il creatore e gia un admin fuori dai posti non c'e ne etichetta ne spiegazione", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest(posti: quattroPostiDiTest(), stato: "confermata", telefonoCreatore: "3330000000");
+      await apriPagina(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text("Organizzatore"), findsNothing);
+      expect(find.text(spiegazione), findsNothing);
+      expect(find.widgetWithText(TextButton, "Rimuovi"), findsNWidgets(3));
+    });
+
+    testWidgets("togliendo il creatore e salvando i telefoni non lo contengono", (tester) async
+    {
+      repo.rispostaPartecipanti = dettaglioDiTest(stato: "confermata", telefonoCreatore: "3330000000", posti: [
+        PostoPartita(idPosto: 12, tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: true, squadra: null),
+        PostoPartita(idPosto: 13, tipo: "UTENTE", telefono: "3335550002", nome: "Anna", cognome: "Verdi", livello: 2.5, confermata: true, squadra: null),
+      ]);
+      await apriPagina(tester);
+
+      await tester.tap(rimuoviDi("Mario Rossi"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, "Salva"));
+      await tester.pumpAndSettle();
+
+      expect(repo.chiamatePartecipanti, 1);
+      expect(repo.idPartecipantiRicevuto, 10);
+      expect(repo.telefoniRicevuti, ["3335550001", "3335550002"]);
+
+      //il dettaglio mostra la risposta del server: la partita ora e dell'admin
+      expect(find.byType(DettaglioAdminPage), findsOneWidget);
+      expect(find.widgetWithText(SnackBar, "Partecipanti aggiornati"), findsOneWidget);
+      expect(find.text("Mario Rossi"), findsNothing);
+      expect(find.textContaining("Organizzatore"), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets("il creatore tolto per sbaglio si puo riaggiungere dalla ricerca", (tester) async
+    {
+      repo.utenti = [utenteAdminDiTest(telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5)];
+      await apriPagina(tester);
+      expect(find.widgetWithText(TextButton, "Aggiungi"), findsNothing);
+
+      await tester.tap(rimuoviDi("Mario Rossi"));
+      await tester.pumpAndSettle();
+      expect(find.text("Organizzatore"), findsNothing);
+
+      await tester.tap(aggiungiDi("Mario Rossi"));
+      await tester.pumpAndSettle();
+      expect(find.text("Organizzatore"), findsOneWidget);
+      expect(find.text(spiegazione), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, "Salva"));
+      await tester.pumpAndSettle();
+      expect(repo.telefoniRicevuti, contains("3331234567"));
+    });
+  });
+
+  group("nessun utente rimasto", ()
+  {
+    const String messaggio = "almeno un giocatore deve essere un utente";
+
+    testWidgets("resta solo il posto del campo: errore dello use case e nessuna chiamata al server", (tester) async
+    {
+      await apriPagina(tester);
+
+      await tester.tap(rimuoviDi("Mario Rossi"));
+      await tester.pumpAndSettle();
+      await tester.tap(rimuoviDi("Luca Bianchi"));
+      await tester.pumpAndSettle();
+      await tester.tap(rimuoviDi("Anna Verdi"));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Giocatori, 1 su 4"), findsOneWidget);
+      expect(find.text("Giocatore del campo"), findsOneWidget);
+      expect(find.text("Nessun giocatore"), findsNothing);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, "Salva"));
+      await tester.pumpAndSettle();
+
+      expect(repo.chiamatePartecipanti, 0);
+      expect(find.byType(ModificaPartecipantiPage), findsOneWidget);
+      expect(find.widgetWithText(SnackBar, messaggio), findsOneWidget);
+      //il server non e stato chiamato: il dettaglio non viene ricaricato
+      expect(repoPartita.chiamate, 1);
+    });
+
+    testWidgets("card vuota: dice Nessun giocatore, l'errore non chiude la pagina e si puo correggere", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest(stato: "confermata", posti: [
+        PostoPartita(idPosto: 11, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: null),
+      ]);
+      repo.rispostaPartecipanti = dettaglioDiTest(stato: "confermata");
+      await apriPagina(tester);
+      expect(find.text("Nessun giocatore"), findsNothing);
+
+      await tester.tap(rimuoviDi("Mario Rossi"));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Giocatori, 0 su 4"), findsOneWidget);
+      expect(find.text("Nessun giocatore"), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, "Salva"));
+      await tester.pumpAndSettle();
+
+      expect(repo.chiamatePartecipanti, 0);
+      expect(find.widgetWithText(SnackBar, messaggio), findsOneWidget);
+      expect(find.byType(ModificaPartecipantiPage), findsOneWidget);
+
+      //la SnackBar copre il bottone Salva: la tolgo per poter riprovare
+      tester.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger)).removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+
+      await tester.tap(aggiungiDi("Elena Gialli"));
+      await tester.pumpAndSettle();
+      expect(find.text("Nessun giocatore"), findsNothing);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, "Salva"));
+      await tester.pumpAndSettle();
+
+      expect(repo.chiamatePartecipanti, 1);
+      expect(repo.telefoniRicevuti, ["3335559999"]);
+    });
   });
 }
