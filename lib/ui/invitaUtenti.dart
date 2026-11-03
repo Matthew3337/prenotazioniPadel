@@ -2,17 +2,22 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiEvent.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
+import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/utenteInvitabile.dart';
+
+import 'campoPadel.dart';
+import 'stileApp.dart';
 
 class InvitaUtentiPage extends StatelessWidget {
   final int idPartita;
+  // serve a scrivere data e campo in testata: il bloc di questa pagina non li da'
+  final DettaglioPartita? dettaglio;
 
-  const InvitaUtentiPage({super.key, required this.idPartita});
+  const InvitaUtentiPage({super.key, required this.idPartita, this.dettaglio});
 
   @override
   Widget build(BuildContext context) {
@@ -20,60 +25,39 @@ class InvitaUtentiPage extends StatelessWidget {
       create:
           (_) =>
               sl<InvitaUtentiBloc>()
-                ..add(InvitabiliRichiesti(idPartita: idPartita, cerca: "")),
-      child: _InvitaUtentiView(idPartita: idPartita),
+                ..add(InvitabiliRichiesti(idPartita: idPartita, cerca: '')),
+      child: _InvitaUtentiView(idPartita: idPartita, dettaglio: dettaglio),
     );
   }
-}
-
-/// Helper responsive: stesso sistema usato in home, font scalati sulla
-/// larghezza di un iPhone standard (~390px) e padding clampati.
-class _Responsive {
-  final BuildContext context;
-  final double width;
-  final double height;
-  final bool isTablet;
-  final double textScale;
-
-  _Responsive(this.context)
-    : width = MediaQuery.sizeOf(context).width,
-      height = MediaQuery.sizeOf(context).height,
-      isTablet = MediaQuery.sizeOf(context).width >= 600,
-      textScale = (MediaQuery.sizeOf(context).width / 390).clamp(0.8, 1.1);
-
-  double font(double base) => base * textScale;
-
-  double get horizontalPadding => (width * 0.06).clamp(20.0, 48.0);
-
-  double get cardBorderRadius => isTablet ? 32 : 26;
-
-  double get maxContentWidth => isTablet ? 640 : double.infinity;
 }
 
 // la view e' uno StatefulWidget perche' deve tenere il controller della
 // ricerca e il Timer del debounce
 class _InvitaUtentiView extends StatefulWidget {
   final int idPartita;
+  final DettaglioPartita? dettaglio;
 
-  const _InvitaUtentiView({required this.idPartita});
+  const _InvitaUtentiView({required this.idPartita, required this.dettaglio});
 
   @override
   State<_InvitaUtentiView> createState() => _InvitaUtentiViewState();
 }
 
 class _InvitaUtentiViewState extends State<_InvitaUtentiView> {
-  static const Color backgroundColor = Color(0xFFF7F8FC);
-  static const Color primaryColor = Color(0xFF4564B1);
-  static const Color darkText = Color(0xFF252B3A);
-  static const Color greyText = Color(0xFF7D8597);
-  static const Color borderColor = Color(0xFFE0E3EA);
-
   final TextEditingController _cercaController = TextEditingController();
   Timer? _debounce;
 
   // non tutti gli stati portano i posti liberi, quindi teniamo l'ultimo
   // valore ricevuto; null finche' non arriva il primo caricamento
   int? _postiLiberi;
+
+  // il bloc toglie dall'elenco chi e' appena stato invitato: li teniamo qui
+  // per poterli mostrare ancora, con la scritta "Invitato"
+  final List<UtenteInvitabile> _invitati = [];
+  UtenteInvitabile? _inInvito;
+
+  // arriva con l'invito che ha occupato l'ultimo posto
+  DettaglioPartita? _dettaglioAggiornato;
 
   @override
   void dispose() {
@@ -90,6 +74,8 @@ class _InvitaUtentiViewState extends State<_InvitaUtentiView> {
       if (!mounted) {
         return;
       }
+      // gli invitati li filtra la pagina: vanno ridisegnati col testo nuovo
+      setState(() {});
       context.read<InvitaUtentiBloc>().add(
         InvitabiliRichiesti(idPartita: widget.idPartita, cerca: testo.trim()),
       );
@@ -105,453 +91,435 @@ class _InvitaUtentiViewState extends State<_InvitaUtentiView> {
     );
   }
 
+  String _titoloTestata() {
+    final DettaglioPartita? dettaglio = widget.dettaglio;
+    if (dettaglio == null) {
+      return 'Invita giocatori';
+    }
+    final String giorno = conMaiuscola(giornoRelativo(dettaglio.dataPartita));
+    return '$giorno alle ${formattaOra(dettaglio.oraInizio)}, ${dettaglio.nomeCampo}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final r = _Responsive(context);
+    final r = Responsive(context);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Colori.sfondo,
       body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: r.maxContentWidth),
-            child: Column(
-              children: [
-                // header e campo di ricerca restano fuori dal builder: cosi'
-                // il campo non viene ricreato a ogni stato e non perde il focus
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    r.horizontalPadding,
-                    16,
-                    r.horizontalPadding,
-                    0,
-                  ),
-                  child: _buildHeader(context, r),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    r.horizontalPadding,
-                    16,
-                    r.horizontalPadding,
-                    0,
-                  ),
-                  child: _buildRicerca(r),
-                ),
-                Expanded(
-                  child: BlocConsumer<InvitaUtentiBloc, InvitaUtentiState>(
-                    listener: (context, state) {
-                      if (state is InvitabiliCaricati) {
-                        setState(() {
-                          _postiLiberi = state.postiLiberi;
-                        });
-                        // un altro giocatore puo' aver preso l'ultimo posto:
-                        // true dice al dettaglio di ricaricarsi
-                        if (state.alCompleto) {
-                          Navigator.pop(context, true);
+        child: ContenutoCentrato(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // true dice alla pagina precedente di ricaricarsi
+              TestataIndietro(
+                titolo: _titoloTestata(),
+                onIndietro: () {
+                  Navigator.pop(context, true);
+                },
+              ),
+              Expanded(
+                child: BlocConsumer<InvitaUtentiBloc, InvitaUtentiState>(
+                  listener: (context, state) {
+                    if (state is InvitabiliCaricati) {
+                      setState(() {
+                        _postiLiberi = state.postiLiberi;
+                      });
+                    }
+                    if (state is InvitoInCorso) {
+                      for (final utente in state.utenti) {
+                        if (utente.telefono == state.telefono) {
+                          _inInvito = utente;
                         }
                       }
-                      if (state is InvitoRiuscito) {
-                        setState(() {
-                          _postiLiberi = state.postiLiberi;
-                        });
-                        _mostraSnackBar(context, r, 'Utente invitato');
-                        if (state.alCompleto) {
-                          _mostraSnackBar(
-                            context,
-                            r,
-                            'La partita è al completo',
-                          );
-                          Navigator.pop(context, true);
+                    }
+                    if (state is InvitoRiuscito) {
+                      setState(() {
+                        _postiLiberi = state.postiLiberi;
+                        _dettaglioAggiornato = state.dettaglio;
+                        final UtenteInvitabile? invitato = _inInvito;
+                        if (invitato != null) {
+                          _invitati.add(invitato);
                         }
-                      }
-                      // dopo l'errore il BLoC ricarica la lista da solo,
-                      // qui basta avvisare l'utente
-                      if (state is InvitoErrore) {
-                        _mostraSnackBar(context, r, state.messaggio);
-                      }
-                    },
-                    builder: (context, state) {
-                      if (state is InvitabiliErrore) {
-                        return _buildErrore(r, state.messaggio);
-                      }
-
-                      if (state is InvitabiliCaricati) {
-                        return _buildLista(r, state.utenti, null);
-                      }
-
-                      // durante l'invito la lista resta a schermo e solo il
-                      // bottone dell'utente scelto mostra lo spinner
-                      if (state is InvitoInCorso) {
-                        return _buildLista(r, state.utenti, state.telefono);
-                      }
-
-                      if (state is InvitoRiuscito) {
-                        return _buildLista(r, state.utenti, null);
-                      }
-
-                      if (state is InvitoErrore) {
-                        return _buildLista(r, state.utenti, null);
-                      }
-
-                      // InvitaUtentiInitial e InvitaUtentiLoading
-                      return const Center(
-                        child: CircularProgressIndicator(color: primaryColor),
-                      );
-                    },
-                  ),
+                      });
+                      mostraSnackBar(context, 'Utente invitato');
+                    }
+                    // dopo l'errore il BLoC ricarica la lista da solo,
+                    // qui basta avvisare l'utente
+                    if (state is InvitoErrore) {
+                      mostraSnackBar(context, state.messaggio);
+                    }
+                  },
+                  builder: (context, state) {
+                    if (state is InvitabiliCaricati && state.alCompleto) {
+                      return _buildCompleta(context, r);
+                    }
+                    if (state is InvitoRiuscito && state.alCompleto) {
+                      return _buildCompleta(context, r);
+                    }
+                    return _buildRicercaELista(context, r, state);
+                  },
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  void _mostraSnackBar(BuildContext context, _Responsive r, String testo) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(testo),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.symmetric(
-          horizontal: r.width * 0.05,
-          vertical: r.height * 0.02,
+  // ===== RICERCA E LISTA =====
+
+  // Il campo di ricerca sta sempre nello stesso punto dell'albero: Flutter lo
+  // riusa a ogni stato e la tastiera non si chiude mentre arriva la lista.
+  Widget _buildRicercaELista(
+    BuildContext context,
+    Responsive r,
+    InvitaUtentiState state,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          child: _buildTitolo(r),
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: _buildRicerca(r),
+        ),
+        Expanded(child: _buildCorpo(context, r, state)),
+      ],
     );
   }
 
-  // =====================================================================
-  // HEADER
-  // =====================================================================
+  Widget _buildTitolo(Responsive r) {
+    final int invitati = _invitati.length;
+    final int? liberi = _postiLiberi;
 
-  Widget _buildHeader(BuildContext context, _Responsive r) {
-    String posti = '';
-    if (_postiLiberi != null) {
-      posti = '$_postiLiberi posti liberi';
-      if (_postiLiberi == 1) {
-        posti = '1 posto libero';
-      }
+    final List<String> parti = [];
+    if (liberi == 1) {
+      parti.add('Resta 1 posto libero');
+    } else if (liberi != null) {
+      parti.add('Restano $liberi posti liberi');
+    }
+    if (invitati == 1) {
+      parti.add('1 invito inviato');
+    } else if (invitati > 1) {
+      parti.add('$invitati inviti inviati');
     }
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(Icons.arrow_back, color: darkText, size: r.font(24)),
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Invita giocatori',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: r.font(24),
-                  fontWeight: FontWeight.w700,
-                  color: darkText,
-                ),
-              ),
-              if (posti.isNotEmpty)
-                Text(
-                  posti,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: r.font(14),
-                    fontWeight: FontWeight.w500,
-                    color: greyText,
-                  ),
-                ),
-            ],
+        Text('Invita giocatori', style: stileTitolo(r)),
+        const SizedBox(height: 4),
+        if (liberi == null)
+          const BarraGrigia(larghezza: 200, altezza: 16)
+        else
+          Text(parti.join(' · '), style: stileSecondario(r)),
+      ],
+    );
+  }
+
+  Widget _buildRicerca(Responsive r) {
+    const OutlineInputBorder bordo = OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(10)),
+      borderSide: BorderSide(color: Colori.grigio),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Cerca per nome', style: stileTesto(r, peso: FontWeight.w600)),
+        const SizedBox(height: 4),
+        TextField(
+          controller: _cercaController,
+          onChanged: _onCercaCambiata,
+          textInputAction: TextInputAction.search,
+          style: stileTesto(r),
+          decoration: InputDecoration(
+            hintText: 'Nome o cognome',
+            hintStyle: stileSecondario(r),
+            filled: true,
+            fillColor: Colors.white,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: bordo,
+            enabledBorder: bordo,
+            focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: Colori.azzurro, width: 2),
+            ),
           ),
         ),
       ],
     );
   }
 
-  // =====================================================================
-  // RICERCA
-  // =====================================================================
-
-  Widget _buildRicerca(_Responsive r) {
-    return TextField(
-      controller: _cercaController,
-      onChanged: _onCercaCambiata,
-      textInputAction: TextInputAction.search,
-      style: TextStyle(fontSize: r.font(16), color: darkText),
-      decoration: InputDecoration(
-        hintText: 'Cerca per nome',
-        hintStyle: const TextStyle(color: Color(0xFFA0A5AF)),
-        prefixIcon: const Icon(Icons.search, color: primaryColor),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: r.width * 0.045,
-          vertical: (r.height * 0.018).clamp(12.0, 18.0),
+  Widget _buildCorpo(
+    BuildContext context,
+    Responsive r,
+    InvitaUtentiState state,
+  ) {
+    if (state is InvitabiliErrore) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: CardErrore(
+          titolo: 'Non siamo riusciti a caricare i giocatori',
+          testo: state.messaggio,
+          onRiprova: _ricarica,
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: borderColor, width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: primaryColor, width: 1.5),
-        ),
-      ),
-    );
+      );
+    }
+    if (state is InvitabiliCaricati) {
+      return _buildLista(context, r, state.utenti, null);
+    }
+    // durante l'invito la lista resta a schermo e solo il bottone dell'utente
+    // scelto mostra lo spinner
+    if (state is InvitoInCorso) {
+      return _buildLista(context, r, state.utenti, state.telefono);
+    }
+    if (state is InvitoRiuscito) {
+      return _buildLista(context, r, state.utenti, null);
+    }
+    if (state is InvitoErrore) {
+      return _buildLista(context, r, state.utenti, null);
+    }
+    return _buildScheletro();
   }
 
-  // =====================================================================
-  // ERRORE
-  // =====================================================================
-
-  Widget _buildErrore(_Responsive r, String messaggio) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: r.horizontalPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline,
-              color: Colors.redAccent,
-              size: r.font(32),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              messaggio,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: greyText, fontSize: r.font(15)),
-            ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: _ricarica,
-              child: Text(
-                'Riprova',
-                style: TextStyle(
-                  color: primaryColor,
-                  fontWeight: FontWeight.w600,
-                  fontSize: r.font(15),
+  Widget _buildScheletro() {
+    final List<Widget> righe = [];
+    for (int i = 0; i < 6; i++) {
+      righe.add(
+        const SizedBox(
+          height: 60,
+          child: Row(
+            children: [
+              BarraGrigia(larghezza: 40, altezza: 40, raggio: 20),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    BarraGrigia(larghezza: 140, altezza: 16),
+                    SizedBox(height: 4),
+                    BarraGrigia(larghezza: 70, altezza: 12),
+                  ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+      );
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: CardBianca(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Column(children: righe),
       ),
     );
   }
 
-  // =====================================================================
-  // LISTA UTENTI
-  // =====================================================================
+  bool _corrispondeAllaRicerca(UtenteInvitabile utente) {
+    final String cerca = _cercaController.text.trim().toLowerCase();
+    final String nome = '${utente.nome} ${utente.cognome}'.toLowerCase();
+    return nome.contains(cerca);
+  }
 
-  // telefonoInInvito e' l'utente che si sta invitando, null quando non c'e'
-  // nessun invito in corso
   Widget _buildLista(
-    _Responsive r,
+    BuildContext context,
+    Responsive r,
     List<UtenteInvitabile> utenti,
     String? telefonoInInvito,
   ) {
-    final List<Widget> elementi = [];
+    final List<Widget> righe = [];
 
-    if (utenti.isEmpty) {
-      elementi.add(_buildVuota(r));
+    for (final utente in _invitati) {
+      if (_corrispondeAllaRicerca(utente)) {
+        righe.add(_buildRiga(context, r, utente, righe.length, true, null));
+      }
     }
-
     for (final utente in utenti) {
-      elementi.add(_buildUtenteCard(r, utente, telefonoInInvito));
-      elementi.add(const SizedBox(height: 12));
+      righe.add(
+        _buildRiga(context, r, utente, righe.length, false, telefonoInInvito),
+      );
     }
 
-    return ListView(
-      padding: EdgeInsets.fromLTRB(
-        r.horizontalPadding,
-        18,
-        r.horizontalPadding,
-        16,
-      ),
-      // trascinando la lista la tastiera si chiude
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      children: elementi,
-    );
-  }
+    final List<Widget> figli = [];
+    for (int i = 0; i < righe.length; i++) {
+      if (i > 0) {
+        figli.add(const Divider(height: 1, color: Colori.bordo));
+      }
+      figli.add(righe[i]);
+    }
+    if (righe.isEmpty) {
+      figli.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text('Nessun utente trovato', style: stileSecondario(r)),
+        ),
+      );
+    }
 
-  Widget _buildVuota(_Responsive r) {
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            _iconBox(r, Icons.person_search_outlined),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                'Nessun utente trovato',
-                style: TextStyle(
-                  fontSize: r.font(16),
-                  fontWeight: FontWeight.w500,
-                  color: darkText,
-                ),
-              ),
-            ),
-          ],
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: CardBianca(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: figli,
         ),
       ),
     );
   }
 
-  // =====================================================================
-  // CARD UTENTE
-  // =====================================================================
-
-  Widget _buildUtenteCard(
-    _Responsive r,
+  Widget _buildRiga(
+    BuildContext context,
+    Responsive r,
     UtenteInvitabile utente,
+    int indice,
+    bool invitato,
     String? telefonoInInvito,
   ) {
-    final String nomeCompleto = '${utente.nome} ${utente.cognome}'.trim();
+    const List<Color> sfondi = [
+      Colori.azzurroChiaro,
+      Colori.verdeChiaro,
+      Colori.arancioChiaro,
+      Colori.rossoChiaro,
+    ];
+    const List<Color> colori = [
+      Colori.azzurro,
+      Colori.verde,
+      Colori.arancio,
+      Colori.rosso,
+    ];
 
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
-        child: Row(
-          children: [
-            _iconBox(r, Icons.person_outline),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    nomeCompleto,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: r.font(16),
-                      fontWeight: FontWeight.w600,
-                      color: darkText,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Livello ${utente.livello.toStringAsFixed(1)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: r.font(13),
-                      fontWeight: FontWeight.w500,
-                      color: greyText,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            _bottoneInvita(r, utente.telefono, telefonoInInvito),
-          ],
+    Widget azione;
+    if (invitato) {
+      azione = Text(
+        'Invitato',
+        style: stileTesto(r, peso: FontWeight.w700, colore: Colori.verde),
+      );
+    } else if (telefonoInInvito == utente.telefono) {
+      azione = const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2.5,
+          color: Colori.bluCampo,
         ),
-      ),
-    );
-  }
-
-  Widget _bottoneInvita(
-    _Responsive r,
-    String telefono,
-    String? telefonoInInvito,
-  ) {
-    final bool inInvito = telefono == telefonoInInvito;
-    // mentre un invito e' in corso blocchiamo tutti i bottoni, cosi' non
-    // partono due inviti insieme; lo spinner pero' va solo su quello scelto
-    final bool bloccato = telefonoInInvito != null;
-    final double altezza = (r.height * 0.05).clamp(38.0, 46.0);
-
-    return SizedBox(
-      height: altezza,
-      child: ElevatedButton(
+      );
+    } else {
+      azione = LinkTesto(
+        testo: 'Invita',
+        // un invito per volta: lo stato ne segue uno solo
         onPressed:
-            bloccato
+            telefonoInInvito != null
                 ? null
                 : () {
                   context.read<InvitaUtentiBloc>().add(
                     InvitoRichiesto(
                       idPartita: widget.idPartita,
-                      telefono: telefono,
+                      telefono: utente.telefono,
                     ),
                   );
                 },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          disabledBackgroundColor: const Color(0xFF9AA8C8),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
-          elevation: 3,
-          shadowColor: primaryColor.withValues(alpha: 0.3),
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+      );
+    }
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 60),
+      child: Row(
+        children: [
+          CerchioIniziali(
+            testo: inizialiDi(utente.nome, utente.cognome),
+            sfondo: sfondi[indice % sfondi.length],
+            colore: colori[indice % colori.length],
+            dimensione: 40,
           ),
-        ),
-        child:
-            inInvito
-                ? SizedBox(
-                  width: r.font(20),
-                  height: r.font(20),
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
-                  ),
-                )
-                : Text(
-                  'Invita',
-                  style: TextStyle(
-                    fontSize: r.font(15),
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${utente.nome} ${utente.cognome}',
+                  style: stileTesto(r, base: 16, peso: FontWeight.w600),
+                ),
+                Text(
+                  'Livello ${utente.livello}',
+                  style: stileSecondario(r, base: 13),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 76,
+            child: Align(alignment: Alignment.centerRight, child: azione),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== PARTITA AL COMPLETO =====
+
+  Widget _buildCompleta(BuildContext context, Responsive r) {
+    // se l'ultimo posto l'ha preso qualcun altro i giocatori nuovi non li
+    // conosciamo: meglio il campo senza nomi che uno con un posto libero falso
+    List<PostoCampo> posti = [];
+    final DettaglioPartita? aggiornato = _dettaglioAggiornato;
+    final DettaglioPartita? iniziale = widget.dettaglio;
+    if (aggiornato != null && aggiornato.postiLiberi == 0) {
+      posti = postiDaDettaglio(aggiornato);
+    } else if (iniziale != null && iniziale.postiLiberi == 0) {
+      posti = postiDaDettaglio(iniziale);
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('La partita è al completo', style: stileTitolo(r)),
+          const SizedBox(height: 12),
+          CardBianca(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                CampoPadel(altezza: 158, posti: posti),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'I quattro posti sono occupati: non servono altri inviti.',
+                        style: stileTesto(r, base: 16),
+                      ),
+                      const SizedBox(height: 12),
+                      BottonePieno(
+                        testo: 'Torna alla partita',
+                        onPressed: () {
+                          Navigator.pop(context, true);
+                        },
+                      ),
+                    ],
                   ),
                 ),
+              ],
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  // =====================================================================
-  // CARD GENERICA
-  // =====================================================================
-
-  Widget _iconBox(_Responsive r, IconData icon) {
-    final size = (r.width * 0.13).clamp(44.0, 56.0);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE7F1FC),
-        borderRadius: BorderRadius.circular(size * 0.26),
-      ),
-      child: Icon(icon, color: const Color(0xFF2168B4), size: size * 0.5),
-    );
-  }
-
-  Widget _buildCard({required _Responsive r, required Widget child}) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(r.cardBorderRadius),
-        border: Border.all(color: borderColor, width: 1),
-      ),
-      child: child,
     );
   }
 }

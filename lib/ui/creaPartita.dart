@@ -1,264 +1,229 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaEvent.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 
+import 'barraNavigazione.dart';
+import 'campoPadel.dart';
+import 'prenota.dart';
+import 'stileApp.dart';
+
 class CreaPartitaPage extends StatelessWidget {
   final SlotOrario slot;
   final DateTime data;
+  // lo slot non sa se il campo e' al coperto: lo passa solo chi lo conosce
+  final bool? alCoperto;
 
-  const CreaPartitaPage({super.key, required this.slot, required this.data});
+  const CreaPartitaPage({
+    super.key,
+    required this.slot,
+    required this.data,
+    this.alCoperto,
+  });
 
   @override
   Widget build(BuildContext context) {
     // nessun evento iniziale: la richiesta parte solo quando l'utente
-    // tocca "Prenota"
+    // tocca "Prenota il campo"
     return BlocProvider<CreaPartitaBloc>(
       create: (_) => sl<CreaPartitaBloc>(),
-      child: _CreaPartitaView(slot: slot, data: data),
+      child: _CreaPartitaView(slot: slot, data: data, alCoperto: alCoperto),
     );
   }
-}
-
-/// Helper responsive: stesso sistema usato in home, font scalati sulla
-/// larghezza di un iPhone standard (~390px) e padding clampati.
-class _Responsive {
-  final BuildContext context;
-  final double width;
-  final double height;
-  final bool isTablet;
-  final double textScale;
-
-  _Responsive(this.context)
-      : width = MediaQuery.sizeOf(context).width,
-        height = MediaQuery.sizeOf(context).height,
-        isTablet = MediaQuery.sizeOf(context).width >= 600,
-        textScale =
-            (MediaQuery.sizeOf(context).width / 390).clamp(0.8, 1.1);
-
-  double font(double base) => base * textScale;
-
-  double get horizontalPadding => (width * 0.06).clamp(20.0, 48.0);
-
-  double get cardBorderRadius => isTablet ? 32 : 26;
-
-  double get maxContentWidth => isTablet ? 640 : double.infinity;
 }
 
 class _CreaPartitaView extends StatefulWidget {
   final SlotOrario slot;
   final DateTime data;
+  final bool? alCoperto;
 
-  const _CreaPartitaView({required this.slot, required this.data});
+  const _CreaPartitaView({
+    required this.slot,
+    required this.data,
+    required this.alCoperto,
+  });
 
   @override
   State<_CreaPartitaView> createState() => _CreaPartitaViewState();
 }
 
 class _CreaPartitaViewState extends State<_CreaPartitaView> {
-  static const Color backgroundColor = Color(0xFFF7F8FC);
-  static const Color primaryColor = Color(0xFF4564B1);
-  static const Color darkText = Color(0xFF252B3A);
-  static const Color greyText = Color(0xFF7D8597);
-  static const Color borderColor = Color(0xFFE0E3EA);
+  late SlotOrario _slot;
+  bool? _alCoperto;
 
   // stringa vuota finche' l'utente non sceglie: e' il BLoC a segnalare
-  // l'errore se si preme "Prenota" senza aver scelto
+  // l'errore se si preme "Prenota il campo" senza aver scelto
   String _tipoScelto = '';
+
+  // finche' c'e' questo stato si mostra la pagina "slot non disponibile";
+  // toccando un'alternativa si torna al riepilogo con il nuovo slot
+  CreaPartitaSlotPreso? _slotPreso;
+
+  // l'errore resta sopra il bottone finche' non si riprova
+  String? _errore;
+
+  @override
+  void initState() {
+    super.initState();
+    _slot = widget.slot;
+    _alCoperto = widget.alCoperto;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final r = _Responsive(context);
+    final r = Responsive(context);
 
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: Colori.sfondo,
       body: SafeArea(
-        child: BlocConsumer<CreaPartitaBloc, CreaPartitaState>(
-          listener: (context, state) {
-            if (state is CreaPartitaSuccess) {
-              _mostraSnackBar(context, r, 'Partita creata');
-              // restituiamo l'id alla home: e' lei ad aprire il dettaglio,
-              // cosi' al ritorno dal dettaglio puo' ricaricarsi di nuovo
-              Navigator.pop(context, state.prenotazione.id);
-            }
-            if (state is CreaPartitaErrore) {
-              _mostraSnackBar(context, r, state.messaggio);
-            }
-          },
-          builder: (context, state) {
-            final isLoading = state is CreaPartitaLoading;
+        child: ContenutoCentrato(
+          child: BlocConsumer<CreaPartitaBloc, CreaPartitaState>(
+            listener: (context, state) {
+              if (state is CreaPartitaSuccess) {
+                mostraSnackBar(context, 'Partita creata');
+                // restituiamo l'id a chi ha aperto la pagina: e' lui ad aprire
+                // il dettaglio, cosi' al ritorno puo' ricaricarsi di nuovo
+                Navigator.pop(context, state.prenotazione.id);
+              }
+              // CreaPartitaSlotPreso e' anche un CreaPartitaErrore, quindi
+              // va controllato per primo
+              if (state is CreaPartitaSlotPreso) {
+                setState(() {
+                  _slotPreso = state;
+                  _errore = null;
+                });
+              } else if (state is CreaPartitaErrore) {
+                setState(() {
+                  _errore = state.messaggio;
+                });
+              }
+            },
+            builder: (context, state) {
+              final bool isLoading = state is CreaPartitaLoading;
 
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: r.maxContentWidth),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: EdgeInsets.fromLTRB(
-                          r.horizontalPadding,
-                          16,
-                          r.horizontalPadding,
-                          16,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildHeader(context, r),
-                            const SizedBox(height: 22),
-                            _buildRiepilogo(r),
-                            const SizedBox(height: 18),
-                            _buildTipoPartita(r, isLoading),
-                          ],
-                        ),
-                      ),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const TestataIndietro(titolo: 'Riepilogo partita'),
+                  Expanded(
+                    child:
+                        _slotPreso != null
+                            ? _buildSlotPreso(context, r, _slotPreso!)
+                            : _buildRiepilogo(context, r, isLoading),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _fasciaOraria() {
+    return '${oraBreve(_slot.oraInizio)} - ${oraBreve(_slot.oraFine)}';
+  }
+
+  // ===== RIEPILOGO =====
+
+  Widget _buildRiepilogo(BuildContext context, Responsive r, bool isLoading) {
+    final String giorno = conMaiuscola(giornoRelativo(widget.data));
+    String sottotitolo =
+        '${conMaiuscola(dataEstesa(widget.data))}, ${_fasciaOraria()}';
+    if (_alCoperto == true) {
+      sottotitolo += ' · Al coperto';
+    }
+    if (_alCoperto == false) {
+      sottotitolo += " · All'aperto";
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  '$giorno alle ${oraBreve(_slot.oraInizio)}, ${_slot.nomeCampo}',
+                  style: stileTitolo(r),
+                ),
+                const SizedBox(height: 4),
+                Text(sottotitolo, style: stileSecondario(r)),
+                const SizedBox(height: 16),
+                const CampoPadel(
+                  altezza: 180,
+                  dimensionePosto: 48,
+                  arrotondato: true,
+                  posti: [
+                    PostoCampo(
+                      iniziali: 'Tu',
+                      sfondo: Colori.azzurroChiaro,
+                      colore: Colori.azzurro,
+                      descrizione: 'Tu',
                     ),
-                    _buildBottonePrenota(context, r, isLoading),
+                    PostoCampo.vuoto(),
+                    PostoCampo.vuoto(),
+                    PostoCampo.vuoto(),
                   ],
                 ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  void _mostraSnackBar(BuildContext context, _Responsive r, String testo) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(testo),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.symmetric(
-          horizontal: r.width * 0.05,
-          vertical: r.height * 0.02,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // HEADER
-  // =====================================================================
-
-  Widget _buildHeader(BuildContext context, _Responsive r) {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(Icons.arrow_back, color: darkText, size: r.font(24)),
-        ),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
-            'Riepilogo partita',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: r.font(24),
-              fontWeight: FontWeight.w700,
-              color: darkText,
+                const SizedBox(height: 16),
+                Text(
+                  'Chi può occupare i tre posti liberi?',
+                  style: stileTesto(r, base: 16, peso: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                _buildOpzione(
+                  r,
+                  isLoading,
+                  tipo: 'PUBBLICA',
+                  titolo: 'Partita pubblica',
+                  testo:
+                      'Visibile in bacheca agli utenti di livello simile al tuo',
+                ),
+                const SizedBox(height: 8),
+                _buildOpzione(
+                  r,
+                  isLoading,
+                  tipo: 'PRIVATA',
+                  titolo: 'Partita privata',
+                  testo: 'Entra solo chi inviti tu',
+                ),
+              ],
             ),
           ),
         ),
-      ],
-    );
-  }
-
-  // =====================================================================
-  // RIEPILOGO SLOT
-  // =====================================================================
-
-  Widget _buildRiepilogo(_Responsive r) {
-    final String giorno = _giornoSettimana(widget.data);
-    final String data = _formatData(widget.data);
-    final String oraInizio = _formatOra(widget.slot.oraInizio);
-    final String oraFine = _formatOra(widget.slot.oraFine);
-
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Slot scelto',
-              style: TextStyle(
-                fontSize: r.font(17),
-                fontWeight: FontWeight.w500,
-                color: greyText,
-              ),
-            ),
-            const SizedBox(height: 14),
-            _rigaRiepilogo(
-              r,
-              icona: Icons.sports_tennis,
-              etichetta: 'Campo',
-              valore: widget.slot.nomeCampo,
-            ),
-            const SizedBox(height: 14),
-            _rigaRiepilogo(
-              r,
-              icona: Icons.calendar_month_outlined,
-              etichetta: 'Data',
-              valore: '$giorno $data',
-            ),
-            const SizedBox(height: 14),
-            _rigaRiepilogo(
-              r,
-              icona: Icons.access_time,
-              etichetta: 'Orario',
-              valore: '$oraInizio - $oraFine',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _rigaRiepilogo(
-    _Responsive r, {
-    required IconData icona,
-    required String etichetta,
-    required String valore,
-  }) {
-    return Row(
-      children: [
-        _iconBox(r, icona),
-        const SizedBox(width: 16),
-        Expanded(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                etichetta,
-                style: TextStyle(
-                  fontSize: r.font(13),
-                  fontWeight: FontWeight.w500,
-                  color: greyText,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                valore,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: r.font(16),
-                  fontWeight: FontWeight.w600,
-                  color: darkText,
-                ),
+              if (_errore != null) ...[
+                RiquadroMessaggio(testo: _errore!),
+                const SizedBox(height: 8),
+              ],
+              BottonePieno(
+                testo: 'Prenota il campo',
+                altezza: 52,
+                baseFont: 16,
+                inCaricamento: isLoading,
+                onPressed: () {
+                  setState(() {
+                    _errore = null;
+                  });
+                  context.read<CreaPartitaBloc>().add(
+                    CreaPartitaRichiesta(
+                      slot: _slot,
+                      data: widget.data,
+                      tipo: _tipoScelto,
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -267,254 +232,214 @@ class _CreaPartitaViewState extends State<_CreaPartitaView> {
     );
   }
 
-  // =====================================================================
-  // TIPO PARTITA
-  // =====================================================================
+  Widget _buildOpzione(
+    Responsive r,
+    bool isLoading, {
+    required String tipo,
+    required String titolo,
+    required String testo,
+  }) {
+    final bool scelta = _tipoScelto == tipo;
 
-  Widget _buildTipoPartita(_Responsive r, bool isLoading) {
-    return _buildCard(
-      r: r,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Tipo di partita',
-              style: TextStyle(
-                fontSize: r.font(17),
-                fontWeight: FontWeight.w500,
-                color: greyText,
-              ),
+    return Semantics(
+      selected: scelta,
+      child: Material(
+        color: scelta ? Colori.azzurroChiaro : Colors.white,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: scelta ? Colori.primario : Colori.bordo,
+            width: scelta ? 2 : 1,
+          ),
+        ),
+        child: InkWell(
+          onTap:
+              isLoading
+                  ? null
+                  : () {
+                    setState(() {
+                      _tipoScelto = tipo;
+                      _errore = null;
+                    });
+                  },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 20,
+                  height: 20,
+                  margin: const EdgeInsets.only(top: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: scelta ? Colori.primario : Colori.grigio,
+                      width: scelta ? 6 : 2,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        titolo,
+                        style: stileTesto(r, base: 16, peso: FontWeight.w700),
+                      ),
+                      Text(testo, style: stileSecondario(r)),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 14),
-            _opzioneTipo(
-              r,
-              valore: 'PUBBLICA',
-              titolo: 'Pubblica',
-              descrizione:
-                  'Visibile in bacheca agli utenti di livello simile al tuo',
-              icona: Icons.public,
-              isLoading: isLoading,
-            ),
-            const SizedBox(height: 12),
-            _opzioneTipo(
-              r,
-              valore: 'PRIVATA',
-              titolo: 'Privata',
-              descrizione: 'Visibile solo agli utenti che inviti',
-              icona: Icons.lock_outline,
-              isLoading: isLoading,
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _opzioneTipo(
-    _Responsive r, {
-    required String valore,
-    required String titolo,
-    required String descrizione,
-    required IconData icona,
-    required bool isLoading,
-  }) {
-    final bool selezionata = _tipoScelto == valore;
+  // ===== SLOT NON PIU' DISPONIBILE =====
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      // durante l'invio la scelta resta bloccata
-      onTap: isLoading
-          ? null
-          : () {
-              setState(() {
-                _tipoScelto = valore;
-              });
-            },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: selezionata ? const Color(0xFFE7F1FC) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selezionata ? primaryColor : borderColor,
-            width: selezionata ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icona,
-              color: selezionata ? primaryColor : greyText,
-              size: r.font(26),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    titolo,
-                    style: TextStyle(
-                      fontSize: r.font(16),
-                      fontWeight: FontWeight.w600,
-                      color: darkText,
+  Widget _buildSlotPreso(
+    BuildContext context,
+    Responsive r,
+    CreaPartitaSlotPreso stato,
+  ) {
+    String titoloAlternative = 'Ancora liberi oggi';
+    if (giornoRelativo(stato.data) != 'oggi') {
+      titoloAlternative = 'Ancora liberi ${giornoRelativo(stato.data)}';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Questo slot non è più disponibile',
+                  style: stileTitolo(r),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${conMaiuscola(dataEstesa(stato.data))}, '
+                  '${_fasciaOraria()} · ${_slot.nomeCampo}',
+                  style: stileSecondario(r),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colori.rossoChiaro,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(stato.messaggio, style: stileTesto(r, base: 16)),
+                ),
+                if (stato.slotLiberi.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  CardBianca(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          titoloAlternative,
+                          style: stileTesto(r, base: 16, peso: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 10),
+                        ..._righeAlternative(r, stato.slotLiberi),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 3),
+                ],
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: BottonePieno(
+            testo: 'Vedi tutti gli orari',
+            altezza: 52,
+            baseFont: 16,
+            onPressed: () {
+              tornaAllaVoce(
+                context,
+                PrenotaPage(giornoIniziale: stato.data),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _righeAlternative(Responsive r, List<SlotOrario> slots) {
+    final List<Widget> righe = [];
+    for (int i = 0; i < slots.length; i++) {
+      final SlotOrario slot = slots[i];
+      if (i > 0) {
+        righe.add(const SizedBox(height: 8));
+      }
+      righe.add(
+        Material(
+          color: Colori.verdeChiaro,
+          clipBehavior: Clip.antiAlias,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            onTap: () {
+              // si resta sulla stessa pagina con lo slot nuovo: chi l'ha
+              // aperta continua ad aspettare l'id della partita da qui.
+              // Il tipo si sceglie di nuovo, e non sappiamo se questo campo
+              // e' al coperto
+              setState(() {
+                _slot = slot;
+                _alCoperto = null;
+                _slotPreso = null;
+                _tipoScelto = '';
+              });
+            },
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      slot.nomeCampo,
+                      style: stileTesto(
+                        r,
+                        peso: FontWeight.w700,
+                        colore: Colori.verde,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Text(
-                    descrizione,
-                    style: TextStyle(
-                      fontSize: r.font(13),
-                      color: greyText,
+                    '${oraBreve(slot.oraInizio)} - ${oraBreve(slot.oraFine)}',
+                    style: stileTesto(
+                      r,
+                      peso: FontWeight.w700,
+                      colore: Colori.verde,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(
-              selezionata
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_unchecked,
-              color: selezionata ? primaryColor : greyText,
-              size: r.font(22),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // BOTTONE PRENOTA
-  // =====================================================================
-
-  Widget _buildBottonePrenota(
-    BuildContext context,
-    _Responsive r,
-    bool isLoading,
-  ) {
-    final double altezza = (r.height * 0.065).clamp(48.0, 60.0);
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        r.horizontalPadding,
-        8,
-        r.horizontalPadding,
-        16,
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        height: altezza,
-        child: ElevatedButton(
-          onPressed: isLoading
-              ? null
-              : () {
-                  context.read<CreaPartitaBloc>().add(
-                        CreaPartitaRichiesta(
-                          slot: widget.slot,
-                          data: widget.data,
-                          tipo: _tipoScelto,
-                        ),
-                      );
-                },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor,
-            disabledBackgroundColor: const Color(0xFF9AA8C8),
-            foregroundColor: Colors.white,
-            elevation: 3,
-            shadowColor: primaryColor.withValues(alpha: 0.3),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
           ),
-          child: isLoading
-              ? SizedBox(
-                  width: r.font(22),
-                  height: r.font(22),
-                  child: const CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  'Prenota',
-                  style: TextStyle(
-                    fontSize: r.font(16),
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                  ),
-                ),
         ),
-      ),
-    );
-  }
-
-  // =====================================================================
-  // CARD GENERICA
-  // =====================================================================
-
-  Widget _iconBox(_Responsive r, IconData icon) {
-    final size = (r.width * 0.13).clamp(44.0, 56.0);
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE7F1FC),
-        borderRadius: BorderRadius.circular(size * 0.26),
-      ),
-      child: Icon(icon, color: const Color(0xFF2168B4), size: size * 0.5),
-    );
-  }
-
-  Widget _buildCard({
-    required _Responsive r,
-    required Widget child,
-  }) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(r.cardBorderRadius),
-        border: Border.all(color: borderColor, width: 1),
-      ),
-      child: child,
-    );
-  }
-
-  // =====================================================================
-  // DATE / TIME
-  // =====================================================================
-
-  String _giornoSettimana(DateTime date) {
-    const giorni = [
-      'lunedì',
-      'martedì',
-      'mercoledì',
-      'giovedì',
-      'venerdì',
-      'sabato',
-      'domenica',
-    ];
-    return giorni[date.weekday - 1];
-  }
-
-  String _formatData(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/'
-        '${date.month.toString().padLeft(2, '0')}/'
-        '${date.year}';
-  }
-
-  // il server puo' mandare l'ora con i secondi ("18:30:00"):
-  // teniamo solo ore e minuti
-  String _formatOra(String ora) {
-    if (ora.length > 5) {
-      return ora.substring(0, 5);
+      );
     }
-    return ora;
+    return righe;
   }
 }

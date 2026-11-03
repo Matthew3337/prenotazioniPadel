@@ -7,368 +7,241 @@ import 'package:thepadel/core/di/depInjection.dart';
 
 import 'home.dart';
 import 'registrazione.dart';
+import 'stileApp.dart';
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
+
   @override
   State<LoginPage> createState() => LoginPageState();
 }
+
 class LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => sl<AuthBloc>(),
-      child: const Scaffold(
-        backgroundColor: Color(0xFFF7F8FC),
-        body: _LoginForm(),
-      ),
+      child: const Scaffold(backgroundColor: Colors.white, body: _LoginForm()),
     );
   }
 }
+
 class _LoginForm extends StatefulWidget {
   const _LoginForm();
+
   @override
   State<_LoginForm> createState() => _LoginFormState();
 }
+
 class _LoginFormState extends State<_LoginForm> {
   final _telefonoController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _nascondiPassword = true;
+
   @override
   void dispose() {
     _telefonoController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final width = media.size.width;
-    final height = media.size.height;
-    // Dimensione massima del contenuto sui dispositivi grandi
-    final contentWidth = width > 500 ? 420.0 : width * 0.88;
-    // Dimensione adattiva del logo
-    final logoSize = width * 0.38 > 180 ? 180.0 : width * 0.38;
+    final r = Responsive(context);
+
     return SafeArea(
       child: Center(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(
-            horizontal: width * 0.06,
-            vertical: height * 0.025,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: contentWidth,
-            ),
+            constraints: const BoxConstraints(maxWidth: 420),
             child: BlocConsumer<AuthBloc, AuthState>(
               listener: (context, state) {
                 if (state is LoginSuccess) {
-                  Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-                  builder: (BuildContext context) => const HomePage(),
-                ));
-                }
-                if (state is AuthErrore) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(state.messaggio),
-                      behavior: SnackBarBehavior.floating,
-                      margin: EdgeInsets.symmetric(
-                        horizontal: width * 0.05,
-                        vertical: height * 0.02,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute<void>(
+                      builder: (BuildContext context) => const HomePage(),
                     ),
                   );
                 }
               },
               builder: (context, state) {
-                final isLoading = state is AuthLoading;
+                final bool isLoading = state is AuthLoading;
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // LOGO
-                    SizedBox(
-                      height: height * 0.04,
-                    ),
-                    Center(
-                      child: Container(
-                        width: logoSize,
-                        height: logoSize,
-                        padding: EdgeInsets.all(width * 0.04),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.07),
-                              blurRadius: 25,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.asset(
-                            "assets/icon/logoHome.png",
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.035,
-                    ),
-                    // TITOLO
+                    const Center(child: _LogoRitagliato()),
+                    const SizedBox(height: 20),
                     Text(
-                      "Bentornato!",
+                      'Accedi',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: width * 0.075,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1E2432),
-                        letterSpacing: -0.5,
-                      ),
+                      style: stileTitolo(r),
                     ),
-                    SizedBox(
-                      height: height * 0.008,
-                    ),
-                    Text(
-                      "Accedi al tuo account per continuare",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: width * 0.038,
-                        color: const Color(0xFF7A8190),
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.045,
-                    ),
-                    // TELEFONO
-                    Text(
-                      "Numero di telefono",
-                      style: TextStyle(
-                        fontSize: width * 0.035,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF353B48),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.01,
-                    ),
-                    TextField(
-                      controller: _telefonoController,
-                      enabled: !isLoading,
-                      keyboardType: TextInputType.phone,
-                      style: TextStyle(
-                        fontSize: width * 0.04,
-                        color: const Color(0xFF252A35),
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "Inserisci il tuo numero",
-                        hintStyle: const TextStyle(
-                          color: Color(0xFFA0A5AF),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.phone_outlined,
-                          color: Color(0xFF3F5DA8),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: width * 0.045,
-                          vertical: height * 0.021,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE3E6ED),
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF3F5DA8),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.025,
-                    ),
-                    // PASSWORD
-                    Text(
-                      "Password",
-                      style: TextStyle(
-                        fontSize: width * 0.035,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF353B48),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.01,
-                    ),
-                    TextField(
-                      controller: _passwordController,
-                      enabled: !isLoading,
-                      obscureText: _nascondiPassword,
-                      style: TextStyle(
-                        fontSize: width * 0.04,
-                        color: const Color(0xFF252A35),
-                      ),
-                      decoration: InputDecoration(
-                        hintText: "Inserisci la password",
-                        hintStyle: const TextStyle(
-                          color: Color(0xFFA0A5AF),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.lock_outline,
-                          color: Color(0xFF3F5DA8),
-                        ),
-                        suffixIcon: IconButton(
-                          onPressed: isLoading
-                              ? null
-                              : () {
-                                  setState(() {
-                                    _nascondiPassword =
-                                        !_nascondiPassword;
-                                  });
-                                },
-                          icon: Icon(
-                            _nascondiPassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
-                            color: const Color(0xFF8C93A0),
-                          ),
-                        ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: width * 0.045,
-                          vertical: height * 0.021,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE3E6ED),
-                            width: 1,
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF3F5DA8),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.04,
-                    ),
-                    // BOTTONE LOGIN
-                    SizedBox(
-                      height: height * 0.065,
-                      child: ElevatedButton(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                context.read<AuthBloc>().add(
-                                  LoginRichiesto(
-                                    telefono:
-                                        _telefonoController.text,
-                                    password:
-                                        _passwordController.text,
-                                  ),
-                                );
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              const Color(0xFF3F5DA8),
-                          disabledBackgroundColor:
-                              const Color(0xFF9AA8C8),
-                          foregroundColor: Colors.white,
-                          elevation: 3,
-                          shadowColor:
-                              const Color(0xFF3F5DA8).withOpacity(0.3),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: isLoading
-                            ? SizedBox(
-                                width: width * 0.055,
-                                height: width * 0.055,
-                                child:
-                                    const CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Text(
-                                "ACCEDI",
-                                style: TextStyle(
-                                  fontSize: width * 0.04,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.02,
-                    ),
-                    // LINK REGISTRAZIONE
-                    Center(
-                      child: TextButton(
-                        onPressed: isLoading
-                            ? null
-                            : () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (BuildContext context) =>
-                                        const RegistrazionePage(),
-                                  ),
-                                );
-                              },
-                        child: RichText(
-                          text: TextSpan(
-                            style: TextStyle(
-                              fontSize: width * 0.036,
-                              color: const Color(0xFF7A8190),
-                            ),
-                            children: const [
-                              TextSpan(text: "Non hai un account? "),
-                              TextSpan(
-                                text: "Registrati",
-                                style: TextStyle(
-                                  color: Color(0xFF3F5DA8),
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(
-                      height: height * 0.015,
-                    ),
+                    const SizedBox(height: 20),
+                    if (state is AuthErrore) ...[
+                      RiquadroMessaggio(testo: state.messaggio),
+                      const SizedBox(height: 14),
+                    ],
+                    _etichetta(r, 'Telefono'),
+                    _buildTelefono(r, isLoading),
+                    const SizedBox(height: 14),
+                    _etichetta(r, 'Password'),
+                    _buildPassword(r, isLoading),
+                    const SizedBox(height: 18),
+                    _buildBottone(context, r, isLoading),
+                    if (!isLoading) ...[
+                      const SizedBox(height: 14),
+                      _buildVaiARegistrazione(context, r),
+                    ],
                   ],
                 );
               },
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _etichetta(Responsive r, String testo) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(testo, style: stileTesto(r, peso: FontWeight.w600)),
+    );
+  }
+
+  InputDecoration _decorazione(bool isLoading, {Widget? suffisso}) {
+    OutlineInputBorder bordo(Color colore, double spessore) {
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: colore, width: spessore),
+      );
+    }
+
+    return InputDecoration(
+      filled: true,
+      fillColor: isLoading ? Colori.sfondo : Colors.white,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      suffixIcon: suffisso,
+      enabledBorder: bordo(Colori.grigio, 1),
+      disabledBorder: bordo(Colori.bordo, 1),
+      focusedBorder: bordo(Colori.azzurro, 2),
+    );
+  }
+
+  Widget _buildTelefono(Responsive r, bool isLoading) {
+    return TextField(
+      controller: _telefonoController,
+      enabled: !isLoading,
+      keyboardType: TextInputType.phone,
+      autofillHints: const [AutofillHints.telephoneNumber],
+      style: stileTesto(
+        r,
+        base: 16,
+        colore: isLoading ? Colori.testoSecondario : Colori.testo,
+      ),
+      decoration: _decorazione(isLoading),
+    );
+  }
+
+  Widget _buildPassword(Responsive r, bool isLoading) {
+    Widget? mostra;
+    if (!isLoading) {
+      mostra = SizedBox(
+        width: 84,
+        child: LinkTesto(
+          testo: _nascondiPassword ? 'Mostra' : 'Nascondi',
+          onPressed: () {
+            setState(() {
+              _nascondiPassword = !_nascondiPassword;
+            });
+          },
+        ),
+      );
+    }
+
+    return TextField(
+      controller: _passwordController,
+      enabled: !isLoading,
+      obscureText: _nascondiPassword,
+      autofillHints: const [AutofillHints.password],
+      style: stileTesto(
+        r,
+        base: 16,
+        colore: isLoading ? Colori.testoSecondario : Colori.testo,
+      ),
+      decoration: _decorazione(isLoading, suffisso: mostra),
+    );
+  }
+
+  Widget _buildBottone(BuildContext context, Responsive r, bool isLoading) {
+    return BottonePieno(
+      testo: isLoading ? 'Accesso in corso…' : 'Accedi',
+      altezza: 52,
+      baseFont: 16,
+      onPressed:
+          isLoading
+              ? null
+              : () {
+                context.read<AuthBloc>().add(
+                  LoginRichiesto(
+                    telefono: _telefonoController.text,
+                    password: _passwordController.text,
+                  ),
+                );
+              },
+    );
+  }
+
+  Widget _buildVaiARegistrazione(BuildContext context, Responsive r) {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('Non hai un account? ', style: stileSecondario(r)),
+        LinkTesto(
+          testo: 'Registrati',
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (BuildContext context) => const RegistrazionePage(),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+// Il PNG del logo e' quadrato ma il disegno occupa solo una striscia centrale:
+// lo ingrandisco e ne mostro quella parte, con le misure del prototipo.
+class _LogoRitagliato extends StatelessWidget {
+  const _LogoRitagliato();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'the Padel',
+      child: ClipRect(
+        child: SizedBox(
+          width: 210,
+          height: 72,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: -110,
+                top: -179,
+                width: 430,
+                height: 430,
+                child: Image.asset(
+                  'assets/icon/logoHome.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ],
           ),
         ),
       ),
