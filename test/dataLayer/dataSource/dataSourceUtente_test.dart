@@ -115,4 +115,90 @@ void main()
       expect(voci.single.nome, "Mario");
     });
   });
+
+  group("login", ()
+  {
+    test("salva nome e cognome con gli altri dati dell'utente", () async
+    {
+      final ds = creaDataSource(200, jsonEncode({"telefono": "3339998887", "nome": "Paola", "cognome": "Neri", "dataNascita": "1990-01-01", "isAdmin": true, "livello": 2.5, "token": "jwt-nuovo"}), richieste);
+
+      await ds.login("3339998887", "segreta");
+
+      final preferenze = sl<SharedPreferences>();
+      expect(preferenze.getString("nome"), "Paola");
+      expect(preferenze.getString("cognome"), "Neri");
+      expect(preferenze.getBool("isAdmin"), true);
+      expect(preferenze.getBool("isLogged"), true);
+      expect(preferenze.getString("telefono"), "3339998887");
+      expect(preferenze.getString("jwt"), "jwt-nuovo");
+    });
+  });
+
+  group("logout", ()
+  {
+    final chiaviDelLogin = ["isLogged", "jwt", "isAdmin", "telefono", "nome", "cognome"];
+
+    Future<void> preparaPreferenze() async
+    {
+      await sl.reset();
+      SharedPreferences.setMockInitialValues({
+        "isLogged": true,
+        "jwt": "token-finto",
+        "isAdmin": true,
+        "telefono": "3331234567",
+        "nome": "Mario",
+        "cognome": "Rossi",
+        "chiaveEstranea": "resta",
+        "numeroEstraneo": 3,
+      });
+      sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
+    }
+
+    test("toglie le 6 chiavi del login e non chiama il server", () async
+    {
+      await preparaPreferenze();
+      final ds = creaDataSource(500, "", richieste);
+
+      await ds.logout();
+
+      final preferenze = sl<SharedPreferences>();
+      for(final chiave in chiaviDelLogin)
+      {
+        expect(preferenze.containsKey(chiave), false, reason: chiave);
+      }
+      expect(richieste, isEmpty);
+    });
+
+    test("le chiavi estranee restano intatte", () async
+    {
+      await preparaPreferenze();
+      final ds = creaDataSource(500, "", richieste);
+
+      await ds.logout();
+
+      final preferenze = sl<SharedPreferences>();
+      expect(preferenze.getString("chiaveEstranea"), "resta");
+      expect(preferenze.getInt("numeroEstraneo"), 3);
+    });
+
+    test("il repository passa dal data source", () async
+    {
+      await preparaPreferenze();
+      final ds = creaDataSource(500, "", richieste);
+
+      await UtenteRepoImpl(dsUtente: ds).logout();
+
+      expect(sl<SharedPreferences>().containsKey("jwt"), false);
+    });
+
+    test("senza login fatto non da errori", () async
+    {
+      final ds = creaDataSource(500, "", richieste);
+      await sl<SharedPreferences>().remove("jwt");
+
+      await ds.logout();
+
+      expect(sl<SharedPreferences>().containsKey("telefono"), false);
+    });
+  });
 }

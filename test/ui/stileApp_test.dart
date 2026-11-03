@@ -149,4 +149,43 @@ void main()
       expect(tocchi, 1);
     });
   });
+
+  test("testoPostiLiberi: nessuno, singolare e plurale", ()
+  {
+    expect(testoPostiLiberi(0), "Nessun posto libero");
+    expect(testoPostiLiberi(1), "1 posto libero");
+    expect(testoPostiLiberi(3), "3 posti liberi");
+  });
+
+  group("PillolaStato", ()
+  {
+    final attesi = {"creata": "Creata", "confermata": "Confermata", "annullata": "Annullata", "giocata": "Giocata"};
+
+    attesi.forEach((stato, testo)
+    {
+      testWidgets("$stato mostra $testo", (tester) async
+      {
+        await tester.pumpWidget(MaterialApp(home: Scaffold(body: PillolaStato(stato: stato))));
+
+        expect(find.text(testo), findsOneWidget);
+      });
+    });
+  });
+
+  testWidgets("CampoRicerca mostra etichetta e suggerimento e passa il testo scritto", (tester) async
+  {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    final scritti = <String>[];
+
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: CampoRicerca(controller: controller, onChanged: scritti.add))));
+
+    expect(find.text("Cerca per nome"), findsOneWidget);
+    expect(find.text("Nome o cognome"), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), "mar");
+
+    expect(scritti, ["mar"]);
+    expect(controller.text, "mar");
+  });
 }
