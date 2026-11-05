@@ -47,6 +47,11 @@ MyUrl urlDiTest()
     AdminRisultato: "/api/admin/partite/{id}/risultato",
     AdminStato: "/api/admin/partite/{id}/stato",
     AdminAnnulla: "/api/admin/partite/{id}/annulla",
+    AdminImpostazioni: "/api/admin/impostazioni",
+    AdminLivelloCampo: "/api/admin/impostazioni/livello-giocatori-campo",
+    AdminGiocatoriCampo: "/api/admin/partite/{id}/giocatori-campo",
+    AdminRimuoviGiocatoreCampo: "/api/admin/partite/{id}/giocatori-campo/{idPosto}",
+    AdminCreaPartita: "/api/admin/partite",
   );
 }
 

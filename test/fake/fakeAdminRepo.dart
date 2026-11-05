@@ -112,6 +112,37 @@ class FakeAdminRepo extends AdminRepoImpl
   int chiamateAnnulla = 0;
   int? idAnnullaRicevuto;
 
+  //livello dei giocatori del campo
+  double livelloCampo = 2.0;
+  Exception? erroreLivelloCampo; //lettura
+  Exception? erroreSalvaLivelloCampo;
+  Completer<void>? attesaSalvaLivelloCampo;
+  int chiamateLivelloCampo = 0;
+  List<double> livelliCampoRicevuti = [];
+
+  //giocatori del campo: se la risposta e null restituiscono dettaglioDiTest con lo stesso id
+  DettaglioPartita? rispostaGiocatoriCampo;
+  Exception? erroreGiocatoriCampo;
+  int? idGiocatoriCampoRicevuto;
+  int? numeroRicevuto;
+
+  DettaglioPartita? rispostaRimuoviCampo;
+  Exception? erroreRimuoviCampo;
+  int? idRimuoviCampoRicevuto;
+  int? idPostoRicevuto;
+
+  //partita creata dall'admin: se la risposta e null restituisce dettaglioDiTest
+  DettaglioPartita? rispostaCreaPartita;
+  Exception? erroreCreaPartita;
+  Completer<void>? attesaCreaPartita;
+  int chiamateCreaPartita = 0;
+  int? idCampoCreaRicevuto;
+  DateTime? dataCreaRicevuta;
+  String? oraCreaRicevuta;
+  String? tipoCreaRicevuto;
+  List<String>? telefoniCreaRicevuti;
+  int? giocatoriCampoCreaRicevuti;
+
   //metodi
   FakeAdminRepo() : super(dsAdmin: DataSourceAdmin(c: Client(c: MockClient((_) async => http.Response('', 500))), elencoUrl: urlDiTest()));
 
@@ -240,5 +271,82 @@ class FakeAdminRepo extends AdminRepoImpl
       throw erroreAnnulla!;
     }
     return rispostaAnnulla ?? dettaglioDiTest(id: idPartita, stato: "annullata");
+  }
+
+  @override
+  Future<double> getLivelloGiocatoriCampo() async
+  {
+    chiamateLivelloCampo++;
+
+    if(erroreLivelloCampo != null)
+    {
+      throw erroreLivelloCampo!;
+    }
+    return livelloCampo;
+  }
+
+  @override
+  Future<double> setLivelloGiocatoriCampo(double livello) async
+  {
+    livelliCampoRicevuti.add(livello);
+
+    if(attesaSalvaLivelloCampo != null)
+    {
+      await attesaSalvaLivelloCampo!.future;
+    }
+    if(erroreSalvaLivelloCampo != null)
+    {
+      throw erroreSalvaLivelloCampo!;
+    }
+    livelloCampo = livello;
+    return livello;
+  }
+
+  @override
+  Future<DettaglioPartita> aggiungiGiocatoriCampo(int idPartita, int numero) async
+  {
+    idGiocatoriCampoRicevuto = idPartita;
+    numeroRicevuto = numero;
+
+    if(erroreGiocatoriCampo != null)
+    {
+      throw erroreGiocatoriCampo!;
+    }
+    return rispostaGiocatoriCampo ?? dettaglioDiTest(id: idPartita);
+  }
+
+  @override
+  Future<DettaglioPartita> rimuoviGiocatoreCampo(int idPartita, int idPosto) async
+  {
+    idRimuoviCampoRicevuto = idPartita;
+    idPostoRicevuto = idPosto;
+
+    if(erroreRimuoviCampo != null)
+    {
+      throw erroreRimuoviCampo!;
+    }
+    return rispostaRimuoviCampo ?? dettaglioDiTest(id: idPartita);
+  }
+
+  @override
+  Future<DettaglioPartita> creaPartitaAdmin(int idCampo, DateTime data, String oraInizio, String tipo, List<String> telefoni, int giocatoriCampo) async
+  {
+    chiamateCreaPartita++;
+    idCampoCreaRicevuto = idCampo;
+    dataCreaRicevuta = data;
+    oraCreaRicevuta = oraInizio;
+    tipoCreaRicevuto = tipo;
+    telefoniCreaRicevuti = telefoni;
+    giocatoriCampoCreaRicevuti = giocatoriCampo;
+
+    if(attesaCreaPartita != null)
+    {
+      await attesaCreaPartita!.future;
+    }
+    if(erroreCreaPartita != null)
+    {
+      throw erroreCreaPartita!;
+    }
+    return rispostaCreaPartita ?? dettaglioDiTest();
   }
 }

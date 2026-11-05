@@ -5,9 +5,12 @@ import 'package:thepadel/bloc/classifica/classificaBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioAdmin/dettaglioAdminBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
+import 'package:thepadel/bloc/gestioneCampi/gestioneCampiBloc.dart';
 import 'package:thepadel/bloc/gestioneLivelli/gestioneLivelliBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
+import 'package:thepadel/bloc/livelloCampo/livelloCampoBloc.dart';
+import 'package:thepadel/bloc/nuovaPartitaAdmin/nuovaPartitaAdminBloc.dart';
 import 'package:thepadel/bloc/partiteGiorno/partiteGiornoBloc.dart';
 import 'package:thepadel/bloc/prenota/prenotaBloc.dart';
 import 'package:thepadel/bloc/registraRisultato/registraRisultatoBloc.dart';
@@ -57,5 +60,8 @@ void registraBlocDiTest({required FakePartitaRepo repoPartita, required FakeCamp
   sl.registerFactory<PartiteGiornoBloc>(() => PartiteGiornoBloc(partiteGiornoUseCase: PartiteGiornoUseCase(repo: admin)));
   sl.registerFactory<BachecaAvvisiBloc>(() => BachecaAvvisiBloc(bachecaAvvisiUseCase: BachecaAvvisiUseCase(repo: admin)));
   sl.registerFactory<GestioneLivelliBloc>(() => GestioneLivelliBloc(utentiAdminUseCase: UtentiAdminUseCase(repo: admin), cambiaLivelloUseCase: CambiaLivelloUseCase(repo: admin)));
-  sl.registerFactory<DettaglioAdminBloc>(() => DettaglioAdminBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repoPartita), modificaPartecipantiUseCase: ModificaPartecipantiUseCase(repo: admin), modificaRisultatoUseCase: ModificaRisultatoUseCase(repo: admin), modificaStatoUseCase: ModificaStatoUseCase(repo: admin), annullaPartitaUseCase: AnnullaPartitaUseCase(repo: admin)));
+  sl.registerFactory<DettaglioAdminBloc>(() => DettaglioAdminBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repoPartita), modificaPartecipantiUseCase: ModificaPartecipantiUseCase(repo: admin), modificaRisultatoUseCase: ModificaRisultatoUseCase(repo: admin), modificaStatoUseCase: ModificaStatoUseCase(repo: admin), annullaPartitaUseCase: AnnullaPartitaUseCase(repo: admin), aggiungiGiocatoriCampoUseCase: AggiungiGiocatoriCampoUseCase(repo: admin), rimuoviGiocatoreCampoUseCase: RimuoviGiocatoreCampoUseCase(repo: admin)));
+  sl.registerFactory<LivelloCampoBloc>(() => LivelloCampoBloc(livelloCampoUseCase: LivelloCampoUseCase(repo: admin), cambiaLivelloCampoUseCase: CambiaLivelloCampoUseCase(repo: admin)));
+  sl.registerFactory<NuovaPartitaAdminBloc>(() => NuovaPartitaAdminBloc(creaPartitaAdminUseCase: CreaPartitaAdminUseCase(repo: admin)));
+  sl.registerFactory<GestioneCampiBloc>(() => GestioneCampiBloc(listaCampiUseCase: ListaCampiUseCase(repo: repoCampo), salvaCampoUseCase: SalvaCampoUseCase(repo: repoCampo), eliminaCampoUseCase: EliminaCampoUseCase(repo: repoCampo)));
 }

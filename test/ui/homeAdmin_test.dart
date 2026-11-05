@@ -7,8 +7,10 @@ import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/ui/bachecaAvvisi.dart';
 import 'package:thepadel/ui/bottoneEsci.dart';
+import 'package:thepadel/ui/gestioneCampi.dart';
 import 'package:thepadel/ui/gestioneLivelli.dart';
 import 'package:thepadel/ui/homeAdmin.dart';
+import 'package:thepadel/ui/nuovaPartitaAdmin.dart';
 import 'package:thepadel/ui/partiteGiorno.dart';
 import 'package:thepadel/ui/stileApp.dart';
 
@@ -196,6 +198,128 @@ void main()
 
       expect(repo.chiamateAvvisi, 2);
       expect(find.text("1 avviso aperto"), findsOneWidget);
+    });
+  });
+
+  group("voci nuove", ()
+  {
+    testWidgets("Nuova partita apre la sua pagina", (tester) async
+    {
+      await apriPagina(tester);
+
+      await tester.ensureVisible(find.text("Nuova partita"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Nuova partita"));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NuovaPartitaAdminPage), findsOneWidget);
+    });
+
+    testWidgets("Gestione campi apre la sua pagina", (tester) async
+    {
+      await apriPagina(tester);
+
+      await tester.ensureVisible(find.text("Gestione campi"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Gestione campi"));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GestioneCampiPage), findsOneWidget);
+    });
+  });
+
+  group("livello giocatori campo", ()
+  {
+    double? valoreSelettore(WidgetTester tester)
+    {
+      return tester.widget<DropdownButton<double>>(find.byType(DropdownButton<double>)).value;
+    }
+
+    Future<void> scegliLivello(WidgetTester tester, String livello) async
+    {
+      await tester.ensureVisible(find.byType(DropdownButton<double>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(DropdownButton<double>));
+      await tester.pumpAndSettle();
+      //la voce compare anche nel bottone chiuso: l'ultima e quella del menu aperto
+      await tester.tap(find.text(livello).last);
+      await tester.pump();
+    }
+
+    testWidgets("mostra il livello del server e offre le voci da 0 a 5 con passo 0,5", (tester) async
+    {
+      repo.livelloCampo = 2.5;
+      await apriPagina(tester);
+
+      expect(find.text("Livello giocatori campo"), findsOneWidget);
+      expect(valoreSelettore(tester), 2.5);
+
+      final List<double?> voci = [];
+      for(final voce in tester.widget<DropdownButton<double>>(find.byType(DropdownButton<double>)).items!)
+      {
+        voci.add(voce.value);
+      }
+      expect(voci, [0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0]);
+    });
+
+    testWidgets("scegliere una voce salva subito, con lo spinner durante il salvataggio", (tester) async
+    {
+      await apriPagina(tester);
+      final attesa = Completer<void>();
+      repo.attesaSalvaLivelloCampo = attesa;
+
+      await scegliLivello(tester, "3.5");
+      await tester.pump();
+
+      expect(repo.livelliCampoRicevuti, [3.5]);
+      expect(find.byType(DropdownButton<double>), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      attesa.complete();
+      await tester.pumpAndSettle();
+
+      expect(valoreSelettore(tester), 3.5);
+    });
+
+    testWidgets("scegliere il livello gia attivo non chiama il server", (tester) async
+    {
+      await apriPagina(tester);
+
+      await scegliLivello(tester, "2.0");
+      await tester.pumpAndSettle();
+
+      expect(repo.livelliCampoRicevuti, isEmpty);
+    });
+
+    testWidgets("se il salvataggio fallisce il selettore torna indietro e compare il messaggio", (tester) async
+    {
+      await apriPagina(tester);
+      repo.erroreSalvaLivelloCampo = OperazioneRifiutata(messaggio: "Il livello deve essere tra 0 e 5 con passo 0,5");
+
+      await scegliLivello(tester, "3.5");
+      await tester.pumpAndSettle();
+
+      expect(valoreSelettore(tester), 2.0);
+      expect(find.text("Il livello deve essere tra 0 e 5 con passo 0,5"), findsOneWidget);
+    });
+
+    testWidgets("se il primo caricamento fallisce c'e Riprova, senza SnackBar", (tester) async
+    {
+      repo.erroreLivelloCampo = ErroreGenericoServer();
+      await apriPagina(tester);
+
+      expect(find.text("Livello non disponibile"), findsOneWidget);
+      expect(find.byType(DropdownButton<double>), findsNothing);
+      expect(find.byType(SnackBar), findsNothing);
+
+      repo.erroreLivelloCampo = null;
+      await tester.ensureVisible(find.text("Riprova"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Riprova"));
+      await tester.pumpAndSettle();
+
+      expect(repo.chiamateLivelloCampo, 2);
+      expect(valoreSelettore(tester), 2.0);
     });
   });
 }
