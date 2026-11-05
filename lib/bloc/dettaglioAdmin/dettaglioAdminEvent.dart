@@ -33,3 +33,15 @@ class AnnullaPartitaRichiesta extends DettaglioAdminEvent {
   final int id;
   const AnnullaPartitaRichiesta({required this.id});
 }
+
+class AggiungiGiocatoriCampoRichiesta extends DettaglioAdminEvent {
+  final int id;
+  final int numero;
+  const AggiungiGiocatoriCampoRichiesta({required this.id, required this.numero});
+}
+
+class RimuoviGiocatoreCampoRichiesta extends DettaglioAdminEvent {
+  final int id;
+  final int idPosto;
+  const RimuoviGiocatoreCampoRichiesta({required this.id, required this.idPosto});
+}

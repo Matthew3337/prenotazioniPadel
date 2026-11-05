@@ -46,7 +46,7 @@ class IngressoRifiutato implements Exception{ //409: partita al completo, ingres
   IngressoRifiutato({required this.messaggio});
 }
 
-class OperazioneRifiutata implements Exception{ //403 o 409 su elimina, esci, inviti, risultato e area admin (su inviti, risultato e area admin anche il 400): il messaggio spiega perche l'operazione non e permessa
+class OperazioneRifiutata implements Exception{ //403 o 409 su elimina, esci, inviti, risultato e area admin (su inviti, risultato, area admin e gestione campi anche il 400): il messaggio spiega perche l'operazione non e permessa
   final String messaggio;
   OperazioneRifiutata({required this.messaggio});
 }

@@ -10,9 +10,12 @@ import 'package:thepadel/bloc/classifica/classificaBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioAdmin/dettaglioAdminBloc.dart';
 import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
+import 'package:thepadel/bloc/gestioneCampi/gestioneCampiBloc.dart';
 import 'package:thepadel/bloc/gestioneLivelli/gestioneLivelliBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
+import 'package:thepadel/bloc/livelloCampo/livelloCampoBloc.dart';
+import 'package:thepadel/bloc/nuovaPartitaAdmin/nuovaPartitaAdminBloc.dart';
 import 'package:thepadel/bloc/partiteGiorno/partiteGiornoBloc.dart';
 import 'package:thepadel/bloc/prenota/prenotaBloc.dart';
 import 'package:thepadel/bloc/registraRisultato/registraRisultatoBloc.dart';
@@ -152,13 +155,33 @@ void init()
 
   sl.registerLazySingleton<AnnullaPartitaUseCase>(() => AnnullaPartitaUseCase(repo: sl()));
 
+  sl.registerLazySingleton<LivelloCampoUseCase>(() => LivelloCampoUseCase(repo: sl()));
+
+  sl.registerLazySingleton<CambiaLivelloCampoUseCase>(() => CambiaLivelloCampoUseCase(repo: sl()));
+
+  sl.registerLazySingleton<AggiungiGiocatoriCampoUseCase>(() => AggiungiGiocatoriCampoUseCase(repo: sl()));
+
+  sl.registerLazySingleton<RimuoviGiocatoreCampoUseCase>(() => RimuoviGiocatoreCampoUseCase(repo: sl()));
+
+  sl.registerLazySingleton<CreaPartitaAdminUseCase>(() => CreaPartitaAdminUseCase(repo: sl()));
+
+  sl.registerLazySingleton<SalvaCampoUseCase>(() => SalvaCampoUseCase(repo: sl()));
+
+  sl.registerLazySingleton<EliminaCampoUseCase>(() => EliminaCampoUseCase(repo: sl()));
+
   sl.registerFactory<PartiteGiornoBloc>(() => PartiteGiornoBloc(partiteGiornoUseCase: sl()));
 
   sl.registerFactory<BachecaAvvisiBloc>(() => BachecaAvvisiBloc(bachecaAvvisiUseCase: sl()));
 
   sl.registerFactory<GestioneLivelliBloc>(() => GestioneLivelliBloc(utentiAdminUseCase: sl(), cambiaLivelloUseCase: sl()));
 
-  sl.registerFactory<DettaglioAdminBloc>(() => DettaglioAdminBloc(dettaglioPartitaUseCase: sl(), modificaPartecipantiUseCase: sl(), modificaRisultatoUseCase: sl(), modificaStatoUseCase: sl(), annullaPartitaUseCase: sl()));
+  sl.registerFactory<DettaglioAdminBloc>(() => DettaglioAdminBloc(dettaglioPartitaUseCase: sl(), modificaPartecipantiUseCase: sl(), modificaRisultatoUseCase: sl(), modificaStatoUseCase: sl(), annullaPartitaUseCase: sl(), aggiungiGiocatoriCampoUseCase: sl(), rimuoviGiocatoreCampoUseCase: sl()));
+
+  sl.registerFactory<LivelloCampoBloc>(() => LivelloCampoBloc(livelloCampoUseCase: sl(), cambiaLivelloCampoUseCase: sl()));
+
+  sl.registerFactory<NuovaPartitaAdminBloc>(() => NuovaPartitaAdminBloc(creaPartitaAdminUseCase: sl()));
+
+  sl.registerFactory<GestioneCampiBloc>(() => GestioneCampiBloc(listaCampiUseCase: sl(), salvaCampoUseCase: sl(), eliminaCampoUseCase: sl()));
 
   sl.registerLazySingleton<ListaCampiUseCase>(() => ListaCampiUseCase(repo: sl()));
 

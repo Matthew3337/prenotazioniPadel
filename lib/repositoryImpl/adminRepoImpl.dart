@@ -52,4 +52,29 @@ class AdminRepoImpl implements AdminRepo {
     return dsAdmin.annullaPartita(idPartita);
   }
 
+  @override
+  Future<double> getLivelloGiocatoriCampo() {
+    return dsAdmin.getLivelloGiocatoriCampo();
+  }
+
+  @override
+  Future<double> setLivelloGiocatoriCampo(double livello) {
+    return dsAdmin.setLivelloGiocatoriCampo(livello);
+  }
+
+  @override
+  Future<DettaglioPartita> aggiungiGiocatoriCampo(int idPartita, int numero) {
+    return dsAdmin.aggiungiGiocatoriCampo(idPartita, numero);
+  }
+
+  @override
+  Future<DettaglioPartita> rimuoviGiocatoreCampo(int idPartita, int idPosto) {
+    return dsAdmin.rimuoviGiocatoreCampo(idPartita, idPosto);
+  }
+
+  @override
+  Future<DettaglioPartita> creaPartitaAdmin(int idCampo, DateTime data, String oraInizio, String tipo, List<String> telefoni, int giocatoriCampo) {
+    return dsAdmin.creaPartitaAdmin(idCampo, data, oraInizio, tipo, telefoni, giocatoriCampo);
+  }
+
 }

@@ -44,10 +44,15 @@ class MyUrl {
   final String AdminRisultato;
   final String AdminStato;
   final String AdminAnnulla;
+  final String AdminImpostazioni;
+  final String AdminLivelloCampo;
+  final String AdminGiocatoriCampo;
+  final String AdminRimuoviGiocatoreCampo;
+  final String AdminCreaPartita;
 
   //metodi
 
-  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio, required this.PartitePubbliche, required this.PartiteEntra, required this.PartiteElimina, required this.PartiteEsci, required this.PartiteStorico, required this.PartiteInvitabili, required this.PartiteInvita, required this.PartiteInviti, required this.PartiteConferma, required this.PartiteRisultato, required this.Classifica, required this.AdminPartite, required this.AdminAvvisi, required this.AdminUtenti, required this.AdminLivello, required this.AdminPartecipanti, required this.AdminRisultato, required this.AdminStato, required this.AdminAnnulla});
+  MyUrl({required this.AuthLogin, required this.AuthRegister, required this.BaseUrl, required this.CampiCreate, required this.CampiDelete, required this.CampiGetAll, required this.CampiGetById, required this.CampiUpdate, required this.PrenotazioniByUtente, required this.PrenotazioniCancel, required this.PrenotazioniCreate, required this.PrenotazioniProssima, required this.PrenotazioniSlotDisponibili, required this.PartiteDettaglio, required this.PartitePubbliche, required this.PartiteEntra, required this.PartiteElimina, required this.PartiteEsci, required this.PartiteStorico, required this.PartiteInvitabili, required this.PartiteInvita, required this.PartiteInviti, required this.PartiteConferma, required this.PartiteRisultato, required this.Classifica, required this.AdminPartite, required this.AdminAvvisi, required this.AdminUtenti, required this.AdminLivello, required this.AdminPartecipanti, required this.AdminRisultato, required this.AdminStato, required this.AdminAnnulla, required this.AdminImpostazioni, required this.AdminLivelloCampo, required this.AdminGiocatoriCampo, required this.AdminRimuoviGiocatoreCampo, required this.AdminCreaPartita});
 
   factory MyUrl.fromJsom(Map<String, dynamic> json)
   {
@@ -84,7 +89,12 @@ class MyUrl {
       AdminPartecipanti: json['AdminPartecipanti'],
       AdminRisultato: json['AdminRisultato'],
       AdminStato: json['AdminStato'],
-      AdminAnnulla: json['AdminAnnulla']
+      AdminAnnulla: json['AdminAnnulla'],
+      AdminImpostazioni: json['AdminImpostazioni'],
+      AdminLivelloCampo: json['AdminLivelloCampo'],
+      AdminGiocatoriCampo: json['AdminGiocatoriCampo'],
+      AdminRimuoviGiocatoreCampo: json['AdminRimuoviGiocatoreCampo'],
+      AdminCreaPartita: json['AdminCreaPartita']
     );
   }
 

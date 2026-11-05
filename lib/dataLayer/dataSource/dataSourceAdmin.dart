@@ -126,7 +126,69 @@ class DataSourceAdmin{
     return _leggiDettaglio(res);
   }
 
-  //le quattro operazioni sulla partita rispondono tutte con il dettaglio aggiornato
+  Future<double> getLivelloGiocatoriCampo() async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    dynamic res = await c.get(elencoUrl.BaseUrl + elencoUrl.AdminImpostazioni, token: token);
+
+    return _leggiLivelloCampo(res);
+  }
+
+  Future<double> setLivelloGiocatoriCampo(double livello) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    Map<String, dynamic> body = {"livello": livello};
+    dynamic res = await c.put(elencoUrl.BaseUrl + elencoUrl.AdminLivelloCampo, body, token: token);
+
+    return _leggiLivelloCampo(res);
+  }
+
+  Future<DettaglioPartitaModel> aggiungiGiocatoriCampo(int idPartita, int numero) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    Map<String, dynamic> body = {"numero": numero};
+    dynamic res = await c.post(elencoUrl.BaseUrl + elencoUrl.AdminGiocatoriCampo.replaceFirst("{id}", idPartita.toString()), body, token: token);
+
+    return _leggiDettaglio(res);
+  }
+
+  Future<DettaglioPartitaModel> rimuoviGiocatoreCampo(int idPartita, int idPosto) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    String url = elencoUrl.BaseUrl + elencoUrl.AdminRimuoviGiocatoreCampo.replaceFirst("{id}", idPartita.toString()).replaceFirst("{idPosto}", idPosto.toString());
+    dynamic res = await c.delete(url, token: token);
+
+    return _leggiDettaglio(res);
+  }
+
+  Future<DettaglioPartitaModel> creaPartitaAdmin(int idCampo, DateTime data, String oraInizio, String tipo, List<String> telefoni, int giocatoriCampo) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    String dataFormattata = "${data.year.toString().padLeft(4,'0')}-${data.month.toString().padLeft(2,'0')}-${data.day.toString().padLeft(2,'0')}";
+    //il server vuole l'ora nel formato HH:mm, se lo slot arriva con i secondi (HH:mm:ss) li tolgo
+    String oraFormattata = oraInizio.length > 5 ? oraInizio.substring(0, 5) : oraInizio;
+
+    Map<String, dynamic> body = {"idCampo": idCampo, "dataPartita": dataFormattata, "oraInizio": oraFormattata, "tipo": tipo, "telefoni": telefoni, "giocatoriCampo": giocatoriCampo};
+    dynamic res = await c.post(elencoUrl.BaseUrl + elencoUrl.AdminCreaPartita, body, token: token);
+
+    return _leggiDettaglio(res);
+  }
+
+  //lettura e modifica del livello rispondono allo stesso modo
+  double _leggiLivelloCampo(dynamic res)
+  {
+    if(res is Map<String, dynamic> && res.containsKey("livelloGiocatoriCampo")) //BUON FINE
+    {
+      //il livello puo arrivare come intero (es. 3) o come decimale (es. 2.5), quindi lo leggo come num e lo converto
+      return (res['livelloGiocatoriCampo'] as num).toDouble();
+    }
+    else
+    {
+      throw _erroreDaRisposta(res);
+    }
+  }
+
+  //tutte le operazioni sulla partita rispondono con il dettaglio aggiornato
   DettaglioPartitaModel _leggiDettaglio(dynamic res)
   {
     if(res is Map<String, dynamic> && res.containsKey("posti")) //BUON FINE, solo il dettaglio ha la lista dei posti

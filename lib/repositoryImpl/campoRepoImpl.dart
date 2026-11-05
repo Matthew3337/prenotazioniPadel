@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:thepadel/dataLayer/dataSource/dataSourceCampo.dart';
 import 'package:thepadel/domainLayer/enetity/campo.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
@@ -37,6 +38,27 @@ class CampoRepoImpl implements CampoRepo{
         (a.oraInizio).compareTo(b.oraInizio));
 
     return tuttiGliSlot;    
+  }
+
+  @override
+  Future<Campo> creaCampo(String nome, bool alCoperto, TimeOfDay oraApertura, TimeOfDay oraChiusura) {
+
+    return dsCampo.creaCampo(nome, alCoperto, oraApertura, oraChiusura);
+
+  }
+
+  @override
+  Future<Campo> modificaCampo(int id, String nome, bool alCoperto, TimeOfDay oraApertura, TimeOfDay oraChiusura) {
+
+    return dsCampo.modificaCampo(id, nome, alCoperto, oraApertura, oraChiusura);
+
+  }
+
+  @override
+  Future<void> eliminaCampo(int id) {
+
+    return dsCampo.eliminaCampo(id);
+
   }
   
 }

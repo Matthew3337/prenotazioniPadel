@@ -63,3 +63,13 @@ class TroppiPartecipanti implements Exception{
   final String message = "una partita può avere al massimo 4 giocatori";
 
 }
+
+class NumeroGiocatoriCampoNonValido implements Exception{
+  final String message = "il numero deve essere tra 1 e 3";
+
+}
+
+class NomeCampoMancante implements Exception{
+  final String message = "Inserisci il nome del campo";
+
+}
