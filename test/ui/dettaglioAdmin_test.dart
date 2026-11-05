@@ -334,4 +334,166 @@ void main()
       expect(find.byType(ModificaRisultatoPage), findsOneWidget);
     });
   });
+
+  group("giocatori del campo", ()
+  {
+    const String aggiungiCampo = "Aggiungi giocatori campo";
+
+    PostoPartita postoUtente(int idPosto, String telefono)
+    {
+      return PostoPartita(idPosto: idPosto, tipo: "UTENTE", telefono: telefono, nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: null);
+    }
+
+    PostoPartita postoCampo(int idPosto)
+    {
+      return PostoPartita(idPosto: idPosto, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null);
+    }
+
+    for(final stato in ["creata", "confermata"])
+    {
+      testWidgets("il bottone c'e con posti liberi e stato $stato", (tester) async
+      {
+        repoPartita.risposta = dettaglioDiTest(stato: stato);
+        await apriPagina(tester);
+
+        expect(bottone(aggiungiCampo), findsOneWidget);
+      });
+    }
+
+    for(final stato in ["annullata", "giocata"])
+    {
+      testWidgets("il bottone non c'e con stato $stato, anche se ci sono posti liberi", (tester) async
+      {
+        repoPartita.risposta = dettaglioDiTest(stato: stato);
+        await apriPagina(tester);
+
+        expect(bottone(aggiungiCampo), findsNothing);
+      });
+    }
+
+    testWidgets("il bottone non c'e senza posti liberi", (tester) async
+    {
+      await apriPagina(tester);
+
+      expect(bottone(aggiungiCampo), findsNothing);
+    });
+
+    testWidgets("il dialog propone da 1 ai posti liberi e la scelta arriva al server", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest(stato: "creata");
+      repo.rispostaGiocatoriCampo = dettaglioDiTest(posti: quattroPostiDiTest(), stato: "confermata");
+      await apriPagina(tester);
+
+      await tester.tap(bottone(aggiungiCampo));
+      await tester.pumpAndSettle();
+
+      expect(nelDialog("1 giocatore"), findsOneWidget);
+      expect(nelDialog("2 giocatori"), findsOneWidget);
+      expect(nelDialog("3 giocatori"), findsNothing);
+
+      await tester.tap(nelDialog("2 giocatori"));
+      await tester.pumpAndSettle();
+
+      expect(repo.idGiocatoriCampoRicevuto, 10);
+      expect(repo.numeroRicevuto, 2);
+      expect(find.text("Giocatori del campo aggiunti"), findsOneWidget);
+      expect(find.text("Confermata"), findsOneWidget);
+      expect(bottone(aggiungiCampo), findsNothing);
+    });
+
+    testWidgets("con 3 posti liberi il dialog arriva a 3 giocatori", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest(posti: [postoUtente(11, "3331234567")]);
+      await apriPagina(tester);
+
+      await tester.tap(bottone(aggiungiCampo));
+      await tester.pumpAndSettle();
+
+      expect(nelDialog("3 giocatori"), findsOneWidget);
+    });
+
+    testWidgets("Chiudi non chiama il server", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest();
+      await apriPagina(tester);
+
+      await tester.tap(bottone(aggiungiCampo));
+      await tester.pumpAndSettle();
+      await tester.tap(nelDialog("Chiudi"));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Dialog), findsNothing);
+      expect(repo.numeroRicevuto, isNull);
+    });
+
+    testWidgets("se il server rifiuta compare il suo messaggio", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest();
+      repo.erroreGiocatoriCampo = OperazioneRifiutata(messaggio: "Puoi aggiungere al massimo 1 giocatori del campo");
+      await apriPagina(tester);
+
+      await tester.tap(bottone(aggiungiCampo));
+      await tester.pumpAndSettle();
+      await tester.tap(nelDialog("2 giocatori"));
+      await tester.pumpAndSettle();
+
+      expect(find.text("Puoi aggiungere al massimo 1 giocatori del campo"), findsOneWidget);
+    });
+
+    testWidgets("Rimuovi c'e solo sui posti del campo", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest(posti: [postoUtente(11, "3331234567"), postoCampo(12), postoCampo(13)]);
+      await apriPagina(tester);
+
+      expect(link("Rimuovi"), findsNWidgets(2));
+    });
+
+    for(final stato in ["annullata", "giocata"])
+    {
+      testWidgets("Rimuovi non c'e con stato $stato", (tester) async
+      {
+        repoPartita.risposta = dettaglioDiTest(posti: [postoUtente(11, "3331234567"), postoCampo(12)], stato: stato);
+        await apriPagina(tester);
+
+        expect(link("Rimuovi"), findsNothing);
+      });
+    }
+
+    testWidgets("Rimuovi chiede conferma: Indietro non chiama il server", (tester) async
+    {
+      await apriPagina(tester);
+
+      await tester.tap(link("Rimuovi"));
+      await tester.pumpAndSettle();
+
+      expect(nelDialog("Rimuovere il giocatore del campo?"), findsOneWidget);
+
+      await tester.tap(nelDialog("Indietro"));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(Dialog), findsNothing);
+      expect(repo.idPostoRicevuto, isNull);
+    });
+
+    testWidgets("Rimuovi confermato manda partita e posto e aggiorna la pagina", (tester) async
+    {
+      repo.rispostaRimuoviCampo = dettaglioDiTest(posti: [postoUtente(11, "3331234567")], stato: "confermata");
+      await apriPagina(tester);
+
+      await tester.tap(link("Rimuovi"));
+      await tester.pumpAndSettle();
+
+      //su una partita confermata l'admin deve sapere che resta scoperta
+      expect(find.textContaining("verrà annullata"), findsOneWidget);
+
+      await tester.tap(nelDialog("Rimuovi"));
+      await tester.pumpAndSettle();
+
+      expect(repo.idRimuoviCampoRicevuto, 10);
+      expect(repo.idPostoRicevuto, 14);
+      expect(find.text("Giocatore del campo rimosso"), findsOneWidget);
+      expect(link("Rimuovi"), findsNothing);
+      expect(bottone(aggiungiCampo), findsOneWidget);
+    });
+  });
 }

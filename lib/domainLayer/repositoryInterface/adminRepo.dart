@@ -21,4 +21,14 @@ abstract class AdminRepo {
   Future<DettaglioPartita> modificaStato(int idPartita, String stato);
 
   Future<DettaglioPartita> annullaPartita(int idPartita);
+
+  Future<double> getLivelloGiocatoriCampo();
+
+  Future<double> setLivelloGiocatoriCampo(double livello);
+
+  Future<DettaglioPartita> aggiungiGiocatoriCampo(int idPartita, int numero);
+
+  Future<DettaglioPartita> rimuoviGiocatoreCampo(int idPartita, int idPosto);
+
+  Future<DettaglioPartita> creaPartitaAdmin(int idCampo, DateTime data, String oraInizio, String tipo, List<String> telefoni, int giocatoriCampo);
 }

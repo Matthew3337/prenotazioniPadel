@@ -305,6 +305,104 @@ void main()
     });
   });
 
+  group("giocatori del campo e impostazioni", ()
+  {
+    test("getLivelloGiocatoriCampo: GET, legge anche un intero", () async
+    {
+      final ds = creaDataSource(200, '{"livelloGiocatoriCampo":3}', richieste);
+
+      expect(await ds.getLivelloGiocatoriCampo(), 3.0);
+      controllaRichiesta("GET", "http://test/api/admin/impostazioni");
+    });
+
+    test("setLivelloGiocatoriCampo: PUT con il livello, legge la risposta", () async
+    {
+      final ds = creaDataSource(200, '{"livelloGiocatoriCampo":2.5}', richieste);
+
+      expect(await ds.setLivelloGiocatoriCampo(2.5), 2.5);
+      controllaRichiesta("PUT", "http://test/api/admin/impostazioni/livello-giocatori-campo", body: {"livello": 2.5});
+    });
+
+    test("aggiungiGiocatoriCampo: POST con il numero, legge il dettaglio", () async
+    {
+      final ds = creaDataSource(200, dettaglioJson(), richieste);
+
+      expect((await ds.aggiungiGiocatoriCampo(7, 2)).id, 7);
+      controllaRichiesta("POST", "http://test/api/admin/partite/7/giocatori-campo", body: {"numero": 2});
+    });
+
+    test("rimuoviGiocatoreCampo: DELETE con partita e posto, legge il dettaglio", () async
+    {
+      final ds = creaDataSource(200, dettaglioJson(), richieste);
+
+      expect((await ds.rimuoviGiocatoreCampo(7, 14)).id, 7);
+      controllaRichiesta("DELETE", "http://test/api/admin/partite/7/giocatori-campo/14");
+    });
+
+    test("creaPartitaAdmin: POST con tutti i dati, 201 legge il dettaglio e dall'ora toglie i secondi", () async
+    {
+      final ds = creaDataSource(201, dettaglioJson(), richieste);
+
+      final creata = await ds.creaPartitaAdmin(1, DateTime(2026, 3, 5), "18:00:00", "PUBBLICA", ["3335550001"], 1);
+
+      expect(creata.id, 7);
+      controllaRichiesta("POST", "http://test/api/admin/partite", body: {
+        "idCampo": 1,
+        "dataPartita": "2026-03-05",
+        "oraInizio": "18:00",
+        "tipo": "PUBBLICA",
+        "telefoni": ["3335550001"],
+        "giocatoriCampo": 1,
+      });
+    });
+
+    test("creaPartitaAdmin: un'ora gia senza secondi resta uguale", () async
+    {
+      final ds = creaDataSource(201, dettaglioJson(), richieste);
+
+      await ds.creaPartitaAdmin(1, DateTime(2026, 3, 5), "18:00", "PRIVATA", ["3335550001"], 0);
+
+      expect(jsonDecode(richieste.single.body)["oraInizio"], "18:00");
+    });
+
+    final operazioni = <String, Future<Object?> Function(DataSourceAdmin)>{
+      "getLivelloGiocatoriCampo": (ds) => ds.getLivelloGiocatoriCampo(),
+      "setLivelloGiocatoriCampo": (ds) => ds.setLivelloGiocatoriCampo(2.5),
+      "aggiungiGiocatoriCampo": (ds) => ds.aggiungiGiocatoriCampo(7, 2),
+      "rimuoviGiocatoreCampo": (ds) => ds.rimuoviGiocatoreCampo(7, 14),
+      "creaPartitaAdmin": (ds) => ds.creaPartitaAdmin(1, DateTime(2026, 3, 5), "18:00", "PUBBLICA", ["1"], 0),
+    };
+
+    operazioni.forEach((nome, operazione)
+    {
+      group("errori di $nome", ()
+      {
+        test("400 e 409: OperazioneRifiutata col messaggio del server", () async
+        {
+          for(final status in [400, 409])
+          {
+            final ds = creaDataSource(status, erroreServer(status, "Regola violata"), richieste);
+
+            await expectLater(operazione(ds), throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "Regola violata")));
+          }
+        });
+
+        test("404: PartitaNonTrovata col messaggio del server", () async
+        {
+          final ds = creaDataSource(404, erroreServer(404, "Partita non trovata"), richieste);
+
+          await expectLater(operazione(ds), throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Partita non trovata")));
+        });
+
+        test("500 e risposta senza body: ErroreGenericoServer", () async
+        {
+          await expectLater(operazione(creaDataSource(500, erroreServer(500, "Boom"), richieste)), throwsA(isA<ErroreGenericoServer>()));
+          await expectLater(operazione(creaDataSource(401, "", richieste)), throwsA(isA<ErroreGenericoServer>()));
+        });
+      });
+    });
+  });
+
   group("repository", ()
   {
     test("delega al data source e restituisce le entity", () async
@@ -316,6 +414,12 @@ void main()
       expect((await repo.modificaStato(7, "creata")).id, 7);
       expect((await repo.annullaPartita(7)).id, 7);
       expect(richieste.length, 4);
+
+      expect((await repo.aggiungiGiocatoriCampo(7, 1)).id, 7);
+      expect((await repo.rimuoviGiocatoreCampo(7, 14)).id, 7);
+      expect((await repo.creaPartitaAdmin(1, DateTime(2026, 11, 5), "18:00", "PUBBLICA", ["1"], 0)).id, 7);
+      expect(await AdminRepoImpl(dsAdmin: creaDataSource(200, '{"livelloGiocatoriCampo":2}', richieste)).getLivelloGiocatoriCampo(), 2.0);
+      expect(await AdminRepoImpl(dsAdmin: creaDataSource(200, '{"livelloGiocatoriCampo":2}', richieste)).setLivelloGiocatoriCampo(2), 2.0);
 
       expect((await AdminRepoImpl(dsAdmin: creaDataSource(200, "[]", richieste)).getPartiteDelGiorno(DateTime(2026, 11, 5))), isEmpty);
       expect((await AdminRepoImpl(dsAdmin: creaDataSource(200, "[]", richieste)).getAvvisi()), isEmpty);

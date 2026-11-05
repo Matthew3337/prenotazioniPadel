@@ -1,11 +1,22 @@
+import 'package:flutter/material.dart';
 import 'package:thepadel/domainLayer/enetity/avvisoAdmin.dart';
+import 'package:thepadel/domainLayer/enetity/campo.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/partiteCampoAdmin.dart';
 import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 import 'package:thepadel/domainLayer/enetity/utenteAdmin.dart';
 import 'package:thepadel/repositoryImpl/adminRepoImpl.dart';
+import 'package:thepadel/repositoryImpl/campoRepoImpl.dart';
 import 'package:thepadel/useCase/eccezioniUseCase.dart';
 import 'package:thepadel/useCase/registraRisultatoUseCase.dart';
+
+//la stessa regola vale per il livello degli utenti e per quello dei giocatori del campo
+bool _livelloValido(double livello)
+{
+  //moltiplicando per 2 i livelli con passo 0,5 diventano numeri interi
+  double doppio = livello * 2;
+  return livello >= 0 && livello <= 5 && doppio == doppio.roundToDouble();
+}
 
 class PartiteGiornoUseCase {
 
@@ -52,9 +63,7 @@ class CambiaLivelloUseCase {
 
   Future<UtenteAdmin> call(String telefono, double livello)
   {
-    //moltiplicando per 2 i livelli con passo 0,5 diventano numeri interi
-    double doppio = livello * 2;
-    if(livello < 0 || livello > 5 || doppio != doppio.roundToDouble())
+    if(!_livelloValido(livello))
     {
       throw LivelloNonValido();
     }
@@ -147,5 +156,122 @@ class AnnullaPartitaUseCase {
   Future<DettaglioPartita> call(int idPartita)
   {
     return repo.annullaPartita(idPartita);
+  }
+}
+
+class LivelloCampoUseCase {
+
+  final AdminRepoImpl repo;
+
+  LivelloCampoUseCase({required this.repo});
+
+  Future<double> call()
+  {
+    return repo.getLivelloGiocatoriCampo();
+  }
+}
+
+class CambiaLivelloCampoUseCase {
+
+  final AdminRepoImpl repo;
+
+  CambiaLivelloCampoUseCase({required this.repo});
+
+  Future<double> call(double livello)
+  {
+    if(!_livelloValido(livello))
+    {
+      throw LivelloNonValido();
+    }
+
+    return repo.setLivelloGiocatoriCampo(livello);
+  }
+}
+
+class AggiungiGiocatoriCampoUseCase {
+
+  final AdminRepoImpl repo;
+
+  AggiungiGiocatoriCampoUseCase({required this.repo});
+
+  //i posti liberi li controlla il server: il massimo di 3 vale sempre, perche almeno un posto e di un utente
+  Future<DettaglioPartita> call(int idPartita, int numero)
+  {
+    if(numero < 1 || numero > 3)
+    {
+      throw NumeroGiocatoriCampoNonValido();
+    }
+
+    return repo.aggiungiGiocatoriCampo(idPartita, numero);
+  }
+}
+
+class RimuoviGiocatoreCampoUseCase {
+
+  final AdminRepoImpl repo;
+
+  RimuoviGiocatoreCampoUseCase({required this.repo});
+
+  Future<DettaglioPartita> call(int idPartita, int idPosto)
+  {
+    return repo.rimuoviGiocatoreCampo(idPartita, idPosto);
+  }
+}
+
+class CreaPartitaAdminUseCase {
+
+  final AdminRepoImpl repo;
+
+  CreaPartitaAdminUseCase({required this.repo});
+
+  //l'admin non occupa un posto: i posti sono solo gli utenti scelti piu i giocatori del campo
+  Future<DettaglioPartita> call(int idCampo, DateTime data, String oraInizio, String tipo, List<String> telefoni, int giocatoriCampo)
+  {
+    if(telefoni.isEmpty)
+    {
+      throw PartecipantiMancanti();
+    }
+
+    if(telefoni.length + giocatoriCampo > 4)
+    {
+      throw TroppiPartecipanti();
+    }
+
+    return repo.creaPartitaAdmin(idCampo, data, oraInizio, tipo, telefoni, giocatoriCampo);
+  }
+}
+
+class SalvaCampoUseCase {
+
+  final CampoRepoImpl repo;
+
+  SalvaCampoUseCase({required this.repo});
+
+  //senza id il campo e nuovo, con l'id si modifica quello esistente
+  Future<Campo> call(int? id, String nome, bool alCoperto, TimeOfDay oraApertura, TimeOfDay oraChiusura)
+  {
+    if(nome.trim().isEmpty)
+    {
+      throw NomeCampoMancante();
+    }
+
+    if(id == null)
+    {
+      return repo.creaCampo(nome, alCoperto, oraApertura, oraChiusura);
+    }
+
+    return repo.modificaCampo(id, nome, alCoperto, oraApertura, oraChiusura);
+  }
+}
+
+class EliminaCampoUseCase {
+
+  final CampoRepoImpl repo;
+
+  EliminaCampoUseCase({required this.repo});
+
+  Future<void> call(int id)
+  {
+    return repo.eliminaCampo(id);
   }
 }

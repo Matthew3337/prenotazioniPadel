@@ -662,3 +662,91 @@ class TestataIndietro extends StatelessWidget {
     );
   }
 }
+
+// la finestra di dialogo delle pagine admin: titolo e contenuto a scelta
+class FinestraDialogo extends StatelessWidget {
+  final String titolo;
+  final List<Widget> figli;
+
+  const FinestraDialogo({super.key, required this.titolo, required this.figli});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = Responsive(context);
+    return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      elevation: 0,
+      insetPadding: const EdgeInsets.all(24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(titolo, style: stileNumero(r, 22)),
+              const SizedBox(height: 8),
+              ...figli,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// la richiesta di conferma prima di un'azione rossa: chiude il dialog
+// restituendo true solo se si tocca il bottone di conferma
+class FinestraConferma extends StatelessWidget {
+  final String titolo;
+  final String testo;
+  final String testoConferma;
+
+  const FinestraConferma({
+    super.key,
+    required this.titolo,
+    required this.testo,
+    required this.testoConferma,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = Responsive(context);
+    return FinestraDialogo(
+      titolo: titolo,
+      figli: [
+        Text(testo, style: stileSecondario(r)),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: BottonePieno(
+                testo: 'Indietro',
+                sfondo: Colori.sfondo,
+                coloreTesto: Colori.testo,
+                paddingOrizzontale: 8,
+                onPressed: () {
+                  Navigator.pop(context, false);
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: BottonePieno(
+                testo: testoConferma,
+                sfondo: Colori.rosso,
+                paddingOrizzontale: 8,
+                onPressed: () {
+                  Navigator.pop(context, true);
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}

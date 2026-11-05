@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thepadel/bloc/dettaglioAdmin/dettaglioAdminBloc.dart';
 import 'package:thepadel/bloc/dettaglioAdmin/dettaglioAdminEvent.dart';
@@ -30,6 +32,8 @@ void main()
       modificaRisultatoUseCase: ModificaRisultatoUseCase(repo: repoAdmin),
       modificaStatoUseCase: ModificaStatoUseCase(repo: repoAdmin),
       annullaPartitaUseCase: AnnullaPartitaUseCase(repo: repoAdmin),
+      aggiungiGiocatoriCampoUseCase: AggiungiGiocatoriCampoUseCase(repo: repoAdmin),
+      rimuoviGiocatoreCampoUseCase: RimuoviGiocatoreCampoUseCase(repo: repoAdmin),
     );
   });
 
@@ -292,6 +296,113 @@ void main()
         expect(bloc.state, isA<OperazioneAdminErrore>());
         expect(repoPartita.chiamate, 1);
         expect(repoAdmin.chiamatePartecipanti + repoAdmin.chiamateRisultato, 0);
+      });
+    });
+  });
+
+  group("giocatori del campo", ()
+  {
+    test("senza dettaglio caricato le operazioni non fanno nulla", () async
+    {
+      bloc.add(const AggiungiGiocatoriCampoRichiesta(id: 7, numero: 1));
+      bloc.add(const RimuoviGiocatoreCampoRichiesta(id: 7, idPosto: 14));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bloc.state, isA<DettaglioAdminInitial>());
+      expect(repoAdmin.numeroRicevuto, isNull);
+      expect(repoAdmin.idPostoRicevuto, isNull);
+    });
+
+    test("aggiungi ok: InCorso poi Riuscita col dettaglio del server, senza ricaricare", () async
+    {
+      await caricaDettaglio();
+      repoAdmin.rispostaGiocatoriCampo = dettaglioDiTest(id: 7, stato: "confermata");
+
+      bloc.add(const AggiungiGiocatoriCampoRichiesta(id: 7, numero: 2));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneAdminInCorso>().having((s) => s.dettaglio.stato, "stato", "creata"),
+        isA<OperazioneAdminRiuscita>().having((s) => s.dettaglio.stato, "stato", "confermata").having((s) => s.messaggio, "messaggio", "Giocatori del campo aggiunti"),
+      ]));
+      expect(repoAdmin.idGiocatoriCampoRicevuto, 7);
+      expect(repoAdmin.numeroRicevuto, 2);
+      expect(repoPartita.chiamate, 1);
+      expect(bloc.dettaglio!.stato, "confermata");
+    });
+
+    test("aggiungi con numero non valido: errore senza chiamare il server e senza ricaricare", () async
+    {
+      await caricaDettaglio();
+
+      bloc.add(const AggiungiGiocatoriCampoRichiesta(id: 7, numero: 4));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneAdminInCorso>(),
+        isA<OperazioneAdminErrore>().having((s) => s.messaggio, "messaggio", NumeroGiocatoriCampoNonValido().message),
+      ]));
+      await Future<void>.delayed(Duration.zero);
+      expect(bloc.state, isA<OperazioneAdminErrore>());
+      expect(repoAdmin.numeroRicevuto, isNull);
+      expect(repoPartita.chiamate, 1);
+    });
+
+    test("rimuovi ok: InCorso poi Riuscita, passa partita e posto", () async
+    {
+      await caricaDettaglio();
+
+      bloc.add(const RimuoviGiocatoreCampoRichiesta(id: 7, idPosto: 14));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneAdminInCorso>(),
+        isA<OperazioneAdminRiuscita>().having((s) => s.messaggio, "messaggio", "Giocatore del campo rimosso"),
+      ]));
+      expect(repoAdmin.idRimuoviCampoRicevuto, 7);
+      expect(repoAdmin.idPostoRicevuto, 14);
+    });
+
+    final errori = <String, Exception Function()>{
+      "404": () => PartitaNonTrovata(messaggio: "Partita non trovata"),
+      "409": () => OperazioneRifiutata(messaggio: "Puoi aggiungere al massimo 1 giocatori del campo"),
+      "generico": () => ErroreGenericoServer(),
+      "rete": () => TimeoutException("timeout"),
+    };
+    final messaggi = <String, String>{
+      "404": "Partita non trovata",
+      "409": "Puoi aggiungere al massimo 1 giocatori del campo",
+      "generico": ErroreGenericoServer().messaggio,
+      "rete": ErroreGenericoServer().messaggio,
+    };
+
+    errori.forEach((nome, errore)
+    {
+      test("aggiungi, errore $nome: Errore col dettaglio vecchio, poi la partita viene ricaricata", () async
+      {
+        await caricaDettaglio();
+        repoAdmin.erroreGiocatoriCampo = errore();
+
+        bloc.add(const AggiungiGiocatoriCampoRichiesta(id: 7, numero: 1));
+
+        await expectLater(bloc.stream, emitsInOrder([
+          isA<OperazioneAdminInCorso>(),
+          isA<OperazioneAdminErrore>().having((s) => s.messaggio, "messaggio", messaggi[nome]).having((s) => s.dettaglio.id, "id", 7),
+          isA<DettaglioAdminCaricato>(),
+        ]));
+        expect(repoPartita.chiamate, 2);
+      });
+
+      test("rimuovi, errore $nome: Errore col dettaglio vecchio, poi la partita viene ricaricata", () async
+      {
+        await caricaDettaglio();
+        repoAdmin.erroreRimuoviCampo = errore();
+
+        bloc.add(const RimuoviGiocatoreCampoRichiesta(id: 7, idPosto: 14));
+
+        await expectLater(bloc.stream, emitsInOrder([
+          isA<OperazioneAdminInCorso>(),
+          isA<OperazioneAdminErrore>().having((s) => s.messaggio, "messaggio", messaggi[nome]),
+          isA<DettaglioAdminCaricato>(),
+        ]));
+        expect(repoPartita.chiamate, 2);
       });
     });
   });

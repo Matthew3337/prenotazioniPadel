@@ -15,17 +15,21 @@ class DettaglioAdminBloc extends Bloc<DettaglioAdminEvent, DettaglioAdminState>{
   final ModificaRisultatoUseCase modificaRisultatoUseCase;
   final ModificaStatoUseCase modificaStatoUseCase;
   final AnnullaPartitaUseCase annullaPartitaUseCase;
+  final AggiungiGiocatoriCampoUseCase aggiungiGiocatoriCampoUseCase;
+  final RimuoviGiocatoreCampoUseCase rimuoviGiocatoreCampoUseCase;
 
   //l'ultimo dettaglio caricato, serve agli stati delle operazioni per non far sparire la pagina
   DettaglioPartita? dettaglio;
 
   //metodi
-  DettaglioAdminBloc({required this.dettaglioPartitaUseCase, required this.modificaPartecipantiUseCase, required this.modificaRisultatoUseCase, required this.modificaStatoUseCase, required this.annullaPartitaUseCase}) : super(DettaglioAdminInitial()) {
+  DettaglioAdminBloc({required this.dettaglioPartitaUseCase, required this.modificaPartecipantiUseCase, required this.modificaRisultatoUseCase, required this.modificaStatoUseCase, required this.annullaPartitaUseCase, required this.aggiungiGiocatoriCampoUseCase, required this.rimuoviGiocatoreCampoUseCase}) : super(DettaglioAdminInitial()) {
     on<DettaglioAdminRichiesto>(_onDettaglioAdminRichiesto);
     on<ModificaPartecipantiRichiesta>(_onModificaPartecipantiRichiesta);
     on<ModificaRisultatoRichiesta>(_onModificaRisultatoRichiesta);
     on<ModificaStatoRichiesta>(_onModificaStatoRichiesta);
     on<AnnullaPartitaRichiesta>(_onAnnullaPartitaRichiesta);
+    on<AggiungiGiocatoriCampoRichiesta>(_onAggiungiGiocatoriCampoRichiesta);
+    on<RimuoviGiocatoreCampoRichiesta>(_onRimuoviGiocatoreCampoRichiesta);
   }
 
   Future<void> _onDettaglioAdminRichiesto(DettaglioAdminRichiesto evento, Emitter<DettaglioAdminState> emit) async
@@ -192,6 +196,84 @@ class DettaglioAdminBloc extends Bloc<DettaglioAdminEvent, DettaglioAdminState>{
     {
       dettaglio = await annullaPartitaUseCase.call(evento.id);
       emit(OperazioneAdminRiuscita(dettaglio: dettaglio!, messaggio: "Partita annullata"));
+      return;
+    }
+    on PartitaNonTrovata catch (e)
+    {
+      emit(OperazioneAdminErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on OperazioneRifiutata catch (e)
+    {
+      emit(OperazioneAdminErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on ErroreGenericoServer catch (e)
+    {
+      emit(OperazioneAdminErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on Exception
+    {
+      emit(OperazioneAdminErrore(dettaglio: dettaglioAttuale, messaggio: ErroreGenericoServer().messaggio));
+    }
+
+    await _caricaDettaglio(evento.id, emit);
+  }
+
+  Future<void> _onAggiungiGiocatoriCampoRichiesta(AggiungiGiocatoriCampoRichiesta evento, Emitter<DettaglioAdminState> emit) async
+  {
+    final dettaglioAttuale = dettaglio;
+    if(dettaglioAttuale == null)
+    {
+      return;
+    }
+
+    emit(OperazioneAdminInCorso(dettaglio: dettaglioAttuale));
+
+    try
+    {
+      dettaglio = await aggiungiGiocatoriCampoUseCase.call(evento.id, evento.numero);
+      emit(OperazioneAdminRiuscita(dettaglio: dettaglio!, messaggio: "Giocatori del campo aggiunti"));
+      return;
+    }
+    on NumeroGiocatoriCampoNonValido catch (e)
+    {
+      //il server non e stato chiamato: il dettaglio e ancora buono, non serve ricaricarlo
+      emit(OperazioneAdminErrore(dettaglio: dettaglioAttuale, messaggio: e.message));
+      return;
+    }
+    on PartitaNonTrovata catch (e)
+    {
+      emit(OperazioneAdminErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on OperazioneRifiutata catch (e)
+    {
+      emit(OperazioneAdminErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on ErroreGenericoServer catch (e)
+    {
+      emit(OperazioneAdminErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on Exception
+    {
+      emit(OperazioneAdminErrore(dettaglio: dettaglioAttuale, messaggio: ErroreGenericoServer().messaggio));
+    }
+
+    await _caricaDettaglio(evento.id, emit);
+  }
+
+  Future<void> _onRimuoviGiocatoreCampoRichiesta(RimuoviGiocatoreCampoRichiesta evento, Emitter<DettaglioAdminState> emit) async
+  {
+    final dettaglioAttuale = dettaglio;
+    if(dettaglioAttuale == null)
+    {
+      return;
+    }
+
+    emit(OperazioneAdminInCorso(dettaglio: dettaglioAttuale));
+
+    try
+    {
+      dettaglio = await rimuoviGiocatoreCampoUseCase.call(evento.id, evento.idPosto);
+      emit(OperazioneAdminRiuscita(dettaglio: dettaglio!, messaggio: "Giocatore del campo rimosso"));
       return;
     }
     on PartitaNonTrovata catch (e)

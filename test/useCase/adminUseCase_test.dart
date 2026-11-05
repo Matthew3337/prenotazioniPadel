@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/setPartita.dart';
@@ -5,6 +6,7 @@ import 'package:thepadel/useCase/adminUseCase.dart';
 import 'package:thepadel/useCase/eccezioniUseCase.dart';
 
 import '../fake/fakeAdminRepo.dart';
+import '../fake/fakeCampoRepo.dart';
 
 SetPartita unSet(int squadra1, int squadra2)
 {
@@ -256,5 +258,146 @@ void main()
         }
       }
     }
+  });
+
+  group("LivelloCampoUseCase e CambiaLivelloCampoUseCase", ()
+  {
+    test("la lettura restituisce il livello del repository", () async
+    {
+      repo.livelloCampo = 3.5;
+
+      expect(await LivelloCampoUseCase(repo: repo).call(), 3.5);
+    });
+
+    for(final livello in [-0.5, 5.5, 2.3])
+    {
+      test("il livello $livello non e valido e il server non viene chiamato", ()
+      {
+        expect(() => CambiaLivelloCampoUseCase(repo: repo).call(livello), throwsA(isA<LivelloNonValido>()));
+        expect(repo.livelliCampoRicevuti, isEmpty);
+      });
+    }
+
+    for(final livello in [0.0, 2.5, 5.0])
+    {
+      test("il livello $livello viene salvato", () async
+      {
+        expect(await CambiaLivelloCampoUseCase(repo: repo).call(livello), livello);
+        expect(repo.livelliCampoRicevuti, [livello]);
+      });
+    }
+  });
+
+  group("AggiungiGiocatoriCampoUseCase", ()
+  {
+    for(final numero in [0, 4, -1])
+    {
+      test("$numero giocatori: NumeroGiocatoriCampoNonValido e il server non viene chiamato", ()
+      {
+        expect(() => AggiungiGiocatoriCampoUseCase(repo: repo).call(7, numero), throwsA(isA<NumeroGiocatoriCampoNonValido>()));
+        expect(repo.numeroRicevuto, isNull);
+      });
+    }
+
+    for(final numero in [1, 3])
+    {
+      test("$numero giocatori arrivano al repository con la partita", () async
+      {
+        final dettaglio = await AggiungiGiocatoriCampoUseCase(repo: repo).call(7, numero);
+
+        expect(dettaglio.id, 7);
+        expect(repo.idGiocatoriCampoRicevuto, 7);
+        expect(repo.numeroRicevuto, numero);
+      });
+    }
+  });
+
+  test("RimuoviGiocatoreCampoUseCase passa partita e posto", () async
+  {
+    final dettaglio = await RimuoviGiocatoreCampoUseCase(repo: repo).call(7, 14);
+
+    expect(dettaglio.id, 7);
+    expect(repo.idRimuoviCampoRicevuto, 7);
+    expect(repo.idPostoRicevuto, 14);
+  });
+
+  group("CreaPartitaAdminUseCase", ()
+  {
+    final data = DateTime(2026, 11, 5);
+
+    test("senza utenti: PartecipantiMancanti anche se ci sono giocatori del campo", ()
+    {
+      expect(() => CreaPartitaAdminUseCase(repo: repo).call(1, data, "18:00", "PUBBLICA", [], 3), throwsA(isA<PartecipantiMancanti>()));
+      expect(repo.chiamateCreaPartita, 0);
+    });
+
+    test("piu di 4 posti tra utenti e giocatori del campo: TroppiPartecipanti", ()
+    {
+      expect(() => CreaPartitaAdminUseCase(repo: repo).call(1, data, "18:00", "PUBBLICA", ["1", "2"], 3), throwsA(isA<TroppiPartecipanti>()));
+      expect(() => CreaPartitaAdminUseCase(repo: repo).call(1, data, "18:00", "PUBBLICA", ["1", "2", "3", "4", "5"], 0), throwsA(isA<TroppiPartecipanti>()));
+      expect(repo.chiamateCreaPartita, 0);
+    });
+
+    test("1 utente e 3 giocatori del campo vanno bene e i dati arrivano al repository", () async
+    {
+      await CreaPartitaAdminUseCase(repo: repo).call(1, data, "18:00", "PRIVATA", ["1"], 3);
+
+      expect(repo.idCampoCreaRicevuto, 1);
+      expect(repo.dataCreaRicevuta, data);
+      expect(repo.oraCreaRicevuta, "18:00");
+      expect(repo.tipoCreaRicevuto, "PRIVATA");
+      expect(repo.telefoniCreaRicevuti, ["1"]);
+      expect(repo.giocatoriCampoCreaRicevuti, 3);
+    });
+  });
+
+  group("campi", ()
+  {
+    const apertura = TimeOfDay(hour: 8, minute: 0);
+    const chiusura = TimeOfDay(hour: 22, minute: 30);
+    late FakeCampoRepo repoCampo;
+
+    setUp(()
+    {
+      repoCampo = FakeCampoRepo();
+    });
+
+    for(final nome in ["", "   "])
+    {
+      test("nome '$nome': NomeCampoMancante e il server non viene chiamato", ()
+      {
+        expect(() => SalvaCampoUseCase(repo: repoCampo).call(null, nome, true, apertura, chiusura), throwsA(isA<NomeCampoMancante>()));
+        expect(repoCampo.chiamateCrea + repoCampo.chiamateModifica, 0);
+      });
+    }
+
+    test("senza id crea il campo", () async
+    {
+      final campo = await SalvaCampoUseCase(repo: repoCampo).call(null, "Nuovo", true, apertura, chiusura);
+
+      expect(campo.id, repoCampo.idNuovoCampo);
+      expect(repoCampo.chiamateCrea, 1);
+      expect(repoCampo.chiamateModifica, 0);
+      expect(repoCampo.nomeRicevuto, "Nuovo");
+      expect(repoCampo.alCopertoRicevuto, true);
+      expect(repoCampo.aperturaRicevuta, apertura);
+      expect(repoCampo.chiusuraRicevuta, chiusura);
+    });
+
+    test("con l'id modifica quel campo", () async
+    {
+      final campo = await SalvaCampoUseCase(repo: repoCampo).call(3, "Rinominato", false, apertura, chiusura);
+
+      expect(campo.id, 3);
+      expect(repoCampo.chiamateCrea, 0);
+      expect(repoCampo.idModificaRicevuto, 3);
+    });
+
+    test("EliminaCampoUseCase passa l'id", () async
+    {
+      await EliminaCampoUseCase(repo: repoCampo).call(3);
+
+      expect(repoCampo.idEliminaRicevuto, 3);
+    });
   });
 }
