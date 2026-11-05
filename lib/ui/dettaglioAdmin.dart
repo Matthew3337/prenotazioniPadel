@@ -155,8 +155,8 @@ class _DettaglioAdminView extends StatelessWidget {
 
   // ===== CONTENUTO =====
 
-  // i bottoni stanno nella parte che scorre: sono quattro e, fissi in basso,
-  // su un telefono piccolo lascerebbero poco spazio alla partita
+  // i bottoni stanno nella parte che scorre: sono tanti e, fissi in basso, su
+  // un telefono piccolo lascerebbero poco spazio alla partita
   Widget _buildContenuto(
     BuildContext context,
     Responsive r,
@@ -182,7 +182,7 @@ class _DettaglioAdminView extends StatelessWidget {
             _buildRisultato(r, dettaglio, risultato),
             const SizedBox(height: 14),
           ],
-          _buildGiocatori(r, dettaglio),
+          _buildGiocatori(context, r, dettaglio, isLoading),
           const SizedBox(height: 16),
           ..._buildAzioni(context, dettaglio, isLoading),
         ],
@@ -225,13 +225,20 @@ class _DettaglioAdminView extends StatelessWidget {
 
   // ===== GIOCATORI =====
 
-  Widget _buildGiocatori(Responsive r, DettaglioPartita dettaglio) {
-    // le conferme interessano solo finche' la partita e' in attesa
-    final bool inAttesa = dettaglio.stato == 'creata';
+  // il server rifiuta le modifiche su queste partite: meglio non proporle
+  bool _partecipantiModificabili(DettaglioPartita dettaglio) {
+    return dettaglio.stato != 'annullata' && dettaglio.stato != 'giocata';
+  }
 
+  Widget _buildGiocatori(
+    BuildContext context,
+    Responsive r,
+    DettaglioPartita dettaglio,
+    bool isLoading,
+  ) {
     final List<Widget> righe = [];
     for (final posto in dettaglio.posti) {
-      righe.add(_rigaPosto(r, posto, dettaglio.telefonoCreatore, inAttesa));
+      righe.add(_rigaPosto(context, r, posto, dettaglio, isLoading));
     }
     for (int i = 0; i < dettaglio.postiLiberi; i++) {
       righe.add(
@@ -271,18 +278,23 @@ class _DettaglioAdminView extends StatelessWidget {
   }
 
   Widget _rigaPosto(
+    BuildContext context,
     Responsive r,
     PostoPartita posto,
-    String telefonoCreatore,
-    bool conStato,
+    DettaglioPartita dettaglio,
+    bool isLoading,
   ) {
+    // le conferme interessano solo finche' la partita e' in attesa
+    final bool conStato = dettaglio.stato == 'creata';
+    final int? idPosto = posto.idPosto;
+
     String nome = '${posto.nome ?? ''} ${posto.cognome ?? ''}'.trim();
     final List<String> dettagli = [];
 
     if (posto.tipo == 'CAMPO') {
       nome = 'Giocatore del campo';
     } else {
-      if (posto.telefono == telefonoCreatore) {
+      if (posto.telefono == dettaglio.telefonoCreatore) {
         dettagli.add('Organizzatore');
       }
       if (posto.livello != null) {
@@ -322,6 +334,21 @@ class _DettaglioAdminView extends StatelessWidget {
                   peso: FontWeight.w600,
                   colore: posto.confermata ? Colori.verde : Colori.arancio,
                 ),
+              ),
+            ],
+            if (posto.tipo == 'CAMPO' &&
+                idPosto != null &&
+                _partecipantiModificabili(dettaglio)) ...[
+              const SizedBox(width: 8),
+              LinkTesto(
+                testo: 'Rimuovi',
+                colore: Colori.rosso,
+                onPressed:
+                    isLoading
+                        ? null
+                        : () {
+                          _confermaRimozione(context, dettaglio, idPosto);
+                        },
               ),
             ],
           ],
@@ -430,9 +457,7 @@ class _DettaglioAdminView extends StatelessWidget {
     DettaglioPartita dettaglio,
     bool isLoading,
   ) {
-    // il server rifiuta le modifiche su queste partite: meglio non proporle
-    final bool partecipantiModificabili =
-        dettaglio.stato != 'annullata' && dettaglio.stato != 'giocata';
+    final bool partecipantiModificabili = _partecipantiModificabili(dettaglio);
     final bool risultatoModificabile =
         dettaglio.stato == 'confermata' || dettaglio.stato == 'giocata';
 
@@ -459,6 +484,18 @@ class _DettaglioAdminView extends StatelessWidget {
                   ? null
                   : () {
                     _apriModificaPartecipanti(context, dettaglio);
+                  },
+        ),
+        const SizedBox(height: 8),
+      ],
+      if (partecipantiModificabili && dettaglio.postiLiberi > 0) ...[
+        BottonePieno(
+          testo: 'Aggiungi giocatori campo',
+          onPressed:
+              isLoading
+                  ? null
+                  : () {
+                    _scegliGiocatoriCampo(context, dettaglio);
                   },
         ),
         const SizedBox(height: 8),
@@ -580,9 +617,8 @@ class _DettaglioAdminView extends StatelessWidget {
           );
         }
 
-        return _buildDialog(
+        return FinestraDialogo(
           titolo: 'Modifica stato',
-          r: r,
           figli: [
             ...voci,
             const SizedBox(height: 8),
@@ -610,50 +646,17 @@ class _DettaglioAdminView extends StatelessWidget {
     BuildContext context,
     DettaglioPartita dettaglio,
   ) async {
-    final r = Responsive(context);
-
     final bool? confermato = await showDialog<bool>(
       context: context,
       barrierColor: Colori.testo.withValues(alpha: 0.55),
       builder: (dialogContext) {
-        return _buildDialog(
+        return FinestraConferma(
           titolo: 'Annullare la partita?',
-          r: r,
-          figli: [
-            Text(
+          testo:
               'La partita di ${giornoEMese(dettaglio.dataPartita)} alle '
               '${formattaOra(dettaglio.oraInizio)} sul ${dettaglio.nomeCampo} '
               'verrà annullata per tutti i giocatori.',
-              style: stileSecondario(r),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: BottonePieno(
-                    testo: 'Indietro',
-                    sfondo: Colori.sfondo,
-                    coloreTesto: Colori.testo,
-                    paddingOrizzontale: 8,
-                    onPressed: () {
-                      Navigator.pop(dialogContext, false);
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: BottonePieno(
-                    testo: 'Annulla partita',
-                    sfondo: Colori.rosso,
-                    paddingOrizzontale: 8,
-                    onPressed: () {
-                      Navigator.pop(dialogContext, true);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ],
+          testoConferma: 'Annulla partita',
         );
       },
     );
@@ -665,32 +668,98 @@ class _DettaglioAdminView extends StatelessWidget {
     }
   }
 
-  Widget _buildDialog({
-    required String titolo,
-    required Responsive r,
-    required List<Widget> figli,
-  }) {
-    return Dialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
-      elevation: 0,
-      insetPadding: const EdgeInsets.all(24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(titolo, style: stileNumero(r, 22)),
-              const SizedBox(height: 8),
-              ...figli,
-            ],
-          ),
-        ),
-      ),
+  Future<void> _scegliGiocatoriCampo(
+    BuildContext context,
+    DettaglioPartita dettaglio,
+  ) async {
+    final r = Responsive(context);
+
+    // il server ne accetta al massimo 3 per volta, e mai piu' dei posti liberi
+    int massimo = dettaglio.postiLiberi;
+    if (massimo > 3) {
+      massimo = 3;
+    }
+
+    final int? scelto = await showDialog<int>(
+      context: context,
+      barrierColor: Colori.testo.withValues(alpha: 0.55),
+      builder: (dialogContext) {
+        final List<Widget> voci = [];
+        for (int numero = 1; numero <= massimo; numero++) {
+          voci.add(
+            InkWell(
+              onTap: () {
+                Navigator.pop(dialogContext, numero);
+              },
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    numero == 1 ? '1 giocatore' : '$numero giocatori',
+                    style: stileTesto(r, base: 16),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        return FinestraDialogo(
+          titolo: 'Aggiungi giocatori campo',
+          figli: [
+            ...voci,
+            const SizedBox(height: 8),
+            BottonePieno(
+              testo: 'Chiudi',
+              sfondo: Colori.sfondo,
+              coloreTesto: Colori.testo,
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+            ),
+          ],
+        );
+      },
     );
+
+    if (scelto != null && context.mounted) {
+      context.read<DettaglioAdminBloc>().add(
+        AggiungiGiocatoriCampoRichiesta(id: dettaglio.id, numero: scelto),
+      );
+    }
+  }
+
+  Future<void> _confermaRimozione(
+    BuildContext context,
+    DettaglioPartita dettaglio,
+    int idPosto,
+  ) async {
+    // lo stato non cambia da solo: una partita confermata che resta senza
+    // quattro giocatori viene annullata solo quando arriva l'ora d'inizio
+    String testo = 'Il posto tornerà libero.';
+    if (dettaglio.stato == 'confermata') {
+      testo =
+          'Il posto tornerà libero. Se all\'inizio mancherà ancora un '
+          'giocatore, la partita verrà annullata.';
+    }
+
+    final bool? confermato = await showDialog<bool>(
+      context: context,
+      barrierColor: Colori.testo.withValues(alpha: 0.55),
+      builder: (dialogContext) {
+        return FinestraConferma(
+          titolo: 'Rimuovere il giocatore del campo?',
+          testo: testo,
+          testoConferma: 'Rimuovi',
+        );
+      },
+    );
+
+    if (confermato == true && context.mounted) {
+      context.read<DettaglioAdminBloc>().add(
+        RimuoviGiocatoreCampoRichiesta(id: dettaglio.id, idPosto: idPosto),
+      );
+    }
   }
 }

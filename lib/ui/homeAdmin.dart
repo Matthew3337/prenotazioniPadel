@@ -4,11 +4,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thepadel/bloc/bachecaAvvisi/bachecaAvvisiBloc.dart';
 import 'package:thepadel/bloc/bachecaAvvisi/bachecaAvvisiEvent.dart';
 import 'package:thepadel/bloc/bachecaAvvisi/bachecaAvvisiState.dart';
+import 'package:thepadel/bloc/livelloCampo/livelloCampoBloc.dart';
+import 'package:thepadel/bloc/livelloCampo/livelloCampoEvent.dart';
+import 'package:thepadel/bloc/livelloCampo/livelloCampoState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 
 import 'bachecaAvvisi.dart';
 import 'bottoneEsci.dart';
+import 'gestioneCampi.dart';
 import 'gestioneLivelli.dart';
+import 'nuovaPartitaAdmin.dart';
 import 'partiteGiorno.dart';
 import 'stileApp.dart';
 
@@ -18,9 +23,18 @@ class HomeAdminPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // la bacheca qui serve solo a contare gli avvisi aperti
-    return BlocProvider<BachecaAvvisiBloc>(
-      create:
-          (_) => sl<BachecaAvvisiBloc>()..add(const BachecaAvvisiRichiesta()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<BachecaAvvisiBloc>(
+          create:
+              (_) =>
+                  sl<BachecaAvvisiBloc>()..add(const BachecaAvvisiRichiesta()),
+        ),
+        BlocProvider<LivelloCampoBloc>(
+          create:
+              (_) => sl<LivelloCampoBloc>()..add(const LivelloCampoRichiesto()),
+        ),
+      ],
       child: const _HomeAdminView(),
     );
   }
@@ -89,6 +103,18 @@ class _HomeAdminView extends StatelessWidget {
               const SizedBox(height: 12),
               _buildVoce(
                 r,
+                titolo: 'Nuova partita',
+                sottotitolo: Text(
+                  'Scegli campo, orario e giocatori',
+                  style: stileSecondario(r),
+                ),
+                onTap: () {
+                  _apri(context, const NuovaPartitaAdminPage());
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildVoce(
+                r,
                 titolo: 'Gestione livelli',
                 sottotitolo: Text(
                   'Cerca un utente e cambia il suo livello',
@@ -98,6 +124,20 @@ class _HomeAdminView extends StatelessWidget {
                   _apri(context, const GestioneLivelliPage());
                 },
               ),
+              const SizedBox(height: 12),
+              _buildVoce(
+                r,
+                titolo: 'Gestione campi',
+                sottotitolo: Text(
+                  'Aggiungi o modifica i campi e i loro orari',
+                  style: stileSecondario(r),
+                ),
+                onTap: () {
+                  _apri(context, const GestioneCampiPage());
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildLivelloCampo(r),
               const SizedBox(height: 8),
               const BottoneEsci(),
             ],
@@ -160,6 +200,127 @@ class _HomeAdminView extends StatelessWidget {
           child: BarraGrigia(larghezza: 130, altezza: 16),
         );
       },
+    );
+  }
+
+  // ===== LIVELLO GIOCATORI CAMPO =====
+
+  Widget _buildLivelloCampo(Responsive r) {
+    return BlocConsumer<LivelloCampoBloc, LivelloCampoState>(
+      listener: (context, state) {
+        // se il primo caricamento fallisce lo dice gia' la card, con "Riprova"
+        if (state is LivelloCampoErrore && state.livello != null) {
+          mostraSnackBar(context, state.messaggio);
+        }
+      },
+      builder: (context, state) {
+        final bool nonCaricato =
+            state is LivelloCampoErrore && state.livello == null;
+
+        return CardBianca(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Livello giocatori campo', style: stileNumero(r, 18)),
+                    const SizedBox(height: 2),
+                    Text(
+                      nonCaricato
+                          ? 'Livello non disponibile'
+                          : 'Vale per i prossimi calcoli dei punti',
+                      style: stileSecondario(r),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // larghezza fissa: lo spinner non deve far saltare la riga
+              SizedBox(
+                width: 76,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _buildSelettoreLivello(context, r, state),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSelettoreLivello(
+    BuildContext context,
+    Responsive r,
+    LivelloCampoState state,
+  ) {
+    if (state is LivelloCampoCaricato) {
+      return _buildTendinaLivello(context, r, state.livello);
+    }
+    if (state is LivelloCampoErrore) {
+      final double? livello = state.livello;
+      if (livello != null) {
+        // il salvataggio e' fallito: il selettore torna all'ultimo valore buono
+        return _buildTendinaLivello(context, r, livello);
+      }
+      return LinkTesto(
+        testo: 'Riprova',
+        onPressed: () {
+          context.read<LivelloCampoBloc>().add(const LivelloCampoRichiesto());
+        },
+      );
+    }
+    return const SizedBox(
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(
+        strokeWidth: 2.5,
+        color: Colori.bluCampo,
+      ),
+    );
+  }
+
+  Widget _buildTendinaLivello(
+    BuildContext context,
+    Responsive r,
+    double livello,
+  ) {
+    final List<DropdownMenuItem<double>> voci = [];
+    // i livelli vanno da 0 a 5 con passo 0,5
+    for (int i = 0; i <= 10; i++) {
+      final double valore = i / 2;
+      voci.add(
+        DropdownMenuItem<double>(
+          value: valore,
+          child: Text('$valore', style: stileTesto(r)),
+        ),
+      );
+    }
+
+    // un livello fuori dal passo farebbe fallire il DropdownButton, che vuole
+    // sempre un valore presente tra le voci: lo mostriamo solo come testo
+    final bool valoreValido =
+        livello >= 0 && livello <= 5 && (livello * 2) % 1 == 0;
+
+    return Semantics(
+      label: 'Livello giocatori campo',
+      child: DropdownButton<double>(
+        value: valoreValido ? livello : null,
+        hint: Text('$livello', style: stileTesto(r)),
+        underline: const SizedBox.shrink(),
+        items: voci,
+        onChanged: (nuovoLivello) {
+          if (nuovoLivello == null || nuovoLivello == livello) {
+            return;
+          }
+          context.read<LivelloCampoBloc>().add(
+            CambiaLivelloCampoRichiesto(livello: nuovoLivello),
+          );
+        },
+      ),
     );
   }
 }
