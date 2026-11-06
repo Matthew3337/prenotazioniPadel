@@ -19,23 +19,23 @@ import 'package:thepadel/repositoryImpl/partitaRepoImpl.dart';
 
 import 'fakePrenotazioneRepo.dart';
 
-AzioniPartita azioniDiTest({bool puoInvitare = false, bool puoEliminare = false, bool puoUscire = false, bool puoConfermare = false, bool puoRegistrareRisultato = false})
+AzioniPartita azioniDiTest({bool puoInvitare = false, bool puoEliminare = false, bool puoUscire = false, bool puoConfermare = false, bool puoRegistrareRisultato = false, bool puoCambiareTipo = false})
 {
-  return AzioniPartita(puoInvitare: puoInvitare, puoEliminare: puoEliminare, puoUscire: puoUscire, puoConfermare: puoConfermare, puoRegistrareRisultato: puoRegistrareRisultato);
+  return AzioniPartita(puoInvitare: puoInvitare, puoEliminare: puoEliminare, puoUscire: puoUscire, puoConfermare: puoConfermare, puoRegistrareRisultato: puoRegistrareRisultato, puoCambiareTipo: puoCambiareTipo);
 }
 
 //partita con il creatore (Mario Rossi) e un giocatore del campo: restano 2 posti liberi
-DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata", RisultatoPartita? risultato, int id = 10, DateTime? dataPartita, String telefonoCreatore = "3331234567"})
+DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata", RisultatoPartita? risultato, int id = 10, DateTime? dataPartita, String telefonoCreatore = "3331234567", String tipo = "PUBBLICA", TimeOfDay oraInizio = const TimeOfDay(hour: 18, minute: 30), TimeOfDay oraFine = const TimeOfDay(hour: 20, minute: 0)})
 {
   return DettaglioPartita(
     id: id,
     idCampo: 3,
     nomeCampo: "Campo Centrale",
     dataPartita: dataPartita ?? DateTime(2026, 11, 2),
-    oraInizio: const TimeOfDay(hour: 18, minute: 30),
-    oraFine: const TimeOfDay(hour: 20, minute: 0),
+    oraInizio: oraInizio,
+    oraFine: oraFine,
     stato: stato,
-    tipo: "PUBBLICA",
+    tipo: tipo,
     telefonoCreatore: telefonoCreatore,
     posti: posti ?? [
       PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: false, squadra: null),
@@ -188,6 +188,25 @@ class FakePartitaRepo extends PartitaRepoImpl
   Exception? erroreStorico;
   int chiamateStorico = 0;
 
+  //le mie partite: se partiteMie e null restituisce una sola partita di test
+  List<PartitaStorico>? partiteMie;
+  Exception? erroreMie;
+  int chiamateMie = 0;
+
+  //utenti invitabili mentre si prenota: se utentiInvitabili e null restituisce due utenti di test
+  List<UtenteInvitabile>? utentiInvitabili;
+  Exception? erroreUtentiInvitabili;
+  int chiamateUtentiInvitabili = 0;
+  List<String> cercaUtentiRicevuti = [];
+
+  //cambio di visibilita: se rispostaCambiaTipo e null restituisce dettaglioDiTest
+  DettaglioPartita? rispostaCambiaTipo;
+  Exception? erroreCambiaTipo;
+  Completer<DettaglioPartita>? attesaCambiaTipo;
+  int chiamateCambiaTipo = 0;
+  int? idCambiaTipoRicevuto;
+  String? tipoRicevuto;
+
   //utenti invitabili: se invitabili e null restituisce due utenti di test
   List<UtenteInvitabile>? invitabili;
   Exception? erroreInvitabili;
@@ -326,6 +345,49 @@ class FakePartitaRepo extends PartitaRepoImpl
       throw erroreStorico!;
     }
     return partiteStorico ?? [partitaStoricoDiTest()];
+  }
+
+  @override
+  Future<List<PartitaStorico>> getMiePartite() async
+  {
+    chiamateMie++;
+
+    if(erroreMie != null)
+    {
+      throw erroreMie!;
+    }
+    return partiteMie ?? [partitaStoricoDiTest()];
+  }
+
+  @override
+  Future<List<UtenteInvitabile>> getUtentiInvitabili(String cerca) async
+  {
+    chiamateUtentiInvitabili++;
+    cercaUtentiRicevuti.add(cerca);
+
+    if(erroreUtentiInvitabili != null)
+    {
+      throw erroreUtentiInvitabili!;
+    }
+    return utentiInvitabili ?? [utenteInvitabileDiTest(), utenteInvitabileDiTest(telefono: "3335550002", nome: "Anna", cognome: "Verdi", livello: 2.5)];
+  }
+
+  @override
+  Future<DettaglioPartita> cambiaTipoPartita(int idPartita, String tipo) async
+  {
+    chiamateCambiaTipo++;
+    idCambiaTipoRicevuto = idPartita;
+    tipoRicevuto = tipo;
+
+    if(attesaCambiaTipo != null)
+    {
+      return attesaCambiaTipo!.future;
+    }
+    if(erroreCambiaTipo != null)
+    {
+      throw erroreCambiaTipo!;
+    }
+    return rispostaCambiaTipo ?? dettaglioDiTest();
   }
 
   @override

@@ -176,21 +176,31 @@ void main()
     expect(find.byType(LoginPage), findsNothing);
   });
 
-  testWidgets("Mostra e Nascondi cambiano la visibilita della password", (tester) async
+  testWidgets("l'occhio mostra e nasconde la password", (tester) async
   {
     await apriPagina(tester);
 
     TextField password() => tester.widget<TextField>(find.byType(TextField).at(1));
 
     expect(password().obscureText, true);
+    expect(find.byIcon(Icons.visibility), findsOneWidget);
 
-    await tester.tap(find.text("Mostra"));
+    await tester.tap(find.byIcon(Icons.visibility));
     await tester.pump();
     expect(password().obscureText, false);
+    expect(find.byIcon(Icons.visibility_off), findsOneWidget);
 
-    await tester.tap(find.text("Nascondi"));
+    await tester.tap(find.byIcon(Icons.visibility_off));
     await tester.pump();
     expect(password().obscureText, true);
+  });
+
+  testWidgets("niente titolo Accedi: la parola resta solo nel bottone", (tester) async
+  {
+    await apriPagina(tester);
+
+    expect(find.text("Accedi"), findsOneWidget);
+    expect(find.widgetWithText(ElevatedButton, "Accedi"), findsOneWidget);
   });
 
   testWidgets("Registrati apre la registrazione", (tester) async

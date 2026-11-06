@@ -630,6 +630,172 @@ void main()
     });
   });
 
+  group("getMiePartite", ()
+  {
+    test("200 con lista: GET su /mie col token, partite nell'ordine del server", () async
+    {
+      final ds = creaDataSource(200, jsonEncode([partitaStoricoJson(7, null), partitaStoricoJson(8, null)]), richieste);
+
+      final partite = await ds.getMiePartite();
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "GET");
+      expect(richieste.first.url.toString(), "http://test/api/partite/mie");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+      expect(partite.map((p) => p.id).toList(), [7, 8]);
+      expect(partite[0], isA<PartitaStoricoModel>());
+      expect(partite[0].dataPartita, DateTime(2026, 11, 5));
+    });
+
+    test("200 con lista vuota (nessuna partita o admin): lista vuota", () async
+    {
+      final ds = creaDataSource(200, "[]", richieste);
+
+      expect(await ds.getMiePartite(), isEmpty);
+    });
+
+    test("errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore"), richieste);
+
+      await expectLater(ds.getMiePartite(), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("risposta senza body (401): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.getMiePartite(), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("getUtentiInvitabili", ()
+  {
+    test("200 con lista: GET su /api/utenti/invitabili col token, livello intero convertito in double", () async
+    {
+      final body = jsonEncode([
+        {"telefono": "3335550001", "nome": "Luca", "cognome": "Bianchi", "livello": 3},
+        {"telefono": "3335550002", "nome": "Anna", "cognome": "Verdi", "livello": 2.5},
+      ]);
+      final ds = creaDataSource(200, body, richieste);
+
+      final utenti = await ds.getUtentiInvitabili("");
+
+      expect(richieste.first.method, "GET");
+      expect(richieste.first.url.toString(), "http://test/api/utenti/invitabili?cerca=");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+      expect(utenti.length, 2);
+      expect(utenti[0], isA<UtenteInvitabileModel>());
+      expect(utenti[0].telefono, "3335550001");
+      expect(utenti[0].livello, 3.0);
+      expect(utenti[1].nome, "Anna");
+    });
+
+    test("cerca con spazi e caratteri speciali: viene codificato e il server lo riceve intatto", () async
+    {
+      final ds = creaDataSource(200, "[]", richieste);
+
+      await ds.getUtentiInvitabili("De Niccolò & co");
+
+      final url = richieste.first.url;
+      expect(url.path, "/api/utenti/invitabili");
+      expect(url.queryParameters.length, 1);
+      expect(url.queryParameters['cerca'], "De Niccolò & co");
+    });
+
+    test("errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore"), richieste);
+
+      await expectLater(ds.getUtentiInvitabili(""), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("risposta senza body (401): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.getUtentiInvitabili(""), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("cambiaTipoPartita", ()
+  {
+    test("200: PUT su /{id}/tipo col tipo nel body e il token, restituisce il dettaglio aggiornato", () async
+    {
+      final ds = creaDataSource(200, rispostaDettaglio(2.5), richieste);
+
+      final dettaglio = await ds.cambiaTipoPartita(7, "PRIVATA");
+
+      expect(richieste.length, 1);
+      expect(richieste.first.method, "PUT");
+      expect(richieste.first.url.toString(), "http://test/api/partite/7/tipo");
+      expect(richieste.first.headers['Authorization'], "Bearer token-finto");
+      expect(jsonDecode(richieste.first.body), {"tipo": "PRIVATA"});
+      expect(dettaglio, isA<DettaglioPartitaModel>());
+      expect(dettaglio.id, 7);
+    });
+
+    for(final status in [400, 403, 409])
+    {
+      test("$status: lancia OperazioneRifiutata col messaggio del server", () async
+      {
+        final ds = creaDataSource(status, erroreServer(status, "Messaggio $status"), richieste);
+
+        await expectLater(
+          ds.cambiaTipoPartita(7, "PUBBLICA"),
+          throwsA(isA<OperazioneRifiutata>().having((e) => e.messaggio, "messaggio", "Messaggio $status")),
+        );
+      });
+    }
+
+    test("404: lancia PartitaNonTrovata col messaggio del server", () async
+    {
+      final ds = creaDataSource(404, erroreServer(404, "Partita non trovata"), richieste);
+
+      await expectLater(
+        ds.cambiaTipoPartita(7, "PUBBLICA"),
+        throwsA(isA<PartitaNonTrovata>().having((e) => e.messaggio, "messaggio", "Partita non trovata")),
+      );
+    });
+
+    test("risposta senza body (401): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.cambiaTipoPartita(7, "PUBBLICA"), throwsA(isA<ErroreGenericoServer>()));
+    });
+
+    test("altro errore del server (500): lancia ErroreGenericoServer", () async
+    {
+      final ds = creaDataSource(500, erroreServer(500, "Errore"), richieste);
+
+      await expectLater(ds.cambiaTipoPartita(7, "PUBBLICA"), throwsA(isA<ErroreGenericoServer>()));
+    });
+  });
+
+  group("azioni del dettaglio", ()
+  {
+    test("puoCambiareTipo arriva dal server", () async
+    {
+      final json = jsonDecode(rispostaDettaglio(2.5)) as Map<String, dynamic>;
+      (json["azioni"] as Map<String, dynamic>)["puoCambiareTipo"] = true;
+      final ds = creaDataSource(200, jsonEncode(json), richieste);
+
+      final dettaglio = await ds.getDettaglioPartita(7);
+
+      expect(dettaglio.azioni.puoCambiareTipo, true);
+    });
+
+    test("senza puoCambiareTipo (server non aggiornato) vale false", () async
+    {
+      final ds = creaDataSource(200, rispostaDettaglio(2.5), richieste);
+
+      final dettaglio = await ds.getDettaglioPartita(7);
+
+      expect(dettaglio.azioni.puoCambiareTipo, false);
+    });
+  });
+
   group("getInvitabili", ()
   {
     test("200 con lista: restituisce gli utenti nell'ordine del server e chiama l'url giusto col token", () async

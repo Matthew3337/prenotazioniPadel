@@ -4,7 +4,6 @@ import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/storico/storicoBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
-import 'package:thepadel/domainLayer/enetity/partitaStorico.dart';
 import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 import 'package:thepadel/ui/dettaglioPartita.dart';
@@ -30,7 +29,7 @@ void main()
     repo = FakePartitaRepo();
     sl.registerFactory<StoricoBloc>(() => StoricoBloc(storicoUseCase: StoricoUseCase(repo: repo)));
     //serve per l'apertura del dettaglio dal tocco su una card
-    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo)));
+    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo), cambiaTipoUseCase: CambiaTipoUseCase(repo: repo)));
   });
 
   tearDown(() async
@@ -49,30 +48,23 @@ void main()
     await tester.pumpAndSettle();
   }
 
-  //una data nel futuro: la partita e ancora da giocare qualunque sia il giorno del test
-  DateTime giornoFuturo()
-  {
-    final oggi = DateTime.now();
-    return DateTime(oggi.year, oggi.month, oggi.day + 3);
-  }
-
   DateTime giornoPassato()
   {
     final oggi = DateTime.now();
     return DateTime(oggi.year, oggi.month, oggi.day - 3);
   }
 
-  testWidgets("mostra la riga con data, orario e campo; una partita da giocare e In programma", (tester) async
+  testWidgets("mostra la riga con data, orario e campo; nessuna partita e In programma", (tester) async
   {
-    final data = giornoFuturo();
-    repo.partiteStorico = [partitaStoricoDiTest(dataPartita: data)];
+    final data = giornoPassato();
+    repo.partiteStorico = [partitaStoricoDiTest(dataPartita: data, risultato: risultatoDiTest(), stato: "giocata")];
     await apriPagina(tester);
 
     expect(repo.chiamateStorico, 1);
     expect(find.text("Storico partite"), findsOneWidget);
     expect(find.text(conMaiuscola(dataEstesa(data))), findsOneWidget);
     expect(find.text("18:30 - 20:00 · Campo Centrale"), findsOneWidget);
-    expect(find.text("In programma"), findsOneWidget);
+    expect(find.text("In programma"), findsNothing);
     expect(find.text("Non hai ancora partite nello storico"), findsNothing);
     expect(find.textContaining("Manca il risultato"), findsNothing);
   });
@@ -99,29 +91,17 @@ void main()
     expect(find.widgetWithText(ElevatedButton, "Registra risultato"), findsOneWidget);
   });
 
-  testWidgets("confermata e gia finita: manca il risultato; confermata futura: In programma", (tester) async
+  testWidgets("confermata senza risultato: manca il risultato; creata senza risultato: niente da registrare", (tester) async
   {
     repo.partiteStorico = [
       partitaStoricoDiTest(id: 10, nomeCampo: "Campo Uno", stato: "confermata", dataPartita: giornoPassato()),
-      partitaStoricoDiTest(id: 11, nomeCampo: "Campo Due", stato: "confermata", dataPartita: giornoFuturo()),
+      partitaStoricoDiTest(id: 11, nomeCampo: "Campo Due", stato: "creata", dataPartita: giornoPassato()),
     ];
     await apriPagina(tester);
 
     expect(find.text("Senza risultato"), findsOneWidget);
-    expect(find.text("In programma"), findsOneWidget);
+    expect(find.text("In programma"), findsNothing);
     expect(find.textContaining("Manca il risultato"), findsOneWidget);
-  });
-
-  testWidgets("una partita che finisce dopo mezzanotte non e ancora finita il giorno stesso", (tester) async
-  {
-    final oggi = DateTime.now();
-    repo.partiteStorico = [
-      PartitaStorico(id: 10, idCampo: 3, nomeCampo: "Campo Centrale", dataPartita: DateTime(oggi.year, oggi.month, oggi.day), oraInizio: const TimeOfDay(hour: 23, minute: 59), oraFine: const TimeOfDay(hour: 0, minute: 1), stato: "confermata", tipo: "PUBBLICA", risultato: null),
-    ];
-    await apriPagina(tester);
-
-    expect(find.text("In programma"), findsOneWidget);
-    expect(find.text("Senza risultato"), findsNothing);
   });
 
   testWidgets("con piu partite senza risultato ne propone una sola", (tester) async
@@ -199,7 +179,7 @@ void main()
     expect(find.textContaining(" pt"), findsNothing);
   });
 
-  testWidgets("il titolo fa il bilancio delle partite con risultato", (tester) async
+  testWidgets("con partite con risultato il titolo resta Storico partite, senza bilancio", (tester) async
   {
     repo.partiteStorico = [
       partitaStoricoDiTest(id: 10, stato: "giocata", risultato: risultatoDiTest()),
@@ -208,17 +188,9 @@ void main()
     ];
     await apriPagina(tester);
 
-    expect(find.text("2 vinte, 1 persa"), findsOneWidget);
-    expect(find.text("Le tue ultime 3 partite con risultato"), findsOneWidget);
-  });
-
-  testWidgets("con una sola partita con risultato il sottotitolo e al singolare", (tester) async
-  {
-    repo.partiteStorico = [partitaStoricoDiTest(stato: "giocata", risultato: risultatoDiTest())];
-    await apriPagina(tester);
-
-    expect(find.text("1 vinta, 0 perse"), findsOneWidget);
-    expect(find.text("La tua ultima partita con risultato"), findsOneWidget);
+    expect(find.text("Storico partite"), findsOneWidget);
+    expect(find.text("2 vinte, 1 persa"), findsNothing);
+    expect(find.textContaining("partite con risultato"), findsNothing);
   });
 
   testWidgets("storico vuoto: mostra il messaggio e le due strade, nessuna riga", (tester) async

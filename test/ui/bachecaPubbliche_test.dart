@@ -38,7 +38,7 @@ void main()
       entraInPartitaUseCase: EntraInPartitaUseCase(repo: repo),
     ));
     //serve per la navigazione al dettaglio dopo un ingresso riuscito
-    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo)));
+    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo), cambiaTipoUseCase: CambiaTipoUseCase(repo: repo)));
   });
 
   tearDown(() async
@@ -63,7 +63,8 @@ void main()
 
     expect(repo.chiamatePubbliche, 1);
     //il titolo della pagina e la voce della barra
-    expect(find.text("Partite"), findsNWidgets(2));
+    //il titolo della pagina e la voce della barra si chiamano Bacheca; "Partite" e la voce delle mie partite
+    expect(find.text("Bacheca"), findsNWidgets(2));
     expect(find.text("1 aperta"), findsOneWidget);
     expect(find.text("Campo Centrale · ${giornoEMese(DateTime(2026, 11, 2))}, 18:30 - 20:00"), findsOneWidget);
     expect(find.text("2 posti liberi"), findsOneWidget);

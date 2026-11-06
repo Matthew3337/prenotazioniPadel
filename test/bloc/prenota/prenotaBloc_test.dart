@@ -9,7 +9,7 @@ import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
 import 'package:thepadel/useCase/prenotaUseCase.dart';
-import 'package:thepadel/useCase/storicoUseCase.dart';
+import 'package:thepadel/useCase/miePartiteUseCase.dart';
 
 import '../../fake/fakeCampoRepo.dart';
 import '../../fake/fakePartitaRepo.dart';
@@ -30,11 +30,11 @@ void main()
   {
     repoCampo = FakeCampoRepo();
     repoPartita = FakePartitaRepo();
-    repoPartita.partiteStorico = [];
+    repoPartita.partiteMie = [];
     bloc = PrenotaBloc(
       listaCampiUseCase: ListaCampiUseCase(repo: repoCampo),
       slotUseCase: SlotDisponibiliUseCase(repo: repoCampo),
-      storicoUseCase: StoricoUseCase(repo: repoPartita),
+      miePartiteUseCase: MiePartiteUseCase(repo: repoPartita),
     );
   });
 
@@ -43,11 +43,11 @@ void main()
     await bloc.close();
   });
 
-  test("lo stato iniziale e su oggi, con 7 giorni a mezzanotte e consecutivi", ()
+  test("lo stato iniziale e su oggi, con 16 giorni (oggi + 15) a mezzanotte e consecutivi", ()
   {
     expect(bloc.state, isA<PrenotaInitial>());
     expect(bloc.state.giorno, giornoDaOggi(0));
-    expect(bloc.state.giorni, [for(int i = 0; i < 7; i++) giornoDaOggi(i)]);
+    expect(bloc.state.giorni, [for(int i = 0; i <= 15; i++) giornoDaOggi(i)]);
   });
 
   group("caricamento", ()
@@ -102,7 +102,7 @@ void main()
 
     test("delle partite dell'utente restano solo quelle del giorno selezionato", () async
     {
-      repoPartita.partiteStorico = [
+      repoPartita.partiteMie = [
         partitaStoricoDiTest(id: 1, dataPartita: giornoDaOggi(0)),
         partitaStoricoDiTest(id: 2, dataPartita: giornoDaOggi(1)),
       ];
@@ -114,9 +114,9 @@ void main()
       expect(stato.partiteUtente.map((p) => p.id).toList(), [1]);
     });
 
-    test("se lo storico non arriva il tabellone si mostra lo stesso, senza partite dell'utente", () async
+    test("se le mie partite non arrivano il tabellone si mostra lo stesso, senza partite dell'utente", () async
     {
-      repoPartita.erroreStorico = ErroreGenericoServer();
+      repoPartita.erroreMie = ErroreGenericoServer();
       bloc.add(const PrenotaRichiesta());
 
       await expectLater(bloc.stream, emitsInOrder([
@@ -135,7 +135,7 @@ void main()
         isA<PrenotaErrore>()
           .having((s) => s.messaggio, "messaggio", ErroreGenericoServer().messaggio)
           .having((s) => s.giorno, "giorno", giornoDaOggi(0))
-          .having((s) => s.giorni.length, "giorni", 7),
+          .having((s) => s.giorni.length, "giorni", 16),
       ]));
     });
 
@@ -195,11 +195,32 @@ void main()
       await expectLater(bloc.stream, emits(isA<PrenotaLoading>().having((s) => s.giorno, "giorno", giornoDaOggi(1))));
     });
 
-    test("un giorno fuori dai 7 selezionabili torna a oggi", () async
+    test("un giorno fuori dai 16 selezionabili torna a oggi", () async
     {
       bloc.add(PrenotaGiornoCambiato(giorno: giornoDaOggi(-1)));
 
       await expectLater(bloc.stream, emits(isA<PrenotaLoading>().having((s) => s.giorno, "giorno", giornoDaOggi(0))));
+    });
+
+    test("oggi + 15 e l'ultimo giorno selezionabile, oggi + 16 torna a oggi", () async
+    {
+      bloc.add(PrenotaGiornoCambiato(giorno: giornoDaOggi(15)));
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<PrenotaLoading>().having((s) => s.giorno, "giorno", giornoDaOggi(15)),
+        isA<PrenotaCaricato>().having((s) => s.giorno, "giorno", giornoDaOggi(15)),
+      ]));
+
+      bloc.add(PrenotaGiornoCambiato(giorno: giornoDaOggi(16)));
+      await expectLater(bloc.stream, emits(isA<PrenotaLoading>().having((s) => s.giorno, "giorno", giornoDaOggi(0))));
+    });
+
+    test("le partite dell'utente arrivano da /mie e non dallo storico", () async
+    {
+      bloc.add(const PrenotaRichiesta());
+      await bloc.stream.firstWhere((s) => s is PrenotaCaricato);
+
+      expect(repoPartita.chiamateMie, 1);
+      expect(repoPartita.chiamateStorico, 0);
     });
 
     test("la risposta di un giorno non piu selezionato viene ignorata", () async

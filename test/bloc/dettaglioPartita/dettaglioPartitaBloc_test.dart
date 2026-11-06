@@ -5,6 +5,7 @@ import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaState.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
+import 'package:thepadel/useCase/eccezioniUseCase.dart';
 
 import '../../fake/fakePartitaRepo.dart';
 
@@ -26,7 +27,7 @@ void main()
   setUp(()
   {
     repo = FakePartitaRepo();
-    bloc = DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo));
+    bloc = DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo), cambiaTipoUseCase: CambiaTipoUseCase(repo: repo));
   });
 
   tearDown(() async
@@ -309,6 +310,86 @@ void main()
 
       expect(bloc.state, isA<DettaglioPartitaInitial>());
       expect(repo.chiamateConferma, 0);
+    });
+  });
+
+  group("cambio di visibilita", ()
+  {
+    Future<void> carica() async
+    {
+      bloc.add(const DettaglioPartitaRichiesto(idPartita: 10));
+      await expectLater(bloc.stream, emitsInOrder([isA<DettaglioPartitaLoading>(), isA<DettaglioPartitaCaricato>()]));
+    }
+
+    test("successo: OperazioneInCorso poi TipoCambiato col dettaglio del server, senza ricaricare", () async
+    {
+      await carica();
+      repo.rispostaCambiaTipo = dettaglioDiTest(tipo: "PRIVATA");
+
+      bloc.add(const CambiaTipoRichiesto(idPartita: 10, tipo: "PRIVATA"));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>().having((s) => s.dettaglio.tipo, "tipo", "PUBBLICA"),
+        isA<TipoCambiato>().having((s) => s.dettaglio.tipo, "tipo", "PRIVATA"),
+      ]));
+      expect(repo.chiamateCambiaTipo, 1);
+      expect(repo.idCambiaTipoRicevuto, 10);
+      expect(repo.tipoRicevuto, "PRIVATA");
+      expect(repo.chiamate, 1);
+      expect(bloc.dettaglio!.tipo, "PRIVATA");
+    });
+
+    test("tipo non valido: OperazioneErrore col messaggio di TipoPartitaMancante, senza chiamare il server, poi ricarica", () async
+    {
+      await carica();
+
+      bloc.add(const CambiaTipoRichiesto(idPartita: 10, tipo: "ALTRO"));
+
+      await expectLater(bloc.stream, emitsInOrder([
+        isA<OperazioneInCorso>(),
+        operazioneErroreCon(TipoPartitaMancante().message),
+        isA<DettaglioPartitaCaricato>(),
+      ]));
+      expect(repo.chiamateCambiaTipo, 0);
+    });
+
+    final errori = <String, Exception>{
+      "403/409 OperazioneRifiutata": OperazioneRifiutata(messaggio: "Solo il creatore può modificare la visibilità"),
+      "404 PartitaNonTrovata": PartitaNonTrovata(messaggio: "Partita non trovata"),
+      "ErroreGenericoServer": ErroreGenericoServer(),
+      "timeout": Exception("timeout"),
+    };
+    final messaggi = <String, String>{
+      "403/409 OperazioneRifiutata": "Solo il creatore può modificare la visibilità",
+      "404 PartitaNonTrovata": "Partita non trovata",
+      "ErroreGenericoServer": ErroreGenericoServer().messaggio,
+      "timeout": ErroreGenericoServer().messaggio,
+    };
+    for(final caso in errori.entries)
+    {
+      test("${caso.key}: OperazioneErrore col messaggio giusto, poi Caricato senza Loading", () async
+      {
+        await carica();
+        repo.erroreCambiaTipo = caso.value;
+
+        bloc.add(const CambiaTipoRichiesto(idPartita: 10, tipo: "PRIVATA"));
+
+        await expectLater(bloc.stream, emitsInOrder([
+          isA<OperazioneInCorso>(),
+          operazioneErroreCon(messaggi[caso.key]!),
+          isA<DettaglioPartitaCaricato>(),
+        ]));
+        expect(repo.chiamate, 2);
+      });
+    }
+
+    test("senza un dettaglio caricato l'evento viene ignorato", () async
+    {
+      bloc.add(const CambiaTipoRichiesto(idPartita: 10, tipo: "PRIVATA"));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bloc.state, isA<DettaglioPartitaInitial>());
+      expect(repo.chiamateCambiaTipo, 0);
     });
   });
 

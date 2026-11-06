@@ -15,11 +15,9 @@ Future<void> caricaFontDellApp() async
   sourceSans.addFont(rootBundle.load('assets/fonts/SourceSans3-Bold.ttf'));
   await sourceSans.load();
 
-  final bitter = FontLoader('Bitter');
-  bitter.addFont(rootBundle.load('assets/fonts/Bitter-Medium.ttf'));
-  bitter.addFont(rootBundle.load('assets/fonts/Bitter-SemiBold.ttf'));
-  bitter.addFont(rootBundle.load('assets/fonts/Bitter-Bold.ttf'));
-  await bitter.load();
+  final roboto = FontLoader('Roboto');
+  roboto.addFont(rootBundle.load('assets/fonts/Roboto-Variable.ttf'));
+  await roboto.load();
 }
 
 //lo stesso tema di main.dart

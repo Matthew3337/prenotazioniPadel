@@ -103,4 +103,28 @@ void main()
       expect(slots.map((s) => "${s.nomeCampo} ${s.oraInizio}").toList(), ["Uno 22:00:00", "Uno 00:30:00", "Due 20:00:00"]);
     });
   });
+
+  group("CreaPartitaUseCase invitati", ()
+  {
+    test("senza invitati al repository arriva una lista vuota", () async
+    {
+      await useCase.call(slotDiTest(), DateTime(2026, 11, 2), "PUBBLICA");
+
+      expect(repo.invitatiRicevuti, isEmpty);
+    });
+
+    test("fino a 3 invitati arrivano al repository nell'ordine scelto", () async
+    {
+      await useCase.call(slotDiTest(), DateTime(2026, 11, 2), "PRIVATA", invitati: ["1", "2", "3"]);
+
+      expect(repo.invitatiRicevuti, ["1", "2", "3"]);
+    });
+
+    test("4 invitati lanciano TroppiInvitati senza chiamare il repository", ()
+    {
+      expect(() => useCase.call(slotDiTest(), DateTime(2026, 11, 2), "PRIVATA", invitati: ["1", "2", "3", "4"]), throwsA(isA<TroppiInvitati>()));
+      expect(repo.chiamate, 0);
+      expect(TroppiInvitati().message, "Puoi invitare al massimo 3 giocatori");
+    });
+  });
 }

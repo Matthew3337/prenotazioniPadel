@@ -4,6 +4,7 @@ import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/ui/creaPartita.dart';
 import 'package:thepadel/ui/dettaglioPartita.dart';
+import 'package:thepadel/ui/home.dart';
 import 'package:thepadel/ui/prenota.dart';
 import 'package:thepadel/ui/stileApp.dart';
 
@@ -34,7 +35,7 @@ void main()
     await registraPreferenzeDiTest();
     repoCampo = FakeCampoRepo();
     repoPartita = FakePartitaRepo();
-    repoPartita.partiteStorico = [];
+    repoPartita.partiteMie = [];
     repoPrenotazione = FakePrenotazioneRepo();
     registraBlocDiTest(repoPartita: repoPartita, repoCampo: repoCampo, repoPrenotazione: repoPrenotazione, repoUtente: FakeUtenteRepo());
   });
@@ -60,18 +61,33 @@ void main()
     return find.byWidgetPredicate((widget) => widget is Semantics && widget.properties.label == dataEstesa(giorno));
   }
 
-  testWidgets("senza giorno iniziale apre oggi e mostra i 7 giorni selezionabili", (tester) async
+  testWidgets("senza giorno iniziale apre oggi e mostra i 16 giorni selezionabili, senza sottotitolo", (tester) async
   {
     repoCampo.slots = [];
     await apriPagina(tester);
 
     expect(find.text("Prenota un campo"), findsOneWidget);
     expect(repoCampo.dateRicevute, [oggi]);
-    for(int i = 0; i < 7; i++)
+    for(int i = 0; i <= 15; i++)
     {
-      final giorno = DateTime(oggi.year, oggi.month, oggi.day + i);
-      expect(find.text("${giorno.day}"), findsWidgets);
+      expect(casellaGiorno(DateTime(oggi.year, oggi.month, oggi.day + i)), findsOneWidget);
     }
+    expect(casellaGiorno(DateTime(oggi.year, oggi.month, oggi.day + 16)), findsNothing);
+    expect(find.textContaining("slot liber"), findsNothing);
+  });
+
+  testWidgets("la barra dei 16 giorni scorre di lato e non va in overflow a 320 px", (tester) async
+  {
+    await apriPagina(tester, schermo: const Size(320, 568));
+    final ultimo = DateTime(oggi.year, oggi.month, oggi.day + 15);
+
+    expect(tester.takeException(), isNull);
+    await tester.ensureVisible(casellaGiorno(ultimo));
+    await tester.pumpAndSettle();
+    await tester.tap(casellaGiorno(ultimo));
+    await tester.pumpAndSettle();
+
+    expect(repoCampo.dateRicevute.last, ultimo);
   });
 
   testWidgets("con il giorno iniziale apre quel giorno", (tester) async
@@ -79,7 +95,7 @@ void main()
     await apriPagina(tester, giorno: domani);
 
     expect(repoCampo.dateRicevute, [domani]);
-    expect(find.text("${conMaiuscola(dataEstesa(domani))} · 1 slot libero"), findsOneWidget);
+    expect(find.text("Libero"), findsOneWidget);
   });
 
   testWidgets("toccare un giorno carica quel giorno", (tester) async
@@ -91,7 +107,7 @@ void main()
     await tester.pumpAndSettle();
 
     expect(repoCampo.dateRicevute.last, dopodomani);
-    expect(find.text("${conMaiuscola(dataEstesa(dopodomani))} · 1 slot libero"), findsOneWidget);
+    expect(find.text("Libero"), findsOneWidget);
   });
 
   group("tabellone", ()
@@ -114,7 +130,8 @@ void main()
       expect(find.text("19:30"), findsOneWidget);
       expect(find.text("Libero"), findsNWidgets(2));
       expect(find.text("Occupato"), findsOneWidget);
-      expect(find.text("${conMaiuscola(dataEstesa(domani))} · 2 slot liberi"), findsOneWidget);
+      //gli occupati sono rossi
+      expect(tester.widget<Text>(find.text("Occupato")).style!.color, Colori.rosso);
     });
 
     testWidgets("gli orari dopo mezzanotte stanno in fondo", (tester) async
@@ -135,19 +152,30 @@ void main()
       expect(find.text("Libero"), findsOneWidget);
     });
 
-    testWidgets("uno slot gia iniziato e Passato e non si puo scegliere, anche se il server lo da per libero", (tester) async
+    testWidgets("uno slot gia iniziato non viene costruito, anche se il server lo da per libero", (tester) async
     {
       repoCampo.campi = [campoDiTest(oraApertura: const TimeOfDay(hour: 0, minute: 0))];
       repoCampo.slots = [slotCampoDiTest(oraInizio: "00:00:00", oraFine: "01:00:00")];
       await apriPagina(tester);
 
-      expect(find.text("Passato"), findsOneWidget);
+      expect(find.text("Passato"), findsNothing);
+      expect(find.text("00:00"), findsNothing);
       expect(find.text("Libero"), findsNothing);
-      expect(find.text("${conMaiuscola(dataEstesa(oggi))} · 0 slot liberi"), findsOneWidget);
+      expect(find.text("Nessun orario disponibile per questo giorno."), findsOneWidget);
+    });
 
-      await tester.tap(find.text("Passato"));
-      await tester.pump();
-      expect(find.text("Continua"), findsNothing);
+    testWidgets("le righe partono dal primo slot non ancora iniziato, anche se occupato", (tester) async
+    {
+      repoCampo.campi = [campoDiTest(oraApertura: const TimeOfDay(hour: 0, minute: 0))];
+      repoCampo.slots = [
+        slotCampoDiTest(oraInizio: "00:00:00", oraFine: "01:00:00"),
+        slotCampoDiTest(oraInizio: "23:59:00", oraFine: "01:00:00", disponibile: false),
+      ];
+      await apriPagina(tester);
+
+      expect(find.text("00:00"), findsNothing);
+      expect(find.text("23:59"), findsOneWidget);
+      expect(find.text("Occupato"), findsOneWidget);
     });
 
     testWidgets("nessun orario per quel giorno: lo dice", (tester) async
@@ -156,7 +184,6 @@ void main()
       await apriPagina(tester, giorno: domani);
 
       expect(find.text("Nessun orario disponibile per questo giorno."), findsOneWidget);
-      expect(find.text("${conMaiuscola(dataEstesa(domani))} · 0 slot liberi"), findsOneWidget);
     });
 
     testWidgets("con tanti campi il tabellone scorre e non va in overflow", (tester) async
@@ -171,12 +198,11 @@ void main()
 
     testWidgets("la propria partita e La tua partita, non conta tra i liberi e apre il dettaglio", (tester) async
     {
-      repoPartita.partiteStorico = [partitaStoricoDiTest(id: 77, dataPartita: domani)];
+      repoPartita.partiteMie = [partitaStoricoDiTest(id: 77, dataPartita: domani)];
       await apriPagina(tester, giorno: domani);
 
       expect(find.text("La tua partita"), findsOneWidget);
       expect(find.text("Libero"), findsNothing);
-      expect(find.text("${conMaiuscola(dataEstesa(domani))} · 0 slot liberi"), findsOneWidget);
 
       await tester.tap(find.text("La tua partita"));
       await tester.pumpAndSettle();
@@ -195,7 +221,7 @@ void main()
 
     testWidgets("una propria partita in un altro giorno non si vede", (tester) async
     {
-      repoPartita.partiteStorico = [partitaStoricoDiTest(dataPartita: oggi)];
+      repoPartita.partiteMie = [partitaStoricoDiTest(dataPartita: oggi)];
       await apriPagina(tester, giorno: domani);
 
       expect(find.text("La tua partita"), findsNothing);
@@ -277,7 +303,7 @@ void main()
       expect(repoCampo.chiamateSlot, chiamatePrima);
     });
 
-    testWidgets("partita creata: apre il suo dettaglio e il tabellone si ricarica senza scelta", (tester) async
+    testWidgets("partita creata: si torna in home e non si apre il dettaglio", (tester) async
     {
       await apriPagina(tester, giorno: domani);
       await tester.tap(find.text("Libero"));
@@ -286,21 +312,20 @@ void main()
       await tester.pumpAndSettle();
 
       await tester.tap(find.text("Partita pubblica"));
-      await tester.pump();
+      //Prenota il campo si accende solo a transizione finita
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
       await tester.tap(find.text("Prenota il campo"));
       await tester.pumpAndSettle();
 
       expect(repoPrenotazione.chiamate, 1);
       expect(repoPrenotazione.dataRicevuta, domani);
-      expect(find.byType(DettaglioPartitaPage), findsOneWidget);
-      expect(repoPartita.idRicevuto, 10);
-
+      expect(find.byType(HomePage), findsOneWidget);
+      expect(find.byType(DettaglioPartitaPage), findsNothing);
+      expect(find.byType(PrenotaPage), findsNothing);
+      //la home non si puo chiudere tornando alla prenotazione
       final NavigatorState navigator = tester.state(find.byType(Navigator));
-      navigator.pop();
-      await tester.pumpAndSettle();
-
-      expect(find.byType(PrenotaPage), findsOneWidget);
-      expect(find.text("Continua"), findsNothing);
+      expect(navigator.canPop(), false);
     });
   });
 
@@ -324,9 +349,9 @@ void main()
       expect(repoCampo.dateRicevute.last, domani);
     });
 
-    testWidgets("se lo storico non arriva il tabellone si vede lo stesso", (tester) async
+    testWidgets("se le mie partite non arrivano il tabellone si vede lo stesso", (tester) async
     {
-      repoPartita.erroreStorico = ErroreGenericoServer();
+      repoPartita.erroreMie = ErroreGenericoServer();
       await apriPagina(tester, giorno: domani);
 
       expect(find.text("Libero"), findsOneWidget);

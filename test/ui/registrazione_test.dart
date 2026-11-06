@@ -67,7 +67,7 @@ void main()
 
   Future<void> scegliData(WidgetTester tester) async
   {
-    await tester.tap(find.text("gg/mm/aaaa"));
+    await tester.tap(find.text("Data di nascita").first);
     await tester.pumpAndSettle();
     await tester.tap(find.text("OK"));
     await tester.pumpAndSettle();
@@ -88,8 +88,9 @@ void main()
     expect(find.text("Crea il tuo account"), findsOneWidget);
     expect(find.text("Nome"), findsOneWidget);
     expect(find.text("Cognome"), findsOneWidget);
-    expect(find.text("Data di nascita"), findsOneWidget);
-    expect(find.text("gg/mm/aaaa"), findsOneWidget);
+    //il nome del campo data compare due volte: come hint del decoratore e come testo segnaposto
+    expect(find.text("Data di nascita"), findsWidgets);
+    expect(find.text("Accederai con il numero di telefono."), findsNothing);
     expect(find.text("Telefono"), findsOneWidget);
     expect(find.text("Password"), findsOneWidget);
     expect(find.byType(RiquadroMessaggio), findsNothing);
