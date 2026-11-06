@@ -45,8 +45,18 @@ class PartitaRepoImpl implements PartitaRepo {
   }
 
   @override
+  Future<List<PartitaStorico>> getMiePartite() {
+    return dsPartita.getMiePartite();
+  }
+
+  @override
   Future<List<UtenteInvitabile>> getInvitabili(int idPartita, String cerca) {
     return dsPartita.getInvitabili(idPartita, cerca);
+  }
+
+  @override
+  Future<List<UtenteInvitabile>> getUtentiInvitabili(String cerca) {
+    return dsPartita.getUtentiInvitabili(cerca);
   }
 
   @override
@@ -93,6 +103,11 @@ class PartitaRepoImpl implements PartitaRepo {
   @override
   Future<DettaglioPartita> confermaPartita(int idPartita) {
     return dsPartita.confermaPartita(idPartita);
+  }
+
+  @override
+  Future<DettaglioPartita> cambiaTipoPartita(int idPartita, String tipo) {
+    return dsPartita.cambiaTipoPartita(idPartita, tipo);
   }
 
   @override

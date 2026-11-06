@@ -4,5 +4,5 @@ abstract class PrenotazioneRepo {
 
   Future<Prenotazione?> getProssimaPartita();
 
-  Future<Prenotazione> creaPartita(int idCampo, DateTime data, String oraInizio, String tipo);
+  Future<Prenotazione> creaPartita(int idCampo, DateTime data, String oraInizio, String tipo, {List<String> invitati = const []});
 }

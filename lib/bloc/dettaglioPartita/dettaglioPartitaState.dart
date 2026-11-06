@@ -15,7 +15,7 @@ class DettaglioPartitaErrore extends DettaglioPartitaState {
   DettaglioPartitaErrore({required this.messaggio});
 }
 
-//gli stati di elimina, esci e conferma si portano dietro il dettaglio, cosi la pagina puo continuare a mostrarlo
+//gli stati di elimina, esci, conferma e cambio di visibilita si portano dietro il dettaglio, cosi la pagina puo continuare a mostrarlo
 class OperazioneInCorso extends DettaglioPartitaState {
   final DettaglioPartita dettaglio;
   OperazioneInCorso({required this.dettaglio});
@@ -29,6 +29,12 @@ class UscitaCompletata extends DettaglioPartitaState {}
 class PartecipazioneConfermata extends DettaglioPartitaState {
   final DettaglioPartita dettaglio;
   PartecipazioneConfermata({required this.dettaglio});
+}
+
+//anche dopo il cambio di visibilita si resta sulla pagina, con il dettaglio aggiornato arrivato dal server
+class TipoCambiato extends DettaglioPartitaState {
+  final DettaglioPartita dettaglio;
+  TipoCambiato({required this.dettaglio});
 }
 
 class OperazioneErrore extends DettaglioPartitaState {

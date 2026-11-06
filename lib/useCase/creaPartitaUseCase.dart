@@ -10,14 +10,19 @@ class CreaPartitaUseCase {
 
   CreaPartitaUseCase({required this.repo});
 
-  //lo slot da solo non sa in che giorno si trova, per questo la data va passata a parte
-  Future<Prenotazione> call(SlotOrario slot, DateTime data, String tipo)
+  //lo slot da solo non sa in che giorno si trova, per questo la data va passata a parte.
+  //invitati e facoltativo: sono i telefoni scelti prima di prenotare, al massimo 3 perche il quarto posto e del creatore
+  Future<Prenotazione> call(SlotOrario slot, DateTime data, String tipo, {List<String> invitati = const []})
   {
     if(tipo != "PUBBLICA" && tipo != "PRIVATA")
     {
       throw TipoPartitaMancante();
     }
-    return repo.creaPartita(slot.idCampo, data, slot.oraInizio, tipo);
+    if(invitati.length > 3)
+    {
+      throw TroppiInvitati();
+    }
+    return repo.creaPartita(slot.idCampo, data, slot.oraInizio, tipo, invitati: invitati);
   }
 }
 

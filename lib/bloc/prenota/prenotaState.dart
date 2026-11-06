@@ -5,7 +5,7 @@ import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 //tutti gli stati sanno quale giorno e selezionato, cosi la barra dei giorni resta a schermo anche durante il caricamento e in errore
 abstract class PrenotaState {
   final DateTime giorno; //a mezzanotte, e sempre uno di giorni
-  final List<DateTime> giorni; //i 7 giorni selezionabili, a partire da oggi
+  final List<DateTime> giorni; //i giorni selezionabili, da oggi a oggi + 15 compreso
   PrenotaState({required this.giorno, required this.giorni});
 }
 
@@ -20,7 +20,7 @@ class PrenotaLoading extends PrenotaState {
 class PrenotaCaricato extends PrenotaState {
   final List<Campo> campi;
   final Map<int, List<SlotOrario>> slotPerCampo; //la chiave e l'id del campo, gli slot sono in ordine di orario
-  final List<PartitaStorico> partiteUtente; //le partite dell'utente nel giorno selezionato, vuota anche se lo storico non e arrivato
+  final List<PartitaStorico> partiteUtente; //le partite dell'utente nel giorno selezionato, vuota anche se le mie partite non sono arrivate
 
   PrenotaCaricato({required super.giorno, required super.giorni, required this.campi, required this.slotPerCampo, required this.partiteUtente});
 

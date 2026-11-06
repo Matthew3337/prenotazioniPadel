@@ -6,6 +6,7 @@ import 'package:thepadel/bloc/autenticazione/authBloc.dart';
 import 'package:thepadel/bloc/bachecaAvvisi/bachecaAvvisiBloc.dart';
 import 'package:thepadel/bloc/bachecaInviti/bachecaInvitiBloc.dart';
 import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheBloc.dart';
+import 'package:thepadel/bloc/cercaInvitati/cercaInvitatiBloc.dart';
 import 'package:thepadel/bloc/classifica/classificaBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioAdmin/dettaglioAdminBloc.dart';
@@ -15,6 +16,7 @@ import 'package:thepadel/bloc/gestioneLivelli/gestioneLivelliBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
 import 'package:thepadel/bloc/livelloCampo/livelloCampoBloc.dart';
+import 'package:thepadel/bloc/miePartite/miePartiteBloc.dart';
 import 'package:thepadel/bloc/nuovaPartitaAdmin/nuovaPartitaAdminBloc.dart';
 import 'package:thepadel/bloc/partiteGiorno/partiteGiornoBloc.dart';
 import 'package:thepadel/bloc/prenota/prenotaBloc.dart';
@@ -41,6 +43,7 @@ import 'package:thepadel/useCase/creaPartitaUseCase.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
 import 'package:thepadel/useCase/invitaUtentiUseCase.dart';
+import 'package:thepadel/useCase/miePartiteUseCase.dart';
 import 'package:thepadel/useCase/prenotaUseCase.dart';
 import 'package:thepadel/useCase/registraRisultatoUseCase.dart';
 import 'package:thepadel/useCase/storicoUseCase.dart';
@@ -107,7 +110,9 @@ void init()
 
   sl.registerLazySingleton<ConfermaPartitaUseCase>(() => ConfermaPartitaUseCase(repo: sl()));
 
-  sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: sl(), eliminaPartitaUseCase: sl(), esciDaPartitaUseCase: sl(), confermaPartitaUseCase: sl()));
+  sl.registerLazySingleton<CambiaTipoUseCase>(() => CambiaTipoUseCase(repo: sl()));
+
+  sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: sl(), eliminaPartitaUseCase: sl(), esciDaPartitaUseCase: sl(), confermaPartitaUseCase: sl(), cambiaTipoUseCase: sl()));
 
   sl.registerLazySingleton<PartitePubblicheUseCase>(() => PartitePubblicheUseCase(repo: sl()));
 
@@ -119,11 +124,19 @@ void init()
 
   sl.registerFactory<StoricoBloc>(() => StoricoBloc(storicoUseCase: sl()));
 
+  sl.registerLazySingleton<MiePartiteUseCase>(() => MiePartiteUseCase(repo: sl()));
+
+  sl.registerFactory<MiePartiteBloc>(() => MiePartiteBloc(miePartiteUseCase: sl()));
+
   sl.registerLazySingleton<InvitabiliUseCase>(() => InvitabiliUseCase(repo: sl()));
 
   sl.registerLazySingleton<InvitaUtenteUseCase>(() => InvitaUtenteUseCase(repo: sl()));
 
   sl.registerFactory<InvitaUtentiBloc>(() => InvitaUtentiBloc(invitabiliUseCase: sl(), invitaUtenteUseCase: sl(), dettaglioPartitaUseCase: sl()));
+
+  sl.registerLazySingleton<UtentiInvitabiliUseCase>(() => UtentiInvitabiliUseCase(repo: sl()));
+
+  sl.registerFactory<CercaInvitatiBloc>(() => CercaInvitatiBloc(utentiInvitabiliUseCase: sl()));
 
   sl.registerLazySingleton<BachecaInvitiUseCase>(() => BachecaInvitiUseCase(repo: sl()));
 
@@ -185,5 +198,5 @@ void init()
 
   sl.registerLazySingleton<ListaCampiUseCase>(() => ListaCampiUseCase(repo: sl()));
 
-  sl.registerFactory<PrenotaBloc>(() => PrenotaBloc(listaCampiUseCase: sl(), slotUseCase: sl(), storicoUseCase: sl()));
+  sl.registerFactory<PrenotaBloc>(() => PrenotaBloc(listaCampiUseCase: sl(), slotUseCase: sl(), miePartiteUseCase: sl()));
 }

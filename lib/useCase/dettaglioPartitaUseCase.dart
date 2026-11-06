@@ -1,5 +1,6 @@
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/repositoryImpl/partitaRepoImpl.dart';
+import 'package:thepadel/useCase/eccezioniUseCase.dart';
 
 class DettaglioPartitaUseCase {
 
@@ -46,5 +47,21 @@ class ConfermaPartitaUseCase {
   Future<DettaglioPartita> call(int idPartita)
   {
     return repo.confermaPartita(idPartita);
+  }
+}
+
+class CambiaTipoUseCase {
+
+  final PartitaRepoImpl repo;
+
+  CambiaTipoUseCase({required this.repo});
+
+  Future<DettaglioPartita> call(int idPartita, String tipo)
+  {
+    if(tipo != "PUBBLICA" && tipo != "PRIVATA")
+    {
+      throw TipoPartitaMancante();
+    }
+    return repo.cambiaTipoPartita(idPartita, tipo);
   }
 }

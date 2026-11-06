@@ -5,6 +5,7 @@ import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaState.dart';
 import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
+import 'package:thepadel/useCase/eccezioniUseCase.dart';
 
 class DettaglioPartitaBloc extends Bloc<DettaglioPartitaEvent, DettaglioPartitaState>{
   //attributi
@@ -12,16 +13,18 @@ class DettaglioPartitaBloc extends Bloc<DettaglioPartitaEvent, DettaglioPartitaS
   final EliminaPartitaUseCase eliminaPartitaUseCase;
   final EsciDaPartitaUseCase esciDaPartitaUseCase;
   final ConfermaPartitaUseCase confermaPartitaUseCase;
+  final CambiaTipoUseCase cambiaTipoUseCase;
 
-  //l'ultimo dettaglio caricato, serve agli stati di elimina, esci e conferma per non far sparire la pagina
+  //l'ultimo dettaglio caricato, serve agli stati di elimina, esci, conferma e cambio di visibilita per non far sparire la pagina
   DettaglioPartita? dettaglio;
 
   //metodi
-  DettaglioPartitaBloc({required this.dettaglioPartitaUseCase, required this.eliminaPartitaUseCase, required this.esciDaPartitaUseCase, required this.confermaPartitaUseCase}) : super(DettaglioPartitaInitial()) {
+  DettaglioPartitaBloc({required this.dettaglioPartitaUseCase, required this.eliminaPartitaUseCase, required this.esciDaPartitaUseCase, required this.confermaPartitaUseCase, required this.cambiaTipoUseCase}) : super(DettaglioPartitaInitial()) {
     on<DettaglioPartitaRichiesto>(_onDettaglioPartitaRichiesto);
     on<EliminaPartitaRichiesta>(_onEliminaPartitaRichiesta);
     on<EsciDaPartitaRichiesta>(_onEsciDaPartitaRichiesta);
     on<ConfermaPartitaRichiesta>(_onConfermaPartitaRichiesta);
+    on<CambiaTipoRichiesto>(_onCambiaTipoRichiesto);
   }
 
   Future<void> _onDettaglioPartitaRichiesto(DettaglioPartitaRichiesto evento, Emitter<DettaglioPartitaState> emit) async
@@ -141,6 +144,48 @@ class DettaglioPartitaBloc extends Bloc<DettaglioPartitaEvent, DettaglioPartitaS
     }
 
     //come per elimina ed esci, ricarico il dettaglio aggiornato senza passare dal Loading
+    await _caricaDettaglio(evento.idPartita, emit);
+  }
+
+  Future<void> _onCambiaTipoRichiesto(CambiaTipoRichiesto evento, Emitter<DettaglioPartitaState> emit) async
+  {
+    final dettaglioAttuale = dettaglio;
+    if(dettaglioAttuale == null)
+    {
+      return;
+    }
+
+    emit(OperazioneInCorso(dettaglio: dettaglioAttuale));
+
+    try
+    {
+      //come per la conferma, il server risponde con il dettaglio aggiornato e lo tengo per le prossime operazioni
+      dettaglio = await cambiaTipoUseCase.call(evento.idPartita, evento.tipo);
+      emit(TipoCambiato(dettaglio: dettaglio!));
+      return;
+    }
+    on TipoPartitaMancante catch (e)
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.message));
+    }
+    on PartitaNonTrovata catch (e)
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on OperazioneRifiutata catch (e)
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on ErroreGenericoServer catch (e)
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: e.messaggio));
+    }
+    on Exception
+    {
+      emit(OperazioneErrore(dettaglio: dettaglioAttuale, messaggio: ErroreGenericoServer().messaggio));
+    }
+
+    //come per le altre operazioni, ricarico il dettaglio aggiornato senza passare dal Loading
     await _caricaDettaglio(evento.idPartita, emit);
   }
 
