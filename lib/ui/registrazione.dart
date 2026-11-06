@@ -161,12 +161,7 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text('Crea il tuo account', style: stileTitolo(r)),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Accederai con il numero di telefono.',
-                            style: stileSecondario(r),
-                          ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 16),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -229,6 +224,7 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
                             testo: isLoading ? 'Attendi…' : 'Registrati',
                             altezza: 52,
                             baseFont: 16,
+                            sfondo: Colori.bluAcceso,
                             onPressed:
                                 isLoading
                                     ? null
@@ -294,8 +290,16 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
     );
   }
 
-  InputDecoration _decorazione(bool inErrore, bool isLoading) {
+  // il nome del campo sta dentro il campo stesso, in grigio
+  InputDecoration _decorazione(
+    Responsive r,
+    String suggerimento,
+    bool inErrore,
+    bool isLoading,
+  ) {
     return InputDecoration(
+      hintText: suggerimento,
+      hintStyle: stileTesto(r, base: 16, colore: Colori.grigio),
       filled: true,
       fillColor: isLoading ? Colori.sfondo : Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
@@ -320,8 +324,6 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(etichetta, style: stileTesto(r, peso: FontWeight.w600)),
-        const SizedBox(height: 4),
         TextField(
           controller: controller,
           enabled: !isLoading,
@@ -329,7 +331,7 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
           obscureText: nascosto,
           autofillHints: [suggerimento],
           style: stileTesto(r, base: 16),
-          decoration: _decorazione(errore != null, isLoading),
+          decoration: _decorazione(r, etichetta, errore != null, isLoading),
         ),
         if (errore != null) _testoErrore(r, errore),
       ],
@@ -364,8 +366,6 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Data di nascita', style: stileTesto(r, peso: FontWeight.w600)),
-        const SizedBox(height: 4),
         InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap:
@@ -376,12 +376,19 @@ class _RegistrazioneFormState extends State<_RegistrazioneForm> {
                   },
           child: InputDecorator(
             isEmpty: false,
-            decoration: _decorazione(errore != null, isLoading),
+            decoration: _decorazione(
+              r,
+              'Data di nascita',
+              errore != null,
+              isLoading,
+            ),
+            // finche' non si sceglie una data si vede il nome del campo, in
+            // grigio come negli altri
             child: Text(
-              data == null ? 'gg/mm/aaaa' : _formattaData(data),
+              data == null ? 'Data di nascita' : _formattaData(data),
               style:
                   data == null
-                      ? stileSecondario(r, base: 16)
+                      ? stileTesto(r, base: 16, colore: Colori.grigio)
                       : stileTesto(r, base: 16),
             ),
           ),

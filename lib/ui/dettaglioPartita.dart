@@ -79,6 +79,13 @@ class _DettaglioPartitaView extends StatelessWidget {
                         mostraSnackBar(context, 'Partecipazione confermata');
                       }
                     }
+                    if (state is TipoCambiato) {
+                      if (state.dettaglio.tipo == 'PUBBLICA') {
+                        mostraSnackBar(context, 'La partita ora è pubblica');
+                      } else {
+                        mostraSnackBar(context, 'La partita ora è privata');
+                      }
+                    }
                     if (state is OperazioneErrore) {
                       mostraSnackBar(context, state.messaggio);
                     }
@@ -91,6 +98,9 @@ class _DettaglioPartitaView extends StatelessWidget {
                       return _buildContenuto(context, r, state.dettaglio, false);
                     }
                     if (state is PartecipazioneConfermata) {
+                      return _buildContenuto(context, r, state.dettaglio, false);
+                    }
+                    if (state is TipoCambiato) {
                       return _buildContenuto(context, r, state.dettaglio, false);
                     }
                     if (state is OperazioneErrore) {
@@ -287,18 +297,25 @@ class _DettaglioPartitaView extends StatelessWidget {
     if (dettaglio.stato == 'giocata') {
       return 'Partita giocata';
     }
-    final String giorno = conMaiuscola(giornoRelativo(dettaglio.dataPartita));
-    return '$giorno alle ${formattaOra(dettaglio.oraInizio)}';
+    return '${conMaiuscola(dataEstesa(dettaglio.dataPartita))}, '
+        '${_orario(dettaglio)}, ${dettaglio.nomeCampo}';
   }
 
-  String _sottotitolo(DettaglioPartita dettaglio) {
-    final String orario =
-        '${formattaOra(dettaglio.oraInizio)} - ${formattaOra(dettaglio.oraFine)}';
-    if (dettaglio.stato == 'giocata') {
+  String _orario(DettaglioPartita dettaglio) {
+    return '${formattaOra(dettaglio.oraInizio)} - ${formattaOra(dettaglio.oraFine)}';
+  }
+
+  // la data sotto il titolo resta solo quando il titolo parla del risultato;
+  // altrimenti la data e' gia' nel titolo
+  String? _sottotitolo(DettaglioPartita dettaglio) {
+    final RisultatoPartita? risultato = dettaglio.risultato;
+    final bool titoloDelRisultato =
+        risultato != null && risultato.esito != null;
+    if (dettaglio.stato == 'giocata' || titoloDelRisultato) {
       return '${conMaiuscola(dataEstesa(dettaglio.dataPartita))}, '
-          '$orario · ${dettaglio.nomeCampo}';
+          '${_orario(dettaglio)} · ${dettaglio.nomeCampo}';
     }
-    return '${giornoEMese(dettaglio.dataPartita)}, $orario · ${dettaglio.nomeCampo}';
+    return null;
   }
 
   List<String> _nomiDaConfermare(DettaglioPartita dettaglio) {
@@ -373,13 +390,16 @@ class _DettaglioPartitaView extends StatelessWidget {
 
   Widget _buildIntestazione(Responsive r, DettaglioPartita dettaglio) {
     final List<Widget> pillole = _pilloleStato(dettaglio);
+    final String? sottotitolo = _sottotitolo(dettaglio);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(_titolo(dettaglio), style: stileTitolo(r)),
-        const SizedBox(height: 4),
-        Text(_sottotitolo(dettaglio), style: stileSecondario(r)),
+        if (sottotitolo != null) ...[
+          const SizedBox(height: 4),
+          Text(sottotitolo, style: stileSecondario(r)),
+        ],
         if (pillole.isNotEmpty) ...[
           const SizedBox(height: 8),
           Wrap(spacing: 6, runSpacing: 6, children: pillole),
@@ -665,8 +685,44 @@ class _DettaglioPartitaView extends StatelessWidget {
 
   // ===== AZIONI =====
 
-  // Cosa si puo' fare lo decide sempre il server. Solo la prima azione tra
-  // conferma, risultato e invito e' un bottone pieno, le altre sono link.
+  // Il proprio posto da utente nella partita; null se si guarda la partita
+  // senza giocarla, per esempio da creatore admin.
+  PostoPartita? _mioPosto(DettaglioPartita dettaglio) {
+    final String? mioTelefono = telefonoUtenteCorrente();
+    for (final posto in dettaglio.posti) {
+      if (posto.tipo == 'UTENTE' && posto.telefono == mioTelefono) {
+        return posto;
+      }
+    }
+    return null;
+  }
+
+  // Lo stato diventa "giocata" solo con il risultato: una partita gia'
+  // finita ma senza risultato la riconosciamo dall'orario di fine.
+  bool _giaFinita(DettaglioPartita dettaglio) {
+    // una partita che finisce prima dell'ora d'inizio (23:00 - 00:30) finisce
+    // il giorno dopo la sua data
+    final int minutiInizio =
+        dettaglio.oraInizio.hour * 60 + dettaglio.oraInizio.minute;
+    final int minutiFine =
+        dettaglio.oraFine.hour * 60 + dettaglio.oraFine.minute;
+    final int giornoFine =
+        minutiFine <= minutiInizio
+            ? dettaglio.dataPartita.day + 1
+            : dettaglio.dataPartita.day;
+    final DateTime fine = DateTime(
+      dettaglio.dataPartita.year,
+      dettaglio.dataPartita.month,
+      giornoFine,
+      dettaglio.oraFine.hour,
+      dettaglio.oraFine.minute,
+    );
+    return dettaglio.stato == 'giocata' || !DateTime.now().isBefore(fine);
+  }
+
+  // Cosa si puo' fare lo decide sempre il server. Il bottone di conferma c'e'
+  // sempre per chi gioca, anche quando e' spento; delle altre azioni solo la
+  // prima diventa un bottone pieno, e solo se la conferma non c'e'.
   List<Widget> _buildAzioni(
     BuildContext context,
     Responsive r,
@@ -677,16 +733,59 @@ class _DettaglioPartitaView extends StatelessWidget {
       return [];
     }
 
-    final List<_Azione> principali = [];
-    if (dettaglio.azioni.puoConfermare) {
-      principali.add(
-        _Azione('Conferma', () {
-          context.read<DettaglioPartitaBloc>().add(
-            ConfermaPartitaRichiesta(idPartita: dettaglio.id),
-          );
-        }),
-      );
+    final List<Widget> figli = [];
+    bool conBottonePieno = false;
+
+    final PostoPartita? mioPosto = _mioPosto(dettaglio);
+    if (mioPosto != null && !_giaFinita(dettaglio)) {
+      conBottonePieno = true;
+      if (mioPosto.confermata) {
+        figli.add(
+          BottonePieno(
+            testo: 'Confermato',
+            altezza: 52,
+            baseFont: 16,
+            inCaricamento: isLoading,
+            onPressed: null,
+          ),
+        );
+      } else if (dettaglio.azioni.puoConfermare) {
+        figli.add(
+          BottonePieno(
+            testo: 'Conferma',
+            altezza: 52,
+            baseFont: 16,
+            inCaricamento: isLoading,
+            onPressed: () {
+              context.read<DettaglioPartitaBloc>().add(
+                ConfermaPartitaRichiesta(idPartita: dettaglio.id),
+              );
+            },
+          ),
+        );
+      } else {
+        figli.add(
+          BottonePieno(
+            testo: 'Conferma',
+            altezza: 52,
+            baseFont: 16,
+            inCaricamento: isLoading,
+            onPressed: null,
+          ),
+        );
+        figli.add(const SizedBox(height: 6));
+        figli.add(
+          Text(
+            "Potrai confermare da 24 a 12 ore prima dell'inizio",
+            textAlign: TextAlign.center,
+            style: stileSecondario(r, base: 14),
+          ),
+        );
+      }
+      figli.add(const SizedBox(height: 4));
     }
+
+    final List<_Azione> principali = [];
     if (dettaglio.azioni.puoRegistrareRisultato) {
       principali.add(
         _Azione('Registra risultato', () {
@@ -702,27 +801,48 @@ class _DettaglioPartitaView extends StatelessWidget {
       );
     }
 
-    final List<Widget> figli = [];
-    for (int i = 0; i < principali.length; i++) {
-      if (i == 0) {
+    for (final azione in principali) {
+      if (!conBottonePieno) {
+        conBottonePieno = true;
         figli.add(
           BottonePieno(
-            testo: principali[i].testo,
+            testo: azione.testo,
             altezza: 52,
             baseFont: 16,
             inCaricamento: isLoading,
-            onPressed: principali[i].onPressed,
+            onPressed: azione.onPressed,
           ),
         );
         figli.add(const SizedBox(height: 4));
       } else {
         figli.add(
           LinkTesto(
-            testo: principali[i].testo,
-            onPressed: isLoading ? null : principali[i].onPressed,
+            testo: azione.testo,
+            onPressed: isLoading ? null : azione.onPressed,
           ),
         );
       }
+    }
+
+    if (dettaglio.azioni.puoCambiareTipo) {
+      // si manda il tipo che la partita deve diventare
+      final bool pubblica = dettaglio.tipo == 'PUBBLICA';
+      figli.add(
+        LinkTesto(
+          testo: pubblica ? 'Rendi privata' : 'Rendi pubblica',
+          onPressed:
+              isLoading
+                  ? null
+                  : () {
+                    context.read<DettaglioPartitaBloc>().add(
+                      CambiaTipoRichiesto(
+                        idPartita: dettaglio.id,
+                        tipo: pubblica ? 'PRIVATA' : 'PUBBLICA',
+                      ),
+                    );
+                  },
+        ),
+      );
     }
 
     if (dettaglio.azioni.puoUscire) {
@@ -757,7 +877,7 @@ class _DettaglioPartitaView extends StatelessWidget {
     }
 
     // senza bottone pieno lo spinner non avrebbe dove stare
-    if (isLoading && principali.isEmpty && figli.isNotEmpty) {
+    if (isLoading && !conBottonePieno && figli.isNotEmpty) {
       figli.insert(
         0,
         const Center(

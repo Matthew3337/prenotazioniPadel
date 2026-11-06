@@ -36,7 +36,8 @@ class BarraGiorni extends StatelessWidget {
         caselle.add(const SizedBox(width: 4));
       }
       caselle.add(
-        Expanded(
+        SizedBox(
+          width: 52,
           child: Semantics(
             selected: attivo,
             label: dataEstesa(giorno),
@@ -86,7 +87,11 @@ class BarraGiorni extends StatelessWidget {
       );
     }
 
-    return Row(children: caselle);
+    // i giorni sono 16 e non stanno tutti nello schermo: la barra scorre di lato
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(children: caselle),
+    );
   }
 }
 
@@ -155,11 +160,16 @@ class TabelloneSlot extends StatelessWidget {
 
   // I campi possono avere orari diversi: le righe sono l'unione degli orari di
   // tutti i campi, ordinati considerando che dopo mezzanotte e' gia' domani.
-  List<String> _orariDelGiorno(PrenotaCaricato state) {
+  // Gli slot gia' iniziati non contano, cosi' le righe partono dal primo
+  // orario ancora prenotabile o occupato.
+  List<String> _orariDelGiorno(PrenotaCaricato state, DateTime adesso) {
     final Map<String, DateTime> inizi = {};
     for (final campo in state.campi) {
       final List<SlotOrario> slots = state.slotPerCampo[campo.id] ?? [];
       for (final slot in slots) {
+        if (state.slotPassato(slot, adesso)) {
+          continue;
+        }
         inizi[oraBreve(slot.oraInizio)] = slot.inizioEffettivo(
           state.giorno,
           campo.oraApertura,
@@ -182,7 +192,8 @@ class TabelloneSlot extends StatelessWidget {
   }
 
   Widget _buildTabellone(Responsive r, PrenotaCaricato state) {
-    final List<String> orari = _orariDelGiorno(state);
+    final DateTime adesso = DateTime.now();
+    final List<String> orari = _orariDelGiorno(state, adesso);
 
     if (orari.isEmpty) {
       return CardBianca(
@@ -248,7 +259,6 @@ class TabelloneSlot extends StatelessWidget {
             const SizedBox(height: 8),
           ];
 
-          final DateTime adesso = DateTime.now();
           for (int i = 0; i < orari.length; i++) {
             final List<Widget> celle = [
               SizedBox(
@@ -326,15 +336,10 @@ class TabelloneSlot extends StatelessWidget {
       );
     }
 
+    // un campo con orari diversi puo' avere uno slot gia' iniziato in una
+    // riga ancora valida per gli altri: lo si lascia vuoto come uno chiuso
     if (state.slotPassato(slot, adesso)) {
-      return _cella(
-        r,
-        testo: 'Passato',
-        descrizione: nomeOra,
-        sfondo: Colori.sfondo,
-        colore: Colori.grigio,
-        peso: FontWeight.w400,
-      );
+      return const SizedBox(height: 48);
     }
 
     if (!slot.disponibile) {
@@ -342,9 +347,9 @@ class TabelloneSlot extends StatelessWidget {
         r,
         testo: 'Occupato',
         descrizione: nomeOra,
-        sfondo: Colori.sfondo,
-        colore: Colori.testoSecondario,
-        peso: FontWeight.w400,
+        sfondo: Colori.rossoChiaro,
+        colore: Colori.rosso,
+        peso: FontWeight.w700,
       );
     }
 

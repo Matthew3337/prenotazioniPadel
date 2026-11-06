@@ -78,7 +78,7 @@ class _BachecaPubblicheView extends StatelessWidget {
               final bool inErrore = state is BachecaPubblicheErrore;
 
               final List<Widget> elementi = [
-                Text('Partite', style: stileTitolo(r)),
+                Text('Bacheca', style: stileTitolo(r)),
                 const SizedBox(height: 12),
                 _buildSchede(partite, inErrore),
                 const SizedBox(height: 12),

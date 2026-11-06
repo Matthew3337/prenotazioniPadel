@@ -68,13 +68,15 @@ flutter:
     - assets/icon/
 
   fonts:
-    - family: Bitter
+    # Roboto c'e' solo come font variabile: lo stesso file e' dichiarato per
+    # ogni peso usato, e lo spessore lo sceglie stileApp con l'asse 'wght'
+    - family: Roboto
       fonts:
-        - asset: assets/fonts/Bitter-Medium.ttf
+        - asset: assets/fonts/Roboto-Variable.ttf
           weight: 500
-        - asset: assets/fonts/Bitter-SemiBold.ttf
+        - asset: assets/fonts/Roboto-Variable.ttf
           weight: 600
-        - asset: assets/fonts/Bitter-Bold.ttf
+        - asset: assets/fonts/Roboto-Variable.ttf
           weight: 700
     - family: SourceSans3
       fonts:

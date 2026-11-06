@@ -5,6 +5,7 @@ import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/ui/home.dart';
 import 'package:thepadel/ui/homeAdmin.dart';
 import 'package:thepadel/ui/login.dart';
+import 'package:thepadel/ui/fontApp.dart';
 import 'package:thepadel/ui/stileApp.dart';
 
 void main() async {
@@ -48,7 +49,7 @@ class MyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       theme: ThemeData(
-        fontFamily: 'SourceSans3',
+        fontFamily: FontApp.testo,
         scaffoldBackgroundColor: Colori.sfondo,
         colorScheme: ColorScheme.fromSeed(seedColor: Colori.primario),
       ),

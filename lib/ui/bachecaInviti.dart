@@ -73,7 +73,7 @@ class _BachecaInvitiView extends StatelessWidget {
               final bool inErrore = state is BachecaInvitiErrore;
 
               final List<Widget> elementi = [
-                Text('Partite', style: stileTitolo(r)),
+                Text('Bacheca', style: stileTitolo(r)),
                 const SizedBox(height: 12),
                 _buildSchede(voci, inErrore),
               ];

@@ -115,8 +115,6 @@ class _StoricoView extends StatelessWidget {
 
     return [
       const BarraGrigia(larghezza: 200, altezza: 30),
-      const SizedBox(height: 8),
-      const BarraGrigia(larghezza: 260, altezza: 16),
       const SizedBox(height: 12),
       CardBianca(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -136,7 +134,7 @@ class _StoricoView extends StatelessWidget {
       return _buildVuoto(context, r);
     }
 
-    final List<Widget> elementi = [..._buildBilancio(r, partite)];
+    final List<Widget> elementi = [..._buildIntestazione(r, partite)];
 
     // basta una partita alla volta: finita questa compare la successiva
     PartitaStorico? senzaRisultato;
@@ -170,51 +168,27 @@ class _StoricoView extends StatelessWidget {
     return elementi;
   }
 
-  // Il server passa a "giocata" solo quando il risultato viene registrato:
-  // fino ad allora una partita finita resta "confermata", quindi si guarda
-  // anche l'orario di fine. Se finisce a mezzanotte o dopo, e' gia' il giorno dopo.
+  // Lo storico contiene solo partite gia' finite, quindi non serve guardare
+  // l'orario. Una partita rimasta "creata" non si e' mai giocata davvero
+  // (senza quattro giocatori viene annullata): li' non c'e' nulla da registrare.
   bool _mancaRisultato(PartitaStorico partita) {
     if (partita.risultato != null) {
       return false;
     }
-    if (partita.stato == 'giocata') {
-      return true;
-    }
-    if (partita.stato != 'confermata') {
-      return false;
-    }
-    final DateTime data = partita.dataPartita;
-    final TimeOfDay inizio = partita.oraInizio;
-    final TimeOfDay fine = partita.oraFine;
-    int giorno = data.day;
-    if (fine.hour < inizio.hour) {
-      giorno = data.day + 1;
-    }
-    final DateTime finePartita = DateTime(
-      data.year,
-      data.month,
-      giorno,
-      fine.hour,
-      fine.minute,
-    );
-    return finePartita.isBefore(DateTime.now());
+    return partita.stato == 'confermata' || partita.stato == 'giocata';
   }
 
-  List<Widget> _buildBilancio(Responsive r, List<PartitaStorico> partite) {
-    int vinte = 0;
-    int perse = 0;
+  List<Widget> _buildIntestazione(Responsive r, List<PartitaStorico> partite) {
+    bool conEsito = false;
     for (final partita in partite) {
       final String? esito = partita.risultato?.esito;
-      if (esito == 'VINTA') {
-        vinte++;
-      }
-      if (esito == 'PERSA') {
-        perse++;
+      if (esito == 'VINTA' || esito == 'PERSA') {
+        conEsito = true;
       }
     }
 
-    final int conEsito = vinte + perse;
-    if (conEsito == 0) {
+    // finche' non c'e' nessun risultato si spiega a cosa serve la pagina
+    if (!conEsito) {
       return [
         Text('Storico partite', style: stileTitolo(r)),
         const SizedBox(height: 4),
@@ -225,18 +199,7 @@ class _StoricoView extends StatelessWidget {
       ];
     }
 
-    final String testoVinte = vinte == 1 ? '1 vinta' : '$vinte vinte';
-    final String testoPerse = perse == 1 ? '1 persa' : '$perse perse';
-    final String sottotitolo =
-        conEsito == 1
-            ? 'La tua ultima partita con risultato'
-            : 'Le tue ultime $conEsito partite con risultato';
-
-    return [
-      Text('$testoVinte, $testoPerse', style: stileTitolo(r)),
-      const SizedBox(height: 4),
-      Text(sottotitolo, style: stileSecondario(r)),
-    ];
+    return [Text('Storico partite', style: stileTitolo(r))];
   }
 
   Widget _buildManca(
@@ -392,11 +355,7 @@ class _StoricoView extends StatelessWidget {
         colore: Colori.testo,
       );
     }
-    return const Pillola(
-      testo: 'In programma',
-      sfondo: Colori.azzurroChiaro,
-      colore: Colori.azzurro,
-    );
+    return PillolaStato(stato: partita.stato);
   }
 
   // ===== VUOTO =====
