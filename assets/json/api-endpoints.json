@@ -27,6 +27,9 @@
   "PartiteInviti": "/api/partite/inviti",
   "PartiteConferma": "/api/partite/{id}/conferma",
   "PartiteRisultato": "/api/partite/{id}/risultato",
+  "PartiteMie": "/api/partite/mie",
+  "PartiteTipo": "/api/partite/{id}/tipo",
+  "UtentiInvitabili": "/api/utenti/invitabili?cerca={cerca}",
 
   "Classifica": "/api/classifica",
 

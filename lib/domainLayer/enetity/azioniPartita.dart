@@ -6,6 +6,7 @@ class AzioniPartita {
   final bool puoUscire;
   final bool puoConfermare;
   final bool puoRegistrareRisultato;
+  final bool puoCambiareTipo; //passare da pubblica a privata e viceversa, solo il creatore e prima dell'inizio
 
-  AzioniPartita({required this.puoInvitare, required this.puoEliminare, required this.puoUscire, required this.puoConfermare, required this.puoRegistrareRisultato});
+  AzioniPartita({required this.puoInvitare, required this.puoEliminare, required this.puoUscire, required this.puoConfermare, required this.puoRegistrareRisultato, required this.puoCambiareTipo});
 }

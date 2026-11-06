@@ -161,6 +161,22 @@ class DataSourcePartita{
     }
   }
 
+  //le partite a cui l'utente partecipa e che non sono ancora finite, dalla piu vicina; hanno la stessa forma dello storico
+  Future<List<PartitaStoricoModel>> getMiePartite() async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    dynamic res = await c.get(elencoUrl.BaseUrl + elencoUrl.PartiteMie, token: token);
+
+    if(res is List) //BUON FINE, se l'utente non ha partite in programma (o e l'admin) arriva una lista vuota
+    {
+      return res.map((e) => PartitaStoricoModel.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    else
+    { //se c'e un errore arriva una mappa (o niente), non c'e un caso specifico da gestire
+      throw ErroreGenericoServer();
+    }
+  }
+
   Future<List<UtenteInvitabileModel>> getInvitabili(int idPartita, String cerca) async
   {
     String token = sl<SharedPreferences>().getString("jwt")!;
@@ -186,6 +202,23 @@ class DataSourcePartita{
     }
     else
     { //ALTRI ERRORI
+      throw ErroreGenericoServer();
+    }
+  }
+
+  //come getInvitabili ma senza partita: serve mentre si prenota, quando la partita non esiste ancora
+  Future<List<UtenteInvitabileModel>> getUtentiInvitabili(String cerca) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    String url = elencoUrl.BaseUrl + elencoUrl.UtentiInvitabili.replaceFirst("{cerca}", Uri.encodeQueryComponent(cerca));
+    dynamic res = await c.get(url, token: token);
+
+    if(res is List) //BUON FINE, se nessun utente corrisponde alla ricerca arriva una lista vuota
+    {
+      return res.map((e) => UtenteInvitabileModel.fromJson(e as Map<String, dynamic>)).toList();
+    }
+    else
+    { //se c'e un errore arriva una mappa (o niente), non c'e un caso specifico da gestire
       throw ErroreGenericoServer();
     }
   }
@@ -251,6 +284,33 @@ class DataSourcePartita{
       throw PartitaNonTrovata(messaggio: res['errore']);
     }
     else if(res.containsKey("errore") && ((res['status'] as int) == 403 || (res['status'] as int) == 409)) //E L'ADMIN, NON PARTECIPA, HA GIA CONFERMATO O SIAMO FUORI DALLA FINESTRA TRA 24 E 12 ORE
+    {
+      throw OperazioneRifiutata(messaggio: res['errore']);
+    }
+    else
+    { //ALTRI ERRORI
+      throw ErroreGenericoServer();
+    }
+  }
+
+  Future<DettaglioPartitaModel> cambiaTipoPartita(int idPartita, String tipo) async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    dynamic res = await c.put(elencoUrl.BaseUrl + elencoUrl.PartiteTipo.replaceFirst("{id}", idPartita.toString()), {"tipo": tipo}, token: token);
+
+    if(res == null) //risposta senza body (es. token scaduto), non c'e niente da leggere
+    {
+      throw ErroreGenericoServer();
+    }
+    else if(res.containsKey("posti")) //BUON FINE, il server restituisce il dettaglio gia aggiornato con il tipo nuovo
+    {
+      return DettaglioPartitaModel.fromJson(res);
+    }
+    else if(res.containsKey("errore") && (res['status'] as int) == 404) //PARTITA INESISTENTE O NON VISIBILE
+    {
+      throw PartitaNonTrovata(messaggio: res['errore']);
+    }
+    else if(res.containsKey("errore") && ((res['status'] as int) == 400 || (res['status'] as int) == 403 || (res['status'] as int) == 409)) //TIPO NON VALIDO, NON E IL CREATORE (O E L'ADMIN), PARTITA NON PIU APERTA O GIA INIZIATA
     {
       throw OperazioneRifiutata(messaggio: res['errore']);
     }

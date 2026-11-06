@@ -28,6 +28,11 @@ class TipoPartitaMancante implements Exception{
 
 }
 
+class TroppiInvitati implements Exception{
+  final String message = "Puoi invitare al massimo 3 giocatori";
+
+}
+
 
 class SquadraIncompleta implements Exception{
   final String message = "Ogni squadra deve avere 2 giocatori.";

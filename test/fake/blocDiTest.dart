@@ -1,6 +1,7 @@
 import 'package:thepadel/bloc/bachecaAvvisi/bachecaAvvisiBloc.dart';
 import 'package:thepadel/bloc/bachecaInviti/bachecaInvitiBloc.dart';
 import 'package:thepadel/bloc/bachecaPubbliche/bachecaPubblicheBloc.dart';
+import 'package:thepadel/bloc/cercaInvitati/cercaInvitatiBloc.dart';
 import 'package:thepadel/bloc/classifica/classificaBloc.dart';
 import 'package:thepadel/bloc/creaPartita/creaPartitaBloc.dart';
 import 'package:thepadel/bloc/dettaglioAdmin/dettaglioAdminBloc.dart';
@@ -10,6 +11,7 @@ import 'package:thepadel/bloc/gestioneLivelli/gestioneLivelliBloc.dart';
 import 'package:thepadel/bloc/homePage/homeBloc.dart';
 import 'package:thepadel/bloc/invitaUtenti/invitaUtentiBloc.dart';
 import 'package:thepadel/bloc/livelloCampo/livelloCampoBloc.dart';
+import 'package:thepadel/bloc/miePartite/miePartiteBloc.dart';
 import 'package:thepadel/bloc/nuovaPartitaAdmin/nuovaPartitaAdminBloc.dart';
 import 'package:thepadel/bloc/partiteGiorno/partiteGiornoBloc.dart';
 import 'package:thepadel/bloc/prenota/prenotaBloc.dart';
@@ -24,6 +26,7 @@ import 'package:thepadel/useCase/creaPartitaUseCase.dart';
 import 'package:thepadel/useCase/dettaglioPartitaUseCase.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
 import 'package:thepadel/useCase/invitaUtentiUseCase.dart';
+import 'package:thepadel/useCase/miePartiteUseCase.dart';
 import 'package:thepadel/useCase/prenotaUseCase.dart';
 import 'package:thepadel/useCase/registraRisultatoUseCase.dart';
 import 'package:thepadel/useCase/storicoUseCase.dart';
@@ -48,14 +51,16 @@ void registraBlocDiTest({required FakePartitaRepo repoPartita, required FakeCamp
     bachecaInvitiUseCase: BachecaInvitiUseCase(repo: repoPartita),
     partitePubblicheUseCase: PartitePubblicheUseCase(repo: repoPartita),
   ));
-  sl.registerFactory<PrenotaBloc>(() => PrenotaBloc(listaCampiUseCase: ListaCampiUseCase(repo: repoCampo), slotUseCase: SlotDisponibiliUseCase(repo: repoCampo), storicoUseCase: StoricoUseCase(repo: repoPartita)));
+  sl.registerFactory<PrenotaBloc>(() => PrenotaBloc(listaCampiUseCase: ListaCampiUseCase(repo: repoCampo), slotUseCase: SlotDisponibiliUseCase(repo: repoCampo), miePartiteUseCase: MiePartiteUseCase(repo: repoPartita)));
   sl.registerFactory<CreaPartitaBloc>(() => CreaPartitaBloc(creaPartitaUseCase: CreaPartitaUseCase(repo: repoPrenotazione), slotLiberiDataUseCase: SlotLiberiDataUseCase(repo: repoCampo)));
   sl.registerFactory<BachecaPubblicheBloc>(() => BachecaPubblicheBloc(partitePubblicheUseCase: PartitePubblicheUseCase(repo: repoPartita), entraInPartitaUseCase: EntraInPartitaUseCase(repo: repoPartita)));
   sl.registerFactory<BachecaInvitiBloc>(() => BachecaInvitiBloc(invitiConStatoUseCase: InvitiConStatoUseCase(repo: repoPartita), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repoPartita)));
   sl.registerFactory<StoricoBloc>(() => StoricoBloc(storicoUseCase: StoricoUseCase(repo: repoPartita)));
   sl.registerFactory<ClassificaBloc>(() => ClassificaBloc(classificaUseCase: ClassificaUseCase(repo: repoUtente)));
-  sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repoPartita), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repoPartita), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repoPartita), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repoPartita)));
+  sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repoPartita), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repoPartita), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repoPartita), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repoPartita), cambiaTipoUseCase: CambiaTipoUseCase(repo: repoPartita)));
   sl.registerFactory<InvitaUtentiBloc>(() => InvitaUtentiBloc(invitabiliUseCase: InvitabiliUseCase(repo: repoPartita), invitaUtenteUseCase: InvitaUtenteUseCase(repo: repoPartita), dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repoPartita)));
+  sl.registerFactory<MiePartiteBloc>(() => MiePartiteBloc(miePartiteUseCase: MiePartiteUseCase(repo: repoPartita)));
+  sl.registerFactory<CercaInvitatiBloc>(() => CercaInvitatiBloc(utentiInvitabiliUseCase: UtentiInvitabiliUseCase(repo: repoPartita)));
   sl.registerFactory<RegistraRisultatoBloc>(() => RegistraRisultatoBloc(registraRisultatoUseCase: RegistraRisultatoUseCase(repo: repoPartita)));
   sl.registerFactory<PartiteGiornoBloc>(() => PartiteGiornoBloc(partiteGiornoUseCase: PartiteGiornoUseCase(repo: admin)));
   sl.registerFactory<BachecaAvvisiBloc>(() => BachecaAvvisiBloc(bachecaAvvisiUseCase: BachecaAvvisiUseCase(repo: admin)));

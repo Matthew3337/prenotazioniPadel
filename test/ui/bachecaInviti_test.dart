@@ -30,7 +30,7 @@ void main()
     repo = FakePartitaRepo();
     sl.registerFactory<BachecaInvitiBloc>(() => BachecaInvitiBloc(invitiConStatoUseCase: InvitiConStatoUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo)));
     //serve per l'apertura del dettaglio dal tocco su una card
-    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo)));
+    sl.registerFactory<DettaglioPartitaBloc>(() => DettaglioPartitaBloc(dettaglioPartitaUseCase: DettaglioPartitaUseCase(repo: repo), eliminaPartitaUseCase: EliminaPartitaUseCase(repo: repo), esciDaPartitaUseCase: EsciDaPartitaUseCase(repo: repo), confermaPartitaUseCase: ConfermaPartitaUseCase(repo: repo), cambiaTipoUseCase: CambiaTipoUseCase(repo: repo)));
   });
 
   tearDown(() async
@@ -56,7 +56,8 @@ void main()
     await apriPagina(tester);
 
     expect(repo.chiamateInviti, 1);
-    expect(find.text("Partite"), findsNWidgets(2));
+    //il titolo della pagina e la voce della barra si chiamano Bacheca; "Partite" e la voce delle mie partite
+    expect(find.text("Bacheca"), findsNWidgets(2));
     expect(find.text("1 ricevuto"), findsOneWidget);
     expect(find.text("Mario Rossi ti ha invitato"), findsOneWidget);
     expect(find.text("MR"), findsOneWidget);

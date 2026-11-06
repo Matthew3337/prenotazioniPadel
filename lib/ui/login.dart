@@ -51,10 +51,12 @@ class _LoginFormState extends State<_LoginForm> {
   Widget build(BuildContext context) {
     final r = Responsive(context);
 
+    // il margine sotto e' piu' grande di quello sopra: il form centrato
+    // risale un po' e il logo sta piu' in alto
     return SafeArea(
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 140),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: BlocConsumer<AuthBloc, AuthState>(
@@ -81,21 +83,13 @@ class _LoginFormState extends State<_LoginForm> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const Center(child: _LogoRitagliato()),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Accedi',
-                      textAlign: TextAlign.center,
-                      style: stileTitolo(r),
-                    ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 28),
                     if (state is AuthErrore) ...[
                       RiquadroMessaggio(testo: state.messaggio),
                       const SizedBox(height: 14),
                     ],
-                    _etichetta(r, 'Telefono'),
                     _buildTelefono(r, isLoading),
                     const SizedBox(height: 14),
-                    _etichetta(r, 'Password'),
                     _buildPassword(r, isLoading),
                     const SizedBox(height: 18),
                     _buildBottone(context, r, isLoading),
@@ -113,14 +107,13 @@ class _LoginFormState extends State<_LoginForm> {
     );
   }
 
-  Widget _etichetta(Responsive r, String testo) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Text(testo, style: stileTesto(r, peso: FontWeight.w600)),
-    );
-  }
-
-  InputDecoration _decorazione(bool isLoading, {Widget? suffisso}) {
+  // il nome del campo sta dentro il campo stesso, in grigio
+  InputDecoration _decorazione(
+    Responsive r,
+    String suggerimento,
+    bool isLoading, {
+    Widget? suffisso,
+  }) {
     OutlineInputBorder bordo(Color colore, double spessore) {
       return OutlineInputBorder(
         borderRadius: BorderRadius.circular(10),
@@ -129,6 +122,8 @@ class _LoginFormState extends State<_LoginForm> {
     }
 
     return InputDecoration(
+      hintText: suggerimento,
+      hintStyle: stileTesto(r, base: 16, colore: Colori.grigio),
       filled: true,
       fillColor: isLoading ? Colori.sfondo : Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
@@ -150,23 +145,24 @@ class _LoginFormState extends State<_LoginForm> {
         base: 16,
         colore: isLoading ? Colori.testoSecondario : Colori.testo,
       ),
-      decoration: _decorazione(isLoading),
+      decoration: _decorazione(r, 'Telefono', isLoading),
     );
   }
 
   Widget _buildPassword(Responsive r, bool isLoading) {
     Widget? mostra;
     if (!isLoading) {
-      mostra = SizedBox(
-        width: 84,
-        child: LinkTesto(
-          testo: _nascondiPassword ? 'Mostra' : 'Nascondi',
-          onPressed: () {
-            setState(() {
-              _nascondiPassword = !_nascondiPassword;
-            });
-          },
+      mostra = IconButton(
+        tooltip: _nascondiPassword ? 'Mostra password' : 'Nascondi password',
+        icon: Icon(
+          _nascondiPassword ? Icons.visibility : Icons.visibility_off,
+          color: Colori.grigio,
         ),
+        onPressed: () {
+          setState(() {
+            _nascondiPassword = !_nascondiPassword;
+          });
+        },
       );
     }
 
@@ -180,7 +176,7 @@ class _LoginFormState extends State<_LoginForm> {
         base: 16,
         colore: isLoading ? Colori.testoSecondario : Colori.testo,
       ),
-      decoration: _decorazione(isLoading, suffisso: mostra),
+      decoration: _decorazione(r, 'Password', isLoading, suffisso: mostra),
     );
   }
 
@@ -189,6 +185,7 @@ class _LoginFormState extends State<_LoginForm> {
       testo: isLoading ? 'Accesso in corso…' : 'Accedi',
       altezza: 52,
       baseFont: 16,
+      sfondo: Colori.bluAcceso,
       onPressed:
           isLoading
               ? null

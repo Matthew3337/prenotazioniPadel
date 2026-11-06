@@ -28,6 +28,10 @@ void main()
 
   late FakePartitaRepo repo;
 
+  //una data nel futuro: la partita non e ancora finita e il bottone Conferma c'e, qualunque sia il giorno del test
+  final adesso = DateTime.now();
+  final futura = DateTime(adesso.year, adesso.month, adesso.day + 3);
+
   setUp(() async
   {
     await sl.reset();
@@ -59,8 +63,10 @@ void main()
 
     expect(repo.idRicevuto, 10);
     expect(find.text("Dettaglio partita"), findsOneWidget);
-    expect(find.text("${conMaiuscola(giornoRelativo(dettaglio.dataPartita))} alle 18:30"), findsOneWidget);
-    expect(find.text("${giornoEMese(dettaglio.dataPartita)}, 18:30 - 20:00 · Campo Centrale"), findsOneWidget);
+    //una sola frase con data, orario e campo; niente "Lunedi alle 18:30" ne sottotitolo
+    expect(find.text("${conMaiuscola(dataEstesa(dettaglio.dataPartita))}, 18:30 - 20:00, Campo Centrale"), findsOneWidget);
+    expect(find.textContaining(" alle 18:30"), findsNothing);
+    expect(find.textContaining("· Campo Centrale"), findsNothing);
     expect(find.text("Mancano 2 giocatori"), findsOneWidget);
     expect(find.text("Pubblica"), findsOneWidget);
 
@@ -169,7 +175,7 @@ void main()
 
     testWidgets("partecipante: Conferma come bottone pieno, Esci come link, Invita ed Elimina nascosti", (tester) async
     {
-      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoUscire: true, puoConfermare: true));
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoUscire: true, puoConfermare: true), dataPartita: futura);
       await apriPagina(tester);
 
       expect(find.widgetWithText(ElevatedButton, "Conferma"), findsOneWidget);
@@ -182,7 +188,7 @@ void main()
 
     testWidgets("solo la prima azione e un bottone pieno, le altre sono link", (tester) async
     {
-      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoConfermare: true, puoRegistrareRisultato: true, puoInvitare: true));
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoConfermare: true, puoRegistrareRisultato: true, puoInvitare: true), dataPartita: futura);
       await apriPagina(tester);
 
       expect(find.byType(ElevatedButton), findsOneWidget);
@@ -608,7 +614,7 @@ void main()
   {
     setUp(()
     {
-      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoConfermare: true, puoRegistrareRisultato: true));
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoConfermare: true, puoRegistrareRisultato: true), dataPartita: futura);
     });
 
     //dopo la conferma il server restituisce Mario confermato e il bottone non c'e piu
@@ -622,7 +628,7 @@ void main()
 
     testWidgets("un solo tocco su Conferma chiama il server senza aprire dialog", (tester) async
     {
-      repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato());
+      repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato(), dataPartita: futura);
       await apriPagina(tester);
 
       await toccaAzione(tester, "Conferma");
@@ -636,7 +642,7 @@ void main()
 
     testWidgets("successo: SnackBar Partecipazione confermata e dettaglio aggiornato senza ricaricare", (tester) async
     {
-      repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato());
+      repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato(), dataPartita: futura);
       await apriPagina(tester);
       expect(find.text("Da confermare"), findsOneWidget);
 
@@ -644,17 +650,18 @@ void main()
 
       expect(find.widgetWithText(SnackBar, "Partecipazione confermata"), findsOneWidget);
       expect(find.text("Partita confermata: ci sono tutti!"), findsNothing);
-      //il dettaglio a schermo e quello restituito dalla conferma
-      expect(find.text("Confermato"), findsOneWidget);
+      //il dettaglio a schermo e quello restituito dalla conferma: Confermato sul posto e sul bottone spento
+      expect(find.text("Confermato"), findsNWidgets(2));
       expect(find.text("Da confermare"), findsNothing);
       expect(find.widgetWithText(ElevatedButton, "Conferma"), findsNothing);
+      expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, "Confermato")).onPressed, isNull);
       expect(find.text("Dettaglio partita"), findsOneWidget);
       expect(repo.chiamate, 1);
     });
 
     testWidgets("successo con partita al completo: SnackBar Partita confermata e stato Confermata", (tester) async
     {
-      repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato(), stato: "confermata");
+      repo.rispostaConferma = dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato(), stato: "confermata", dataPartita: futura);
       await apriPagina(tester);
 
       await toccaAzione(tester, "Conferma");
@@ -682,7 +689,7 @@ void main()
       expect(tester.widget<TextButton>(find.widgetWithText(TextButton, "Registra risultato")).onPressed, isNull);
       expect(find.descendant(of: find.byType(ElevatedButton), matching: find.byType(CircularProgressIndicator)), findsOneWidget);
 
-      repo.attesaConferma!.complete(dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato()));
+      repo.attesaConferma!.complete(dettaglioDiTest(azioni: azioniDiTest(), posti: postiConMarioConfermato(), dataPartita: futura));
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(SnackBar, "Partecipazione confermata"), findsOneWidget);
@@ -704,6 +711,132 @@ void main()
       //dopo la ricarica il bottone e di nuovo attivo
       final bottone = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, "Conferma"));
       expect(bottone.onPressed, isNotNull);
+    });
+  });
+
+  group("bottone Conferma", ()
+  {
+    PostoPartita mario({required bool confermata})
+    {
+      return PostoPartita(idPosto: null, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: confermata, squadra: null);
+    }
+
+    testWidgets("dentro la finestra: Conferma attivo", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoConfermare: true), dataPartita: futura);
+      await apriPagina(tester);
+
+      expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, "Conferma")).onPressed, isNotNull);
+      expect(find.text("Potrai confermare da 24 a 12 ore prima dell'inizio"), findsNothing);
+    });
+
+    testWidgets("fuori dalla finestra: Conferma visibile ma spento, con scritto da quando si puo", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoUscire: true), dataPartita: futura);
+      await apriPagina(tester);
+
+      expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, "Conferma")).onPressed, isNull);
+      expect(find.text("Potrai confermare da 24 a 12 ore prima dell'inizio"), findsOneWidget);
+      //le altre azioni restano link
+      expect(find.widgetWithText(TextButton, "Esci dalla partita"), findsOneWidget);
+      expect(find.byType(ElevatedButton), findsOneWidget);
+    });
+
+    testWidgets("gia confermato: Confermato spento al posto di Conferma", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(), dataPartita: futura, posti: [mario(confermata: true)]);
+      await apriPagina(tester);
+
+      expect(tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, "Confermato")).onPressed, isNull);
+      expect(find.widgetWithText(ElevatedButton, "Conferma"), findsNothing);
+      expect(find.text("Potrai confermare da 24 a 12 ore prima dell'inizio"), findsNothing);
+    });
+
+    testWidgets("chi non gioca la partita non vede il bottone", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(), dataPartita: futura, telefonoCreatore: "3330000000", posti: [
+        PostoPartita(idPosto: 21, tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: false, squadra: null),
+      ]);
+      await apriPagina(tester);
+
+      expect(find.byType(ElevatedButton), findsNothing);
+    });
+
+    testWidgets("partita annullata o gia finita: niente bottone", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(), dataPartita: futura, stato: "annullata");
+      await apriPagina(tester);
+      expect(find.byType(ElevatedButton), findsNothing);
+
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(), dataPartita: DateTime(adesso.year, adesso.month, adesso.day - 3));
+      await tester.pumpWidget(const SizedBox());
+      await apriPagina(tester);
+      expect(find.byType(ElevatedButton), findsNothing);
+    });
+
+    testWidgets("una partita che finisce dopo mezzanotte non e ancora finita il giorno stesso", (tester) async
+    {
+      //oggi dalle 23:59 all'01:00 di domani: non e ancora iniziata, quindi Conferma deve esserci (spento, fuori dalla finestra).
+      //Prima dell'01:00 di notte questo test passerebbe comunque
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(), dataPartita: DateTime(adesso.year, adesso.month, adesso.day), oraInizio: const TimeOfDay(hour: 23, minute: 59), oraFine: const TimeOfDay(hour: 1, minute: 0));
+      await apriPagina(tester);
+
+      expect(find.widgetWithText(ElevatedButton, "Conferma"), findsOneWidget);
+    });
+  });
+
+  group("visibilita", ()
+  {
+    testWidgets("senza puoCambiareTipo il link non c'e", (tester) async
+    {
+      await apriPagina(tester);
+
+      expect(find.text("Rendi privata"), findsNothing);
+      expect(find.text("Rendi pubblica"), findsNothing);
+    });
+
+    testWidgets("partita pubblica: Rendi privata manda PRIVATA, poi SnackBar e dettaglio aggiornato", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoCambiareTipo: true), dataPartita: futura);
+      repo.rispostaCambiaTipo = dettaglioDiTest(azioni: azioniDiTest(puoCambiareTipo: true), dataPartita: futura, tipo: "PRIVATA");
+      await apriPagina(tester);
+      expect(find.text("Pubblica"), findsOneWidget);
+
+      await toccaAzione(tester, "Rendi privata");
+
+      expect(repo.chiamateCambiaTipo, 1);
+      expect(repo.idCambiaTipoRicevuto, 10);
+      expect(repo.tipoRicevuto, "PRIVATA");
+      expect(find.widgetWithText(SnackBar, "La partita ora è privata"), findsOneWidget);
+      expect(find.text("Privata"), findsOneWidget);
+      expect(find.text("Rendi pubblica"), findsOneWidget);
+      //come per la conferma, il dettaglio arriva dalla risposta e non si ricarica
+      expect(repo.chiamate, 1);
+    });
+
+    testWidgets("partita privata: Rendi pubblica manda PUBBLICA", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoCambiareTipo: true), dataPartita: futura, tipo: "PRIVATA");
+      await apriPagina(tester);
+
+      await toccaAzione(tester, "Rendi pubblica");
+
+      expect(repo.tipoRicevuto, "PUBBLICA");
+      expect(find.widgetWithText(SnackBar, "La partita ora è pubblica"), findsOneWidget);
+    });
+
+    testWidgets("rifiutato dal server: SnackBar col messaggio e il dettaglio si ricarica", (tester) async
+    {
+      const messaggio = "La partita è già iniziata";
+      repo.risposta = dettaglioDiTest(azioni: azioniDiTest(puoCambiareTipo: true), dataPartita: futura);
+      repo.erroreCambiaTipo = OperazioneRifiutata(messaggio: messaggio);
+      await apriPagina(tester);
+
+      await toccaAzione(tester, "Rendi privata");
+
+      expect(find.widgetWithText(SnackBar, messaggio), findsOneWidget);
+      expect(find.text("Mario Rossi"), findsOneWidget);
+      expect(repo.chiamate, 2);
     });
   });
 

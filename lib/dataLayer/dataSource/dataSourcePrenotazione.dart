@@ -39,7 +39,8 @@ class DataSourcePrenotazione{
     }
   }
 
-  Future<PrenotazioneModel> creaPartita(int idCampo, DateTime data, String oraInizio, String tipo) async
+  //invitati sono i telefoni degli utenti scelti prima di prenotare, il server li aggiunge alla partita insieme al creatore
+  Future<PrenotazioneModel> creaPartita(int idCampo, DateTime data, String oraInizio, String tipo, {List<String> invitati = const []}) async
   {
     String token = sl<SharedPreferences>().getString("jwt")!;
     String dataFormattata = "${data.year.toString().padLeft(4,'0')}-${data.month.toString().padLeft(2,'0')}-${data.day.toString().padLeft(2,'0')}";
@@ -48,6 +49,11 @@ class DataSourcePrenotazione{
 
     //i telefoni dei giocatori non si mandano: il creatore e l'utente del token
     Map<String, dynamic> body = {"idCampo" : idCampo, "dataPrenotazione" : dataFormattata, "oraInizio" : oraFormattata, "tipo" : tipo};
+    //il campo e facoltativo: senza invitati non lo mando proprio
+    if(invitati.isNotEmpty)
+    {
+      body["invitati"] = invitati;
+    }
     dynamic res = await c.post(elencoUrl.BaseUrl + elencoUrl.PrenotazioniCreate, body, token: token);
 
     if(res == null) //risposta senza body (es. token scaduto), non c'e niente da leggere
@@ -58,15 +64,15 @@ class DataSourcePrenotazione{
     {
       return PrenotazioneModel.fromJson(res);
     }
-    else if(res.containsKey("errore") && (res['status'] as int) == 400) //DATI NON VALIDI
+    else if(res.containsKey("errore") && (res['status'] as int) == 400) //DATI NON VALIDI, COMPRESA UNA LISTA DI INVITATI NON VALIDA
     {
       throw PrenotazioneNonValida(messaggio: res['errore']);
     }
-    else if(res.containsKey("errore") && (res['status'] as int) == 404) //CAMPO INESISTENTE
+    else if(res.containsKey("errore") && (res['status'] as int) == 404) //CAMPO INESISTENTE O INVITATO NON TROVATO, il messaggio del server dice quale
     {
       throw CampoInesistente(messaggio: res['errore']);
     }
-    else if(res.containsKey("errore") && (res['status'] as int) == 409) //SLOT OCCUPATO, FUORI ORARIO O NEL PASSATO
+    else if(res.containsKey("errore") && (res['status'] as int) == 409) //SLOT OCCUPATO, FUORI ORARIO, NEL PASSATO, OLTRE I 15 GIORNI O INVITATO ADMIN
     {
       throw SlotNonDisponibile(messaggio: res['errore']);
     }

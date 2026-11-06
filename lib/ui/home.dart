@@ -177,36 +177,11 @@ class _HomeView extends StatelessWidget {
     final TextStyle stile =
         r.isTablet ? stileTitolo(r).copyWith(fontSize: 30) : stileTitolo(r);
 
-    Widget testi;
-    if (sezione is SectionLoading) {
-      testi = const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          BarraGrigia(larghezza: 270, altezza: 30),
-          SizedBox(height: 8),
-          BarraGrigia(larghezza: 220, altezza: 16),
-        ],
-      );
-    } else if (sezione is SectionSuccess<Prenotazione>) {
-      final Prenotazione partita = sezione.data;
-      final String giorno = conMaiuscola(
-        giornoRelativo(partita.dataPrenotazione),
-      );
-      testi = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '$giorno giochi alle ${formattaOra(partita.oraInizio)}',
-            style: stile,
-          ),
-          const SizedBox(height: 4),
-          Text(_sottotitoloPartita(state), style: stileSecondario(r)),
-        ],
-      );
-    } else if (sezione is SectionEmpty) {
+    // "Domani giochi alle..." ora sta dentro la card della partita: qui resta
+    // il saluto, tranne quando non c'e' nessuna partita
+    Widget testi = Text(_saluto(), style: stile);
+    if (sezione is SectionEmpty) {
       testi = Text('Nessuna partita in programma', style: stile);
-    } else {
-      testi = Text(_saluto(), style: stile);
     }
 
     return Row(
@@ -263,22 +238,22 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  String _sottotitoloPartita(HomeState state) {
-    final sezione = state.prossimaPartita;
-    if (sezione is! SectionSuccess<Prenotazione>) {
-      return '';
-    }
-    final Prenotazione partita = sezione.data;
-    final String quando =
-        '${giornoEMese(partita.dataPrenotazione)}, '
-        'fino alle ${formattaOra(partita.oraFine)}';
+  // es. "Domani giochi alle 8:00"
+  String _fraseProssimaPartita(Prenotazione partita) {
+    final String giorno = conMaiuscola(
+      giornoRelativo(partita.dataPrenotazione),
+    );
+    return '$giorno giochi alle ${formattaOra(partita.oraInizio)}';
+  }
 
-    // la prenotazione conosce solo l'id del campo, il nome arriva col dettaglio
-    final dettaglio = state.dettaglioProssimaPartita;
-    if (dettaglio is SectionSuccess<DettaglioPartita>) {
-      return '${dettaglio.data.nomeCampo} · $quando';
-    }
-    return quando;
+  // la barra bianca in cima alla card, come quella in fondo con lo stato
+  Widget _barraFrase(Responsive r, Prenotazione partita) {
+    final TextStyle stile =
+        r.isTablet ? stileTitolo(r).copyWith(fontSize: 30) : stileTitolo(r);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+      child: Text(_fraseProssimaPartita(partita), style: stile),
+    );
   }
 
   // ===== PROSSIMA PARTITA =====
@@ -305,7 +280,13 @@ class _HomeView extends StatelessWidget {
         return _scheletroProssimaPartita(altezzaCampo);
       }
       if (dettaglio is SectionSuccess<DettaglioPartita>) {
-        return _buildCardPartita(context, r, dettaglio.data, altezzaCampo);
+        return _buildCardPartita(
+          context,
+          r,
+          sezione.data,
+          dettaglio.data,
+          altezzaCampo,
+        );
       }
       return _buildSoloPrenotazione(context, r, sezione.data);
     }
@@ -325,6 +306,10 @@ class _HomeView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 12, 12),
+            child: BarraGrigia(larghezza: 240, altezza: 30),
+          ),
           Container(height: altezzaCampo, color: Colori.bordo),
           const Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 12, 12),
@@ -404,6 +389,7 @@ class _HomeView extends StatelessWidget {
   Widget _buildCardPartita(
     BuildContext context,
     Responsive r,
+    Prenotazione partita,
     DettaglioPartita dettaglio,
     double altezzaCampo,
   ) {
@@ -414,6 +400,7 @@ class _HomeView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _barraFrase(r, partita),
           CampoPadel(
             altezza: altezzaCampo,
             dimensionePosto: r.isTablet ? 56 : 44,
@@ -457,13 +444,13 @@ class _HomeView extends StatelessWidget {
       }
     }
 
-    String titolo = 'Ci sono tutti';
-    if (dettaglio.postiLiberi == 1) {
-      titolo = 'Manca un giocatore';
-    } else if (dettaglio.postiLiberi > 1) {
-      titolo = 'Mancano ${dettaglio.postiLiberi} giocatori';
-    } else if (ioDaConfermare || daConfermare.isNotEmpty) {
-      titolo = 'In attesa di conferma';
+    // con posti liberi il titolo non c'e': i cerchi vuoti sul campo bastano
+    String titolo = '';
+    if (dettaglio.postiLiberi == 0) {
+      titolo = 'Ci sono tutti';
+      if (ioDaConfermare || daConfermare.isNotEmpty) {
+        titolo = 'In attesa di conferma';
+      }
     }
 
     String sottotitolo = 'Tutti hanno confermato';
@@ -478,7 +465,8 @@ class _HomeView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(titolo, style: stileTesto(r, base: 16, peso: FontWeight.w700)),
+        if (titolo.isNotEmpty)
+          Text(titolo, style: stileTesto(r, base: 16, peso: FontWeight.w700)),
         Text(sottotitolo, style: stileSecondario(r, base: 14)),
       ],
     );
@@ -529,8 +517,11 @@ class _HomeView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Prossima partita',
-            style: stileTesto(r, base: 16, peso: FontWeight.w700),
+            _fraseProssimaPartita(partita),
+            style:
+                r.isTablet
+                    ? stileTitolo(r).copyWith(fontSize: 30)
+                    : stileTitolo(r),
           ),
           const SizedBox(height: 4),
           Text(
@@ -784,48 +775,45 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  // quattro orari per riga, come nel prototipo; il nome sta solo sulla prima
+  // gli orari di un campo stanno tutti su una riga, che scorre di lato se
+  // non entrano nella card; il nome del campo resta fermo a sinistra
   List<Widget> _righeCampo(
     BuildContext context,
     Responsive r,
     String nomeCampo,
     List<SlotOrario> slots,
   ) {
-    final List<Widget> righe = [];
-    for (int inizio = 0; inizio < slots.length; inizio += 4) {
-      final List<Widget> caselle = [];
-      for (int i = inizio; i < inizio + 4; i++) {
-        if (i > inizio) {
-          caselle.add(const SizedBox(width: 6));
-        }
-        if (i < slots.length) {
-          caselle.add(Expanded(child: _casellaSlot(context, r, slots[i])));
-        } else {
-          caselle.add(const Expanded(child: SizedBox.shrink()));
-        }
+    final List<Widget> caselle = [];
+    for (int i = 0; i < slots.length; i++) {
+      if (i > 0) {
+        caselle.add(const SizedBox(width: 6));
       }
-
-      if (inizio > 0) {
-        righe.add(const SizedBox(height: 6));
-      }
-      righe.add(
-        Row(
-          children: [
-            SizedBox(
-              width: r.font(64),
-              child: Text(
-                inizio == 0 ? nomeCampo : '',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: stileTesto(r, peso: FontWeight.w600),
-              ),
-            ),
-            ...caselle,
-          ],
-        ),
+      caselle.add(
+        SizedBox(width: r.font(64), child: _casellaSlot(context, r, slots[i])),
       );
     }
-    return righe;
+
+    return [
+      Row(
+        children: [
+          SizedBox(
+            width: r.font(64),
+            child: Text(
+              nomeCampo,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: stileTesto(r, peso: FontWeight.w600),
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: caselle),
+            ),
+          ),
+        ],
+      ),
+    ];
   }
 
   Widget _casellaSlot(BuildContext context, Responsive r, SlotOrario slot) {
@@ -1259,8 +1247,10 @@ class _HomeView extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Text(distacco, style: stileSecondario(r)),
+              if (distacco.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(distacco, style: stileSecondario(r)),
+              ],
             ],
           ),
         );
@@ -1283,7 +1273,8 @@ class _HomeView extends StatelessWidget {
                     '${voce.punteggio} punti in classifica',
                     style: stilePunti,
                   ),
-                  Text(distacco, style: stileSecondario(r, base: 14)),
+                  if (distacco.isNotEmpty)
+                    Text(distacco, style: stileSecondario(r, base: 14)),
                 ],
               ),
             ),
@@ -1346,8 +1337,9 @@ class _HomeView extends StatelessWidget {
     }
     final int? punti = sezione.data.punti;
     final int? posizioneSopra = sezione.data.posizioneSopra;
+    // chi e' primo non ha nessuno da inseguire: la riga resta vuota
     if (punti == null || posizioneSopra == null) {
-      return 'Sei in testa alla classifica';
+      return '';
     }
     if (punti == 1) {
       return 'Ti manca 1 punto per il $posizioneSopra° posto';
@@ -1366,11 +1358,10 @@ class _HomeView extends StatelessWidget {
       ),
     );
 
-    // l'id arriva solo se la partita e' stata creata: ricarichiamo le
-    // sezioni che cambiano e apriamo subito il dettaglio della nuova partita
+    // l'id arriva solo se la partita e' stata creata: si resta in home e si
+    // ricaricano le sezioni, cosi' la nuova partita compare in evidenza
     if (idPartita != null && context.mounted) {
       _ricaricaTutto(context);
-      await _apriDettaglio(context, idPartita);
     }
   }
 

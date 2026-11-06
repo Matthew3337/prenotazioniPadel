@@ -114,9 +114,7 @@ class _ClassificaView extends StatelessWidget {
     }
 
     return [
-      const BarraGrigia(larghezza: 240, altezza: 30),
-      const SizedBox(height: 8),
-      const BarraGrigia(larghezza: 280, altezza: 16),
+      const BarraGrigia(larghezza: 160, altezza: 30),
       const SizedBox(height: 12),
       CardBianca(
         padding: const EdgeInsets.all(6),
@@ -128,30 +126,8 @@ class _ClassificaView extends StatelessWidget {
   // ===== CONTENUTO =====
 
   List<Widget> _buildCaricata(Responsive r, List<VoceClassifica> voci) {
-    VoceClassifica? mia;
-    for (final voce in voci) {
-      if (voce.utenteCorrente) {
-        mia = voce;
-      }
-    }
-
     final List<Widget> elementi = [];
-    if (mia == null) {
-      // l'amministratore non e' in classifica: nessuna frase su di lui
-      elementi.add(Text('Classifica', style: stileTitolo(r)));
-    } else {
-      elementi.add(
-        Text(
-          'Sei ${mia.posizione}° con ${mia.punteggio} punti',
-          style: stileTitolo(r),
-        ),
-      );
-      final String distacco = _testoDistacco(mia, voci);
-      if (distacco.isNotEmpty) {
-        elementi.add(const SizedBox(height: 4));
-        elementi.add(Text(distacco, style: stileSecondario(r)));
-      }
-    }
+    elementi.add(Text('Classifica', style: stileTitolo(r)));
     elementi.add(const SizedBox(height: 12));
 
     if (voci.isEmpty) {
@@ -184,37 +160,6 @@ class _ClassificaView extends StatelessWidget {
       ),
     );
     return elementi;
-  }
-
-  // "22 da Andrea Russo, 27 di vantaggio su Elena Marchi". Non basta guardare
-  // le righe vicine: con i pari merito si cercano posizioni davvero diverse.
-  String _testoDistacco(VoceClassifica mia, List<VoceClassifica> voci) {
-    VoceClassifica? sopra;
-    VoceClassifica? sotto;
-    for (final voce in voci) {
-      if (voce.posizione < mia.posizione &&
-          (sopra == null || voce.posizione > sopra.posizione)) {
-        sopra = voce;
-      }
-      if (voce.posizione > mia.posizione &&
-          (sotto == null || voce.posizione < sotto.posizione)) {
-        sotto = voce;
-      }
-    }
-
-    final List<String> parti = [];
-    if (sopra != null) {
-      parti.add(
-        '${sopra.punteggio - mia.punteggio} da ${sopra.nome} ${sopra.cognome}',
-      );
-    }
-    if (sotto != null) {
-      parti.add(
-        '${mia.punteggio - sotto.punteggio} di vantaggio su '
-        '${sotto.nome} ${sotto.cognome}',
-      );
-    }
-    return parti.join(', ');
   }
 
   Widget _buildRiga(Responsive r, VoceClassifica voce, int massimo) {

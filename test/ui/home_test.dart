@@ -6,11 +6,13 @@ import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/ui/bachecaInviti.dart';
 import 'package:thepadel/ui/bachecaPubbliche.dart';
+import 'package:thepadel/ui/campoPadel.dart';
 import 'package:thepadel/ui/classifica.dart';
 import 'package:thepadel/ui/creaPartita.dart';
 import 'package:thepadel/ui/dettaglioPartita.dart';
 import 'package:thepadel/ui/home.dart';
 import 'package:thepadel/ui/invitaUtenti.dart';
+import 'package:thepadel/ui/miePartite.dart';
 import 'package:thepadel/ui/prenota.dart';
 import 'package:thepadel/ui/stileApp.dart';
 import 'package:thepadel/ui/storico.dart';
@@ -117,16 +119,20 @@ void main()
       expect(find.byType(BachecaPubblichePage), findsOneWidget);
     });
 
-    testWidgets("con una partita: titolo col giorno, nome del campo dal dettaglio e stato dei posti", (tester) async
+    testWidgets("con una partita: la frase sta nella barra bianca della card, senza sottotitolo ne Mancano", (tester) async
     {
       final prossima = prenotazioneDiTest();
       repoProssima.prossima = prossima;
       await apriHome(tester);
 
-      expect(find.text("${conMaiuscola(giornoRelativo(prossima.dataPrenotazione))} giochi alle 18:30"), findsOneWidget);
-      expect(find.text("Campo Centrale · ${giornoEMese(prossima.dataPrenotazione)}, fino alle 20:00"), findsOneWidget);
+      final frase = find.text("${conMaiuscola(giornoRelativo(prossima.dataPrenotazione))} giochi alle 18:30");
+      expect(frase, findsOneWidget);
+      //la frase e dentro la card, sopra il campo
+      expect(find.ancestor(of: frase, matching: find.byType(CardBianca)), findsOneWidget);
+      expect(tester.getTopLeft(frase).dy, lessThan(tester.getTopLeft(find.byType(CampoPadel)).dy));
+      expect(find.textContaining("fino alle 20:00"), findsNothing);
       expect(repoPartita.idRicevuto, 10);
-      expect(find.text("Mancano 2 giocatori"), findsOneWidget);
+      expect(find.textContaining("Mancano"), findsNothing);
       expect(find.text("Non hai ancora confermato"), findsOneWidget);
     });
 
@@ -205,9 +211,9 @@ void main()
       repoPartita.errore = ErroreGenericoServer();
       await apriHome(tester);
 
-      expect(find.text("Prossima partita"), findsOneWidget);
+      expect(find.text("${conMaiuscola(giornoRelativo(prossima.dataPrenotazione))} giochi alle 18:30"), findsOneWidget);
       expect(find.text("Non siamo riusciti a caricare i giocatori."), findsOneWidget);
-      expect(find.text("${giornoEMese(prossima.dataPrenotazione)}, fino alle 20:00"), findsOneWidget);
+      expect(find.text("${conMaiuscola(dataEstesa(prossima.dataPrenotazione))}, 18:30 - 20:00"), findsOneWidget);
 
       repoPartita.errore = null;
       await tester.tap(find.text("Riprova"));
@@ -215,7 +221,8 @@ void main()
 
       expect(repoProssima.chiamateProssima, 2);
       expect(repoCampo.chiamateSlot, 1);
-      expect(find.text("Mancano 2 giocatori"), findsOneWidget);
+      expect(find.byType(CampoPadel), findsOneWidget);
+      expect(find.text("Non siamo riusciti a caricare i giocatori."), findsNothing);
     });
 
     testWidgets("errore sulla prossima partita: saluto col nome e Riprova ricarica solo quella", (tester) async
@@ -334,7 +341,7 @@ void main()
       expect(find.text("01:30"), findsNothing);
     });
 
-    testWidgets("il tocco su un orario apre il riepilogo e, creata la partita, il suo dettaglio", (tester) async
+    testWidgets("il tocco su un orario apre il riepilogo e, creata la partita, si torna in home senza dettaglio", (tester) async
     {
       await apriHome(tester);
 
@@ -343,14 +350,31 @@ void main()
       expect(find.byType(CreaPartitaPage), findsOneWidget);
 
       await tester.tap(find.text("Partita pubblica"));
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
       await tester.tap(find.text("Prenota il campo"));
       await tester.pumpAndSettle();
 
       expect(repoProssima.chiamate, 1);
-      expect(find.byType(DettaglioPartitaPage), findsOneWidget);
-      //la home si ricarica appena la partita e creata
+      expect(find.byType(DettaglioPartitaPage), findsNothing);
+      expect(find.byType(CreaPartitaPage), findsNothing);
+      expect(find.byType(HomePage), findsOneWidget);
+      //la home nuova si carica da sola e mostra la partita
       expect(repoProssima.chiamateProssima, 2);
+    });
+
+    testWidgets("gli orari di un campo stanno su una sola riga che scorre di lato, anche a 320 px", (tester) async
+    {
+      repoCampo.slots = [for(int i = 0; i < 8; i++) slotCampoDiTest(oraInizio: "${(i + 10).toString()}:00:00", oraFine: "${(i + 11).toString()}:30:00")];
+      await apriHome(tester, schermo: const Size(320, 568));
+
+      expect(tester.takeException(), isNull);
+      final primo = find.text("10:00");
+      final ultimo = find.text("17:00");
+      expect(primo, findsOneWidget);
+      expect(ultimo, findsOneWidget);
+      expect(tester.getTopLeft(ultimo).dy, tester.getTopLeft(primo).dy);
+      expect(find.ancestor(of: ultimo, matching: find.byWidgetPredicate((w) => w is SingleChildScrollView && w.scrollDirection == Axis.horizontal)), findsOneWidget);
     });
 
     testWidgets("senza slot lo dice, anche se ci sono solo slot occupati", (tester) async
@@ -410,12 +434,14 @@ void main()
       expect(find.text("Ti manca 1 punto per il 1° posto"), findsOneWidget);
     });
 
-    testWidgets("chi e primo e in testa", (tester) async
+    testWidgets("chi e primo non ha nessuna frase sul distacco", (tester) async
     {
       repoUtente.voci = [voceDiTest(posizione: 1, punteggio: 43, utenteCorrente: true)];
       await apriHome(tester);
 
-      expect(find.text("Sei in testa alla classifica"), findsOneWidget);
+      expect(find.text("43 punti in classifica"), findsOneWidget);
+      expect(find.text("Sei in testa alla classifica"), findsNothing);
+      expect(find.textContaining("Ti manca"), findsNothing);
     });
 
     testWidgets("SectionEmpty: l'admin vede Classifica non disponibile", (tester) async
@@ -463,7 +489,8 @@ void main()
   {
     final voci = <String, Type>{
       "Prenota": PrenotaPage,
-      "Partite": BachecaPubblichePage,
+      "Partite": MiePartitePage,
+      "Bacheca": BachecaPubblichePage,
       "Storico": StoricoPage,
       "Classifica": ClassificaPage,
     };
@@ -538,7 +565,7 @@ void main()
       await apriHome(tester, schermo: const Size(320, 568));
 
       expect(tester.takeException(), isNull);
-      expect(find.text("Mancano 2 giocatori"), findsOneWidget);
+      expect(find.byType(CampoPadel), findsOneWidget);
     });
 
     testWidgets("su telefono la bacheca pubblica non viene caricata due volte", (tester) async

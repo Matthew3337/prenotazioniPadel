@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'fontApp.dart';
+
 // Colori, misure e piccoli pezzi grafici usati da tutte le pagine: stanno
 // qui per non ricopiarli in ogni file e per tenere le pagine uguali tra loro.
 
@@ -21,6 +23,9 @@ class Colori {
   static const Color arancio = Color(0xFF92530B);
   static const Color azzurroChiaro = Color(0xFFE7F1FC);
   static const Color azzurro = Color(0xFF2168B4);
+
+  // solo per i bottoni di login e registrazione
+  static const Color bluAcceso = Color(0xFF2F5BD3);
 }
 
 // I font sono scalati sulla larghezza di un iPhone standard (390): cosi' su
@@ -40,10 +45,13 @@ class Responsive {
   double get maxContentWidth => isTablet ? 640 : double.infinity;
 }
 
+// Il font dei titoli e' variabile: Flutter non ricava lo spessore dal solo
+// fontWeight, quindi lo si passa anche come asse 'wght'.
 TextStyle stileTitolo(Responsive r) {
   return TextStyle(
-    fontFamily: 'Bitter',
+    fontFamily: FontApp.titoli,
     fontWeight: FontWeight.w600,
+    fontVariations: const [FontVariation.weight(600)],
     fontSize: r.font(26),
     height: 1.15,
     letterSpacing: -0.26,
@@ -51,11 +59,12 @@ TextStyle stileTitolo(Responsive r) {
   );
 }
 
-// i numeri grandi e i titoli delle card (Bitter)
+// i numeri grandi e i titoli delle card, con il font dei titoli
 TextStyle stileNumero(Responsive r, double base) {
   return TextStyle(
-    fontFamily: 'Bitter',
+    fontFamily: FontApp.titoli,
     fontWeight: FontWeight.w600,
+    fontVariations: const [FontVariation.weight(600)],
     fontSize: r.font(base),
     height: 1.2,
     color: Colori.testo,
@@ -69,6 +78,7 @@ TextStyle stileTesto(
   Color colore = Colori.testo,
 }) {
   return TextStyle(
+    fontFamily: FontApp.testo,
     fontSize: r.font(base),
     fontWeight: peso,
     height: 1.4,

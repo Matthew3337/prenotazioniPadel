@@ -9,6 +9,7 @@ import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 import 'barraNavigazione.dart';
 import 'creaPartita.dart';
 import 'dettaglioPartita.dart';
+import 'home.dart';
 import 'stileApp.dart';
 import 'tabelloneSlot.dart';
 
@@ -70,8 +71,6 @@ class _PrenotaViewState extends State<_PrenotaView> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text('Prenota un campo', style: stileTitolo(r)),
-                          const SizedBox(height: 4),
-                          _buildSottotitolo(r, state),
                           const SizedBox(height: 12),
                           BarraGiorni(
                             state: state,
@@ -112,33 +111,6 @@ class _PrenotaViewState extends State<_PrenotaView> {
         ),
       ),
     );
-  }
-
-  // ===== INTESTAZIONE =====
-
-  Widget _buildSottotitolo(Responsive r, PrenotaState state) {
-    String testo = conMaiuscola(dataEstesa(state.giorno));
-    if (state is PrenotaCaricato) {
-      final int liberi = _contaLiberi(state);
-      testo += liberi == 1 ? ' · 1 slot libero' : ' · $liberi slot liberi';
-    }
-    return Text(testo, style: stileSecondario(r));
-  }
-
-  int _contaLiberi(PrenotaCaricato state) {
-    final DateTime adesso = DateTime.now();
-    int liberi = 0;
-    for (final campo in state.campi) {
-      final List<SlotOrario> slots = state.slotPerCampo[campo.id] ?? [];
-      for (final slot in slots) {
-        if (slot.disponibile &&
-            !state.slotPassato(slot, adesso) &&
-            state.partitaUtenteDelloSlot(slot) == null) {
-          liberi++;
-        }
-      }
-    }
-    return liberi;
   }
 
   // ===== SCELTA =====
@@ -211,14 +183,9 @@ class _PrenotaViewState extends State<_PrenotaView> {
       ),
     );
 
-    // se la partita e' stata creata ricarico il tabellone e apro subito il
-    // suo dettaglio, come fa la home
+    // a partita creata si torna sempre in home, che mostra la nuova partita
     if (idPartita != null && context.mounted) {
-      setState(() {
-        _slotScelto = null;
-      });
-      context.read<PrenotaBloc>().add(const PrenotaRichiesta());
-      await _apriDettaglio(context, idPartita);
+      tornaAllaVoce(context, const HomePage());
     }
   }
 

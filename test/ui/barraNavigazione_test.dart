@@ -5,6 +5,7 @@ import 'package:thepadel/ui/bachecaInviti.dart';
 import 'package:thepadel/ui/bachecaPubbliche.dart';
 import 'package:thepadel/ui/barraNavigazione.dart';
 import 'package:thepadel/ui/home.dart';
+import 'package:thepadel/ui/miePartite.dart';
 import 'package:thepadel/ui/prenota.dart';
 
 import '../fake/blocDiTest.dart';
@@ -40,20 +41,64 @@ void main()
     await tester.pumpWidget(MaterialApp(theme: temaDiTest(), home: Scaffold(bottomNavigationBar: BarraNavigazione(voceAttiva: voce))));
   }
 
-  testWidgets("mostra le cinque voci, senza overflow anche sul telefono piu piccolo", (tester) async
+  testWidgets("mostra le sei voci, senza overflow anche sul telefono piu piccolo (320 px)", (tester) async
+  {
+    tester.view.physicalSize = const Size(960, 1704);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.reset);
+
+    for(final attiva in VoceBarra.values)
+    {
+      await tester.pumpWidget(MaterialApp(theme: temaDiTest(), home: Scaffold(bottomNavigationBar: BarraNavigazione(voceAttiva: attiva))));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      for(final voce in ["Home", "Prenota", "Partite", "Bacheca", "Storico", "Classifica"])
+      {
+        expect(find.text(voce), findsOneWidget);
+      }
+    }
+  });
+
+  testWidgets("la barra e staccata dai bordi dello schermo", (tester) async
   {
     tester.view.physicalSize = const Size(960, 1704);
     tester.view.devicePixelRatio = 3.0;
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(MaterialApp(theme: temaDiTest(), home: const Scaffold(bottomNavigationBar: BarraNavigazione(voceAttiva: VoceBarra.home))));
+    await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    for(final voce in ["Home", "Prenota", "Partite", "Storico", "Classifica"])
-    {
-      expect(find.text(voce), findsOneWidget);
-    }
+    final home = tester.getTopLeft(find.text("Home"));
+    final classifica = tester.getTopRight(find.text("Classifica"));
+    expect(home.dx, greaterThan(8));
+    expect(classifica.dx, lessThan(320 - 8));
   });
+
+  testWidgets("la voce attiva ha sopra il cerchio di vetro, fatto con BackdropFilter", (tester) async
+  {
+    await apriBarra(tester, VoceBarra.classifica);
+    await tester.pumpAndSettle();
+
+    expect(find.descendant(of: find.byType(BarraNavigazione), matching: find.byType(BackdropFilter)), findsOneWidget);
+  });
+
+  final pagine = <String, Type>{
+    "Partite": MiePartitePage,
+    "Bacheca": BachecaPubblichePage,
+  };
+  for(final voce in pagine.entries)
+  {
+    testWidgets("la voce ${voce.key} apre ${voce.value}", (tester) async
+    {
+      await apriBarra(tester, VoceBarra.home);
+
+      await tester.tap(find.text(voce.key));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(voce.value), findsOneWidget);
+    });
+  }
 
   testWidgets("la voce attiva e in grassetto e le altre no", (tester) async
   {

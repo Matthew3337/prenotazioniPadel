@@ -38,6 +38,9 @@ MyUrl urlDiTest()
     PartiteInviti: "/api/partite/inviti",
     PartiteConferma: "/api/partite/{id}/conferma",
     PartiteRisultato: "/api/partite/{id}/risultato",
+    PartiteMie: "/api/partite/mie",
+    PartiteTipo: "/api/partite/{id}/tipo",
+    UtentiInvitabili: "/api/utenti/invitabili?cerca={cerca}",
     Classifica: "/api/classifica",
     AdminPartite: "/api/admin/partite?data={data}",
     AdminAvvisi: "/api/admin/avvisi",
@@ -91,6 +94,7 @@ class FakePrenotazioneRepo extends PrenotazioneRepoImpl
   DateTime? dataRicevuta;
   String? oraInizioRicevuta;
   String? tipoRicevuto;
+  List<String>? invitatiRicevuti;
 
   //prossima partita: null vuol dire nessuna partita in programma
   Prenotazione? prossima;
@@ -101,9 +105,10 @@ class FakePrenotazioneRepo extends PrenotazioneRepoImpl
   FakePrenotazioneRepo() : super(dsPrenotazione: DataSourcePrenotazione(c: Client(c: MockClient((_) async => http.Response('', 500))), elencoUrl: urlDiTest()));
 
   @override
-  Future<Prenotazione> creaPartita(int idCampo, DateTime data, String oraInizio, String tipo) async
+  Future<Prenotazione> creaPartita(int idCampo, DateTime data, String oraInizio, String tipo, {List<String> invitati = const []}) async
   {
     chiamate++;
+    invitatiRicevuti = invitati;
     idCampoRicevuto = idCampo;
     dataRicevuta = data;
     oraInizioRicevuta = oraInizio;

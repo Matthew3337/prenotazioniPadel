@@ -6,17 +6,17 @@ import 'package:thepadel/dataLayer/exception.dart';
 import 'package:thepadel/domainLayer/enetity/partitaStorico.dart';
 import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 import 'package:thepadel/useCase/homeUseCase.dart';
+import 'package:thepadel/useCase/miePartiteUseCase.dart';
 import 'package:thepadel/useCase/prenotaUseCase.dart';
-import 'package:thepadel/useCase/storicoUseCase.dart';
 
 class PrenotaBloc extends Bloc<PrenotaEvent, PrenotaState>{
   //attributi
   final ListaCampiUseCase listaCampiUseCase;
   final SlotDisponibiliUseCase slotUseCase;
-  final StoricoUseCase storicoUseCase;
+  final MiePartiteUseCase miePartiteUseCase;
 
   //metodi
-  PrenotaBloc({required this.listaCampiUseCase, required this.slotUseCase, required this.storicoUseCase}) : super(_statoIniziale()) {
+  PrenotaBloc({required this.listaCampiUseCase, required this.slotUseCase, required this.miePartiteUseCase}) : super(_statoIniziale()) {
     on<PrenotaRichiesta>(_onPrenotaRichiesta);
     on<PrenotaGiornoCambiato>(_onPrenotaGiornoCambiato);
   }
@@ -27,12 +27,13 @@ class PrenotaBloc extends Bloc<PrenotaEvent, PrenotaState>{
     return PrenotaInitial(giorno: giorni.first, giorni: giorni);
   }
 
-  //uso il costruttore di DateTime e non add(Duration): con il cambio dell'ora legale un giorno non e sempre di 24 ore
+  //da oggi a oggi + 15 compreso, lo stesso limite che controlla il server.
+  //Uso il costruttore di DateTime e non add(Duration): con il cambio dell'ora legale un giorno non e sempre di 24 ore
   static List<DateTime> _prossimiGiorni()
   {
     final oggi = DateTime.now();
     List<DateTime> giorni = [];
-    for(int i = 0; i < 7; i++)
+    for(int i = 0; i <= 15; i++)
     {
       giorni.add(DateTime(oggi.year, oggi.month, oggi.day + i));
     }
@@ -106,14 +107,15 @@ class PrenotaBloc extends Bloc<PrenotaEvent, PrenotaState>{
     }
   }
 
-  //senza lo storico il tabellone si mostra lo stesso, solo senza "La tua partita"
+  //senza le mie partite il tabellone si mostra lo stesso, solo senza "La tua partita".
+  //Non uso lo storico perche ora contiene solo le partite gia finite
   Future<List<PartitaStorico>> _caricaPartiteUtente(DateTime giorno) async
   {
     List<PartitaStorico> partiteDelGiorno = [];
     try
     {
-      final storico = await storicoUseCase.call();
-      for(final partita in storico)
+      final miePartite = await miePartiteUseCase.call();
+      for(final partita in miePartite)
       {
         final data = partita.dataPartita;
         if(data.year == giorno.year && data.month == giorno.month && data.day == giorno.day)

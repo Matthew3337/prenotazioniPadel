@@ -23,10 +23,14 @@ class CreaPartitaBloc extends Bloc<CreaPartitaEvent, CreaPartitaState>{
 
     try
     {
-      final prenotazione = await creaPartitaUseCase.call(evento.slot, evento.data, evento.tipo);
+      final prenotazione = await creaPartitaUseCase.call(evento.slot, evento.data, evento.tipo, invitati: evento.invitati);
       emit(CreaPartitaSuccess(prenotazione: prenotazione));
     }
     on TipoPartitaMancante catch (e)
+    {
+      emit(CreaPartitaErrore(messaggio: e.message));
+    }
+    on TroppiInvitati catch (e)
     {
       emit(CreaPartitaErrore(messaggio: e.message));
     }

@@ -14,8 +14,8 @@ class PrenotazioneRepoImpl implements PrenotazioneRepo {
   }
 
   @override
-  Future<Prenotazione> creaPartita(int idCampo, DateTime data, String oraInizio, String tipo) {
-    return dsPrenotazione.creaPartita(idCampo, data, oraInizio, tipo);
+  Future<Prenotazione> creaPartita(int idCampo, DateTime data, String oraInizio, String tipo, {List<String> invitati = const []}) {
+    return dsPrenotazione.creaPartita(idCampo, data, oraInizio, tipo, invitati: invitati);
   }
  
 }

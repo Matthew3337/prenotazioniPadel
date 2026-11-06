@@ -106,6 +106,56 @@ void main()
     expect(jsonDecode(richieste.first.body), {"idCampo": 1, "dataPrenotazione": "2026-01-05", "oraInizio": "09:00", "tipo": "PRIVATA"});
   });
 
+  test("201 con invitati: i telefoni partono nel campo invitati del body", () async
+  {
+    final rispostaServer = jsonEncode({
+      "id": 12,
+      "idCampo": 1,
+      "telefonoGiocatore1": "3331234567",
+      "telefonoGiocatore2": "3335550001",
+      "dataPrenotazione": "2026-01-05",
+      "oraInizio": "09:00:00",
+      "oraFine": "10:30:00",
+      "stato": "CREATA",
+      "tipo": "PRIVATA",
+    });
+    final ds = creaDataSource(201, rispostaServer, richieste);
+
+    final p = await ds.creaPartita(1, DateTime(2026, 1, 5), "09:00", "PRIVATA", invitati: ["3335550001", "3335550002"]);
+
+    expect(p.id, 12);
+    expect(jsonDecode(richieste.first.body), {"idCampo": 1, "dataPrenotazione": "2026-01-05", "oraInizio": "09:00", "tipo": "PRIVATA", "invitati": ["3335550001", "3335550002"]});
+  });
+
+  test("senza invitati il campo invitati non viene mandato", () async
+  {
+    final ds = creaDataSource(201, jsonEncode({"id": 13, "idCampo": 1, "telefonoGiocatore1": "3331234567", "dataPrenotazione": "2026-01-05", "oraInizio": "09:00:00", "oraFine": "10:30:00", "stato": "CREATA", "tipo": "PUBBLICA"}), richieste);
+
+    await ds.creaPartita(1, DateTime(2026, 1, 5), "09:00", "PUBBLICA", invitati: []);
+
+    expect((jsonDecode(richieste.first.body) as Map).containsKey("invitati"), false);
+  });
+
+  test("404 per invitato non trovato: lancia CampoInesistente con il messaggio del server", () async
+  {
+    final ds = creaDataSource(404, erroreServer(404, "Utente non trovato"), richieste);
+
+    await expectLater(
+      ds.creaPartita(1, DateTime(2026, 1, 5), "09:00", "PRIVATA", invitati: ["3330000000"]),
+      throwsA(isA<CampoInesistente>().having((e) => e.messaggio, "messaggio", "Utente non trovato")),
+    );
+  });
+
+  test("409 per invitato amministratore o oltre i 15 giorni: lancia SlotNonDisponibile col messaggio del server", () async
+  {
+    final ds = creaDataSource(409, erroreServer(409, "Non è possibile invitare un amministratore"), richieste);
+
+    await expectLater(
+      ds.creaPartita(1, DateTime(2026, 1, 5), "09:00", "PRIVATA", invitati: ["3330000000"]),
+      throwsA(isA<SlotNonDisponibile>().having((e) => e.messaggio, "messaggio", "Non è possibile invitare un amministratore")),
+    );
+  });
+
   test("409 con errore: lancia SlotNonDisponibile con il messaggio del server", () async
   {
     final ds = creaDataSource(409, erroreServer(409, "Lo slot selezionato è già occupato"), richieste);

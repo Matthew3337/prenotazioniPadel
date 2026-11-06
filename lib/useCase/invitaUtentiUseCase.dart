@@ -15,6 +15,20 @@ class InvitabiliUseCase {
   }
 }
 
+//gli utenti che si possono invitare in una partita che non esiste ancora, cioe mentre la si prenota
+class UtentiInvitabiliUseCase {
+
+  final PartitaRepoImpl repo;
+
+  UtentiInvitabiliUseCase({required this.repo});
+
+  //con cerca vuoto il server restituisce tutti gli utenti invitabili
+  Future<List<UtenteInvitabile>> call(String cerca)
+  {
+    return repo.getUtentiInvitabili(cerca);
+  }
+}
+
 class InvitaUtenteUseCase {
 
   final PartitaRepoImpl repo;
