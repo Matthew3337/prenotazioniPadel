@@ -20,7 +20,16 @@ import 'stileApp.dart';
 import 'tabelloneSlot.dart';
 
 class NuovaPartitaAdminPage extends StatelessWidget {
-  const NuovaPartitaAdminPage({super.key});
+  // dagli slot liberi della home si arriva qui con giorno e slot gia' scelti;
+  // lo slot contiene anche il campo
+  final DateTime? giornoIniziale;
+  final SlotOrario? slotIniziale;
+
+  const NuovaPartitaAdminPage({
+    super.key,
+    this.giornoIniziale,
+    this.slotIniziale,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +40,16 @@ class NuovaPartitaAdminPage extends StatelessWidget {
         ),
         // il tabellone degli slot e' lo stesso della pagina di prenotazione
         BlocProvider<PrenotaBloc>(
-          create: (_) => sl<PrenotaBloc>()..add(const PrenotaRichiesta()),
+          create: (_) {
+            final bloc = sl<PrenotaBloc>();
+            final DateTime? giorno = giornoIniziale;
+            if (giorno != null) {
+              bloc.add(PrenotaGiornoCambiato(giorno: giorno));
+            } else {
+              bloc.add(const PrenotaRichiesta());
+            }
+            return bloc;
+          },
         ),
         // questo serve solo per la ricerca degli utenti
         BlocProvider<GestioneLivelliBloc>(
@@ -41,13 +59,15 @@ class NuovaPartitaAdminPage extends StatelessWidget {
                     ..add(const UtentiRichiesti(cerca: '')),
         ),
       ],
-      child: const _NuovaPartitaAdminView(),
+      child: _NuovaPartitaAdminView(slotIniziale: slotIniziale),
     );
   }
 }
 
 class _NuovaPartitaAdminView extends StatefulWidget {
-  const _NuovaPartitaAdminView();
+  final SlotOrario? slotIniziale;
+
+  const _NuovaPartitaAdminView({required this.slotIniziale});
 
   @override
   State<_NuovaPartitaAdminView> createState() => _NuovaPartitaAdminViewState();
@@ -62,6 +82,14 @@ class _NuovaPartitaAdminViewState extends State<_NuovaPartitaAdminView> {
   String? _tipo;
   final List<UtenteAdmin> _utenti = [];
   int _giocatoriCampo = 0;
+
+  // se lo slot passato dalla home nel frattempo e' stato preso, lo toglie
+  // _controllaSlotScelto appena arrivano gli slot del giorno
+  @override
+  void initState() {
+    super.initState();
+    _slotScelto = widget.slotIniziale;
+  }
 
   @override
   void dispose() {

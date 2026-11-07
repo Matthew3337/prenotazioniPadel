@@ -28,13 +28,20 @@ void main()
   setUpAll(caricaFontDellApp);
 
   late FakeAdminRepo repo;
+  late FakeCampoRepo repoCampo;
+
+  final adesso = DateTime.now();
+  final oggi = DateTime(adesso.year, adesso.month, adesso.day);
+  //domani nessuno slot e gia iniziato, a qualunque ora girino i test
+  final domani = DateTime(adesso.year, adesso.month, adesso.day + 1);
 
   setUp(() async
   {
     await sl.reset();
     await registraPreferenzeDiTest();
     repo = FakeAdminRepo();
-    registraBlocDiTest(repoPartita: FakePartitaRepo(), repoCampo: FakeCampoRepo(), repoPrenotazione: FakePrenotazioneRepo(), repoUtente: FakeUtenteRepo(), repoAdmin: repo);
+    repoCampo = FakeCampoRepo();
+    registraBlocDiTest(repoPartita: FakePartitaRepo(), repoCampo: repoCampo, repoPrenotazione: FakePrenotazioneRepo(), repoUtente: FakeUtenteRepo(), repoAdmin: repo);
   });
 
   tearDown(() async
@@ -320,6 +327,134 @@ void main()
 
       expect(repo.chiamateLivelloCampo, 2);
       expect(valoreSelettore(tester), 2.0);
+    });
+  });
+
+  group("slot liberi", ()
+  {
+    Future<void> scegliGiorno(WidgetTester tester, DateTime giorno) async
+    {
+      final Finder casella = find.byWidgetPredicate((widget) => widget is Semantics && widget.properties.label == dataEstesa(giorno));
+      await tester.ensureVisible(casella);
+      await tester.pumpAndSettle();
+      await tester.tap(casella);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets("mostra per campo solo gli slot liberi, non quelli occupati", (tester) async
+    {
+      repoCampo.campi = [campoDiTest(id: 3, nome: "Campo Centrale"), campoDiTest(id: 4, nome: "Campo Due")];
+      repoCampo.slots = [
+        slotCampoDiTest(idCampo: 3, oraInizio: "18:30:00", oraFine: "20:00:00"),
+        slotCampoDiTest(idCampo: 3, oraInizio: "20:00:00", oraFine: "21:30:00", disponibile: false),
+        slotCampoDiTest(idCampo: 4, nomeCampo: "Campo Due", oraInizio: "10:00:00", oraFine: "11:30:00", disponibile: false),
+      ];
+      await apriPagina(tester);
+      await scegliGiorno(tester, domani);
+
+      expect(find.text("Slot liberi"), findsOneWidget);
+      expect(find.text("Campo Centrale"), findsOneWidget);
+      expect(find.text("Campo Due"), findsOneWidget);
+      expect(find.text("18:30"), findsOneWidget);
+      expect(find.text("20:00"), findsNothing);
+      expect(find.text("10:00"), findsNothing);
+      //il campo pieno resta in elenco con la scritta
+      expect(find.text("Nessuno slot libero"), findsOneWidget);
+    });
+
+    testWidgets("gli slot gia iniziati di oggi non compaiono, lo stesso orario domani si", (tester) async
+    {
+      //con l'apertura a mezzanotte lo slot delle 00:00 di oggi e sicuramente gia iniziato
+      repoCampo.campi = [campoDiTest(oraApertura: const TimeOfDay(hour: 0, minute: 0))];
+      repoCampo.slots = [slotCampoDiTest(oraInizio: "00:00:00", oraFine: "01:30:00")];
+      await apriPagina(tester);
+
+      expect(repoCampo.dateRicevute.first, oggi);
+      expect(find.text("00:00"), findsNothing);
+      expect(find.text("Nessuno slot libero"), findsOneWidget);
+
+      await scegliGiorno(tester, domani);
+
+      expect(repoCampo.dateRicevute.last, domani);
+      expect(find.text("00:00"), findsOneWidget);
+      expect(find.text("Nessuno slot libero"), findsNothing);
+    });
+
+    testWidgets("senza slot liberi lo dice", (tester) async
+    {
+      repoCampo.slots = [slotCampoDiTest(disponibile: false)];
+      await apriPagina(tester);
+      await scegliGiorno(tester, domani);
+
+      expect(find.text("Nessuno slot libero"), findsOneWidget);
+    });
+
+    testWidgets("senza campi rimanda a Gestione campi", (tester) async
+    {
+      repoCampo.campi = [];
+      await apriPagina(tester);
+
+      expect(find.text("Non ci sono campi. Puoi aggiungerli da Gestione campi."), findsOneWidget);
+    });
+
+    testWidgets("durante il caricamento ci sono le righe grigie", (tester) async
+    {
+      repoCampo.attesePerData[oggi] = Completer();
+      await apriPagina(tester, aspetta: false);
+      await tester.pump();
+
+      expect(find.byType(BarraGrigia), findsWidgets);
+      expect(find.text("Nessuno slot libero"), findsNothing);
+
+      repoCampo.attesePerData[oggi]!.complete([slotCampoDiTest(disponibile: false)]);
+      await tester.pumpAndSettle();
+      expect(find.text("Nessuno slot libero"), findsOneWidget);
+    });
+
+    testWidgets("in errore c'e il messaggio col giorno e Riprova ricarica", (tester) async
+    {
+      repoCampo.erroreSlot = ErroreGenericoServer();
+      await apriPagina(tester);
+
+      expect(find.text("Non siamo riusciti a caricare gli slot di ${nomeGiorno(oggi)}"), findsOneWidget);
+      final int chiamatePrima = repoCampo.chiamateSlot;
+
+      repoCampo.erroreSlot = null;
+      repoCampo.slots = [slotCampoDiTest(disponibile: false)];
+      await tester.ensureVisible(find.text("Riprova"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("Riprova"));
+      await tester.pumpAndSettle();
+
+      expect(repoCampo.chiamateSlot, chiamatePrima + 1);
+      expect(find.text("Riprova"), findsNothing);
+      expect(find.text("Nessuno slot libero"), findsOneWidget);
+    });
+
+    testWidgets("il tocco su uno slot apre Nuova partita con giorno e slot gia scelti, al ritorno ricarica", (tester) async
+    {
+      await apriPagina(tester);
+      await scegliGiorno(tester, domani);
+
+      await tester.ensureVisible(find.text("18:30"));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text("18:30"));
+      await tester.pumpAndSettle();
+
+      final pagina = tester.widget<NuovaPartitaAdminPage>(find.byType(NuovaPartitaAdminPage));
+      expect(pagina.giornoIniziale, domani);
+      expect(pagina.slotIniziale!.idCampo, 3);
+      expect(pagina.slotIniziale!.oraInizio, "18:30:00");
+      expect(find.text("Campo Centrale, ${dataEstesa(domani)}, 18:30 - 20:00"), findsOneWidget);
+
+      final int slotPrima = repoCampo.chiamateSlot;
+      final int avvisiPrima = repo.chiamateAvvisi;
+      chiudiPaginaInCima(tester);
+      await tester.pumpAndSettle();
+
+      expect(repoCampo.chiamateSlot, slotPrima + 1);
+      expect(repoCampo.dateRicevute.last, domani);
+      expect(repo.chiamateAvvisi, avvisiPrima + 1);
     });
   });
 }
