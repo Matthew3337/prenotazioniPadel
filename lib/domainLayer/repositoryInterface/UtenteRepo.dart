@@ -10,6 +10,8 @@ abstract class UtenteRepo {
 
   Future<void> logout();
 
+  Future<void> eliminaAccount();
+
   Future<List<VoceClassifica>> getClassifica();
 
 }

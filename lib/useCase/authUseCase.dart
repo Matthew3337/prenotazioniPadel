@@ -58,3 +58,12 @@ class LogoutUseCase {
     return repo.logout();
   }
 }
+
+class EliminaAccountUseCase {
+  final UtenteRepoImpl repo;
+  EliminaAccountUseCase({required this.repo});
+
+  Future<void> call() {
+    return repo.eliminaAccount();
+  }
+}

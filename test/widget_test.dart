@@ -24,7 +24,7 @@ void main()
     sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
 
     final repoUtente = FakeUtenteRepo();
-    sl.registerFactory<AuthBloc>(() => AuthBloc(loginUseCase: LoginUseCase(repo: repoUtente), registrazioneUseCase: RegistrazioneUseCase(repo: repoUtente), logoutUseCase: LogoutUseCase(repo: repoUtente)));
+    sl.registerFactory<AuthBloc>(() => AuthBloc(loginUseCase: LoginUseCase(repo: repoUtente), registrazioneUseCase: RegistrazioneUseCase(repo: repoUtente), logoutUseCase: LogoutUseCase(repo: repoUtente), eliminaAccountUseCase: EliminaAccountUseCase(repo: repoUtente)));
     registraBlocDiTest(repoPartita: FakePartitaRepo(), repoCampo: FakeCampoRepo(), repoPrenotazione: FakePrenotazioneRepo(), repoUtente: repoUtente);
   }
 

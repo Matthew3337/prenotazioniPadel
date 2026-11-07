@@ -11,7 +11,7 @@ class PrenotazioneModel extends Prenotazione{
       dataPrenotazione: DateTime.parse(json['dataPrenotazione']), 
       id: json['id'] as int, 
       idCampo: json['idCampo'] as int, 
-      telefonoGiocatore1: json['telefonoGiocatore1'] as String, 
+      telefonoGiocatore1: json['telefonoGiocatore1'] as String?, 
       telefonoGiocatore2: json['telefonoGiocatore2'] as String?, 
       telefonoGiocatore3: json['telefonoGiocatore3'] as String?, 
       telefonoGiocatore4: json['telefonoGiocatore4'] as String?, 

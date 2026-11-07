@@ -116,6 +116,7 @@ class _HomeView extends StatelessWidget {
           _buildClassifica(context, r, state, false),
           const SizedBox(height: 4),
           const BottoneEsci(),
+          const BottoneEliminaAccount(),
         ],
       ),
     );
@@ -161,6 +162,7 @@ class _HomeView extends StatelessWidget {
           _buildPubblicheTablet(context, r),
           const SizedBox(height: 4),
           const BottoneEsci(),
+          const BottoneEliminaAccount(),
         ],
       ),
     );
@@ -435,7 +437,7 @@ class _HomeView extends StatelessWidget {
 
     for (final posto in dettaglio.posti) {
       // i giocatori del campo hanno sempre confermata false: non contano
-      if (posto.tipo == 'UTENTE' && !posto.confermata) {
+      if (posto.tipo == 'UTENTE' && !posto.eliminato && !posto.confermata) {
         if (posto.telefono == mioTelefono) {
           ioDaConfermare = true;
         } else {
@@ -1117,12 +1119,16 @@ class _HomeView extends StatelessWidget {
     final String quando =
         '${conMaiuscola(giornoRelativo(partita.dataPartita))}, '
         '${formattaOra(partita.oraInizio)}';
-    String dove =
-        ' · ${partita.nomeCampo} · ${partita.nomeCreatore} '
-        '${partita.cognomeCreatore}';
-    // se il creatore e' un admin il livello non c'e'
-    if (partita.livelloCreatore != null) {
-      dove += ', livello ${partita.livelloCreatore}';
+    String dove = ' · ${partita.nomeCampo}';
+    // il nome manca se il creatore ha eliminato l'account: allora si salta
+    final String creatore =
+        '${partita.nomeCreatore ?? ''} ${partita.cognomeCreatore ?? ''}'.trim();
+    if (creatore.isNotEmpty) {
+      dove += ' · $creatore';
+      // se il creatore e' un admin il livello non c'e'
+      if (partita.livelloCreatore != null) {
+        dove += ', livello ${partita.livelloCreatore}';
+      }
     }
 
     return ConstrainedBox(

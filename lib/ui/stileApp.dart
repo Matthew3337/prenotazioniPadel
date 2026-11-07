@@ -170,6 +170,47 @@ String oraBreve(String ora) {
   return ora;
 }
 
+// Una partita che finisce prima dell'ora d'inizio (es. 23:00 - 00:30) finisce
+// il giorno dopo la sua data.
+DateTime fineDellaPartita(
+  DateTime dataPartita,
+  TimeOfDay oraInizio,
+  TimeOfDay oraFine,
+) {
+  final int minutiInizio = oraInizio.hour * 60 + oraInizio.minute;
+  final int minutiFine = oraFine.hour * 60 + oraFine.minute;
+  int giornoFine = dataPartita.day;
+  if (minutiFine <= minutiInizio) {
+    giornoFine = dataPartita.day + 1;
+  }
+  return DateTime(
+    dataPartita.year,
+    dataPartita.month,
+    giornoFine,
+    oraFine.hour,
+    oraFine.minute,
+  );
+}
+
+// Il risultato si registra entro 24 ore dalla fine della partita: passato
+// questo termine puo' inserirlo solo l'amministratore. Uso il costruttore e
+// non add(Duration) per lo stesso motivo di giornoRelativo.
+bool termineRisultatoScaduto(
+  DateTime dataPartita,
+  TimeOfDay oraInizio,
+  TimeOfDay oraFine,
+) {
+  final DateTime fine = fineDellaPartita(dataPartita, oraInizio, oraFine);
+  final DateTime termine = DateTime(
+    fine.year,
+    fine.month,
+    fine.day + 1,
+    fine.hour,
+    fine.minute,
+  );
+  return DateTime.now().isAfter(termine);
+}
+
 // "Sara", "Sara e Luca", "Sara, Luca ed Elena"
 String unisciNomi(List<String> nomi) {
   String risultato = '';

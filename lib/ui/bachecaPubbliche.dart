@@ -238,9 +238,11 @@ class _BachecaPubblicheView extends StatelessWidget {
           '${partita.nomeCampo} · ${giornoEMese(partita.dataPartita)}, $orario';
     }
 
-    String creatore = '${partita.nomeCreatore} ${partita.cognomeCreatore}';
+    // il nome manca se il creatore ha eliminato l'account: la riga sparisce
+    String creatore =
+        '${partita.nomeCreatore ?? ''} ${partita.cognomeCreatore ?? ''}'.trim();
     // se il creatore e' un admin il livello non c'e'
-    if (partita.livelloCreatore != null) {
+    if (creatore.isNotEmpty && partita.livelloCreatore != null) {
       creatore += ' · Livello ${partita.livelloCreatore}';
     }
 
@@ -263,7 +265,8 @@ class _BachecaPubblicheView extends StatelessWidget {
                       style: stileNumero(r, 20),
                     ),
                     Text(dove, style: stileSecondario(r)),
-                    Text(creatore, style: stileSecondario(r)),
+                    if (creatore.isNotEmpty)
+                      Text(creatore, style: stileSecondario(r)),
                   ],
                 ),
               ),

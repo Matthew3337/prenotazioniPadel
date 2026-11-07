@@ -14,8 +14,8 @@ class PartitaPubblicaModel extends PartitaPubblica{
       dataPartita: DateTime.parse(json['dataPartita']),
       oraInizio: _parseTimeOfDay(json['oraInizio']),
       oraFine: _parseTimeOfDay(json['oraFine']),
-      nomeCreatore: json['nomeCreatore'] as String,
-      cognomeCreatore: json['cognomeCreatore'] as String,
+      nomeCreatore: json['nomeCreatore'] as String?,
+      cognomeCreatore: json['cognomeCreatore'] as String?,
       //il livello puo arrivare come intero (es. 3) o come decimale (es. 2.5), quindi lo leggo come num e lo converto.
       //Se il creatore e un admin il server manda null
       livelloCreatore: (json['livelloCreatore'] as num?)?.toDouble(),

@@ -56,6 +56,41 @@ String inizialiDi(String? nome, String? cognome) {
   return risultato.toUpperCase();
 }
 
+// Chi ha eliminato l'account resta nelle partite gia' giocate, ma senza
+// nessun dato: al posto del nome si mostra questa scritta.
+const String testoUtenteEliminato = 'Utente eliminato';
+
+// Nome e cognome del posto, come si scrive nelle liste dei giocatori.
+String nomeCompletoPosto(PostoPartita posto) {
+  if (posto.tipo == 'CAMPO') {
+    return 'Giocatore del campo';
+  }
+  if (posto.eliminato) {
+    return testoUtenteEliminato;
+  }
+  return '${posto.nome ?? ''} ${posto.cognome ?? ''}'.trim();
+}
+
+// Solo il nome, per le frasi e per i nomi delle squadre.
+String nomeBrevePosto(PostoPartita posto) {
+  if (posto.tipo == 'CAMPO') {
+    return 'Giocatore del campo';
+  }
+  if (posto.eliminato) {
+    return testoUtenteEliminato;
+  }
+  return posto.nome ?? '';
+}
+
+// Sia il creatore sia il telefono di un posto possono essere null (account
+// eliminato): due null uguali non devono far sembrare organizzatore nessuno.
+bool eOrganizzatore(PostoPartita posto, String? telefonoCreatore) {
+  if (posto.telefono == null || telefonoCreatore == null) {
+    return false;
+  }
+  return posto.telefono == telefonoCreatore;
+}
+
 // Prepara i posti di una partita: chi ha gia' una squadra va dal suo lato,
 // altrimenti valgono l'ordine del server e i posti liberi in fondo.
 List<PostoCampo> postiDaDettaglio(
@@ -96,6 +131,16 @@ List<PostoCampo> postiDaDettaglio(
           colore: Colori.testo,
           nome: conNomi ? 'Del campo' : null,
           descrizione: 'Giocatore del campo',
+        ),
+      );
+    } else if (posto.eliminato) {
+      risultato.add(
+        PostoCampo(
+          iniziali: '?',
+          sfondo: Colori.bordo,
+          colore: Colori.testo,
+          nome: conNomi ? 'Eliminato' : null,
+          descrizione: testoUtenteEliminato,
         ),
       );
     } else if (posto.telefono != null && posto.telefono == mioTelefono) {

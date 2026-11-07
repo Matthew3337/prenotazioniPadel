@@ -9,8 +9,9 @@ class PartitaPubblica {
   final DateTime dataPartita;
   final TimeOfDay oraInizio;
   final TimeOfDay oraFine;
-  final String nomeCreatore;
-  final String cognomeCreatore;
+  //null se il creatore ha eliminato l'account e la partita non e passata a un admin
+  final String? nomeCreatore;
+  final String? cognomeCreatore;
   //null quando il creatore della partita e un admin
   final double? livelloCreatore;
   final int postiLiberi;

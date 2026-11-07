@@ -97,4 +97,44 @@ void main()
       expect(dettaglio.risultato!.puntiAssegnati, isNull);
     });
   });
+
+  group("DettaglioPartitaModel con un account eliminato", ()
+  {
+    test("telefonoCreatore null: il dettaglio si legge lo stesso", ()
+    {
+      final json = dettaglioJson();
+      json["telefonoCreatore"] = null;
+
+      final dettaglio = DettaglioPartitaModel.fromJson(json);
+
+      expect(dettaglio.telefonoCreatore, isNull);
+      expect(dettaglio.posti.length, 2);
+      expect(dettaglio.id, 7);
+    });
+
+    test("posto con eliminato true: tipo UTENTE e dati tutti null", ()
+    {
+      final json = dettaglioJson();
+      json["posti"][0] = <String, dynamic>{"tipo": "UTENTE", "telefono": null, "nome": null, "cognome": null, "livello": null, "confermata": true, "eliminato": true};
+
+      final dettaglio = DettaglioPartitaModel.fromJson(json);
+
+      expect(dettaglio.posti[0].eliminato, true);
+      expect(dettaglio.posti[0].tipo, "UTENTE");
+      expect(dettaglio.posti[0].telefono, isNull);
+      expect(dettaglio.posti[0].nome, isNull);
+      expect(dettaglio.posti[0].livello, isNull);
+    });
+
+    test("eliminato false o mancante: il posto non e eliminato", ()
+    {
+      final json = dettaglioJson();
+      json["posti"][0]["eliminato"] = false;
+
+      final dettaglio = DettaglioPartitaModel.fromJson(json);
+
+      expect(dettaglio.posti[0].eliminato, false);
+      expect(dettaglio.posti[1].eliminato, false);
+    });
+  });
 }

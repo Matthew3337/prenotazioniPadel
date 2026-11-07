@@ -69,8 +69,9 @@ void init()
   sl.registerLazySingleton<RegistrazioneUseCase>(() => RegistrazioneUseCase(repo: sl()));
 
   sl.registerLazySingleton<LogoutUseCase>(() => LogoutUseCase(repo: sl()));
+  sl.registerLazySingleton<EliminaAccountUseCase>(() => EliminaAccountUseCase(repo: sl()));
 
-  sl.registerFactory(() => AuthBloc(loginUseCase: sl(), registrazioneUseCase: sl(), logoutUseCase: sl())); //registro solo il bloc non gli eventi o gli stati 
+  sl.registerFactory(() => AuthBloc(loginUseCase: sl(), registrazioneUseCase: sl(), logoutUseCase: sl(), eliminaAccountUseCase: sl())); //registro solo il bloc non gli eventi o gli stati 
 
   sl.registerSingletonWithDependencies<DataSourcePrenotazione>(() => DataSourcePrenotazione(c: sl(), elencoUrl: sl()), dependsOn: [MyUrl]);
 

@@ -201,4 +201,81 @@ void main()
       expect(sl<SharedPreferences>().containsKey("telefono"), false);
     });
   });
+
+  group("eliminaAccount", ()
+  {
+    final chiaviDelLogin = ["isLogged", "jwt", "isAdmin", "telefono", "nome", "cognome"];
+
+    Future<void> preparaPreferenze() async
+    {
+      await sl.reset();
+      SharedPreferences.setMockInitialValues({
+        "isLogged": true,
+        "jwt": "token-finto",
+        "isAdmin": false,
+        "telefono": "3331234567",
+        "nome": "Mario",
+        "cognome": "Rossi",
+        "chiaveEstranea": "resta",
+      });
+      sl.registerSingleton<SharedPreferences>(await SharedPreferences.getInstance());
+    }
+
+    test("204: manda DELETE col token su /api/utenti/me e toglie le chiavi del login", () async
+    {
+      await preparaPreferenze();
+      final ds = creaDataSource(204, "", richieste);
+
+      await ds.eliminaAccount();
+
+      expect(richieste.single.method, "DELETE");
+      expect(richieste.single.url.toString(), "http://test/api/utenti/me");
+      expect(richieste.single.headers["Authorization"], "Bearer token-finto");
+      final preferenze = sl<SharedPreferences>();
+      for(final chiave in chiaviDelLogin)
+      {
+        expect(preferenze.containsKey(chiave), false, reason: chiave);
+      }
+      expect(preferenze.getString("chiaveEstranea"), "resta");
+    });
+
+    test("il repository passa dal data source", () async
+    {
+      await preparaPreferenze();
+      final ds = creaDataSource(204, "", richieste);
+
+      await UtenteRepoImpl(dsUtente: ds).eliminaAccount();
+
+      expect(richieste.single.method, "DELETE");
+      expect(sl<SharedPreferences>().containsKey("jwt"), false);
+    });
+
+    test("404: UtenteNonTrovato col messaggio del server, le chiavi restano", () async
+    {
+      await preparaPreferenze();
+      final ds = creaDataSource(404, jsonEncode({"timestamp": "2026-11-07T10:00:00", "status": 404, "errore": "Utente non trovato"}), richieste);
+
+      await expectLater(ds.eliminaAccount(), throwsA(isA<UtenteNonTrovato>().having((e) => e.messaggio, "messaggio", "Utente non trovato")));
+      expect(sl<SharedPreferences>().getString("jwt"), "token-finto");
+      expect(sl<SharedPreferences>().getBool("isLogged"), true);
+    });
+
+    test("500: ErroreGenericoServer, le chiavi restano", () async
+    {
+      await preparaPreferenze();
+      final ds = creaDataSource(500, jsonEncode({"timestamp": "2026-11-07T10:00:00", "status": 500, "errore": "boom"}), richieste);
+
+      await expectLater(ds.eliminaAccount(), throwsA(isA<ErroreGenericoServer>()));
+      expect(sl<SharedPreferences>().getString("jwt"), "token-finto");
+    });
+
+    test("risposta senza body (es. 401 col token scaduto): ErroreGenericoServer", () async
+    {
+      await preparaPreferenze();
+      final ds = creaDataSource(401, "", richieste);
+
+      await expectLater(ds.eliminaAccount(), throwsA(isA<ErroreGenericoServer>()));
+      expect(sl<SharedPreferences>().getString("jwt"), "token-finto");
+    });
+  });
 }

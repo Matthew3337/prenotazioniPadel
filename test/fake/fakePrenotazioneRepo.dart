@@ -41,6 +41,7 @@ MyUrl urlDiTest()
     PartiteMie: "/api/partite/mie",
     PartiteTipo: "/api/partite/{id}/tipo",
     UtentiInvitabili: "/api/utenti/invitabili?cerca={cerca}",
+    UtenteMe: "/api/utenti/me",
     Classifica: "/api/classifica",
     AdminPartite: "/api/admin/partite?data={data}",
     AdminAvvisi: "/api/admin/avvisi",

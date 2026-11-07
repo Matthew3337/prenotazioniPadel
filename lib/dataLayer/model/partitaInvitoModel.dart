@@ -16,8 +16,8 @@ class PartitaInvitoModel extends PartitaInvito{
       oraFine: _parseTimeOfDay(json['oraFine']),
       stato: json['stato'] as String,
       tipo: json['tipo'] as String,
-      nomeCreatore: json['nomeCreatore'] as String,
-      cognomeCreatore: json['cognomeCreatore'] as String
+      nomeCreatore: json['nomeCreatore'] as String?,
+      cognomeCreatore: json['cognomeCreatore'] as String?
     );
   }
 

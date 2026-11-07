@@ -4,7 +4,7 @@ class Prenotazione {
   //attributi 
   final int id;
   final int idCampo;
-  final String telefonoGiocatore1;
+  final String? telefonoGiocatore1;
   final String? telefonoGiocatore2;
   final String? telefonoGiocatore3;
   final String? telefonoGiocatore4;

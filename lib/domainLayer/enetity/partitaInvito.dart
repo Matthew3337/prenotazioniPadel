@@ -11,8 +11,9 @@ class PartitaInvito {
   final TimeOfDay oraFine;
   final String stato; //in minuscolo: creata o confermata, le altre il server non le manda
   final String tipo; //PUBBLICA o PRIVATA
-  final String nomeCreatore;
-  final String cognomeCreatore;
+  //null se il creatore ha eliminato l'account e la partita non e passata a un admin
+  final String? nomeCreatore;
+  final String? cognomeCreatore;
 
   PartitaInvito({required this.id, required this.idCampo, required this.nomeCampo, required this.dataPartita, required this.oraInizio, required this.oraFine, required this.stato, required this.tipo, required this.nomeCreatore, required this.cognomeCreatore});
 }

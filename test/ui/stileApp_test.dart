@@ -150,6 +150,46 @@ void main()
     });
   });
 
+  group("fine della partita e termine del risultato", ()
+  {
+    const TimeOfDay ore18 = TimeOfDay(hour: 18, minute: 30);
+    const TimeOfDay ore20 = TimeOfDay(hour: 20, minute: 0);
+    const TimeOfDay ore23 = TimeOfDay(hour: 23, minute: 0);
+    const TimeOfDay mezzanotteEMezza = TimeOfDay(hour: 0, minute: 30);
+
+    test("fineDellaPartita: stesso giorno se la fine viene dopo l'inizio", ()
+    {
+      expect(fineDellaPartita(DateTime(2026, 11, 5), ore18, ore20), DateTime(2026, 11, 5, 20, 0));
+    });
+
+    test("fineDellaPartita: dopo mezzanotte finisce il giorno dopo, anche a fine mese e anno", ()
+    {
+      expect(fineDellaPartita(DateTime(2026, 11, 5), ore23, mezzanotteEMezza), DateTime(2026, 11, 6, 0, 30));
+      expect(fineDellaPartita(DateTime(2026, 11, 30), ore23, mezzanotteEMezza), DateTime(2026, 12, 1, 0, 30));
+      expect(fineDellaPartita(DateTime(2026, 12, 31), ore23, mezzanotteEMezza), DateTime(2027, 1, 1, 0, 30));
+    });
+
+    test("termineRisultatoScaduto: passato da giorni si, appena finita no, futura no", ()
+    {
+      final oggi = DateTime.now();
+      expect(termineRisultatoScaduto(DateTime(oggi.year, oggi.month, oggi.day - 3), ore18, ore20), true);
+      expect(termineRisultatoScaduto(DateTime(oggi.year, oggi.month, oggi.day + 1), ore18, ore20), false);
+
+      final inizio = oggi.subtract(const Duration(hours: 3));
+      final fine = oggi.subtract(const Duration(hours: 1));
+      expect(termineRisultatoScaduto(DateTime(inizio.year, inizio.month, inizio.day), TimeOfDay.fromDateTime(inizio), TimeOfDay.fromDateTime(fine)), false);
+    });
+
+    test("termineRisultatoScaduto: le 24 ore di una partita finita dopo mezzanotte partono dal giorno dopo", ()
+    {
+      //ieri 23:00 - 00:30 finisce oggi alle 00:30: il termine e domani alle 00:30
+      final oggi = DateTime.now();
+      expect(termineRisultatoScaduto(DateTime(oggi.year, oggi.month, oggi.day - 1), ore23, mezzanotteEMezza), false);
+      //tre giorni fa e scaduta comunque
+      expect(termineRisultatoScaduto(DateTime(oggi.year, oggi.month, oggi.day - 3), ore23, mezzanotteEMezza), true);
+    });
+  });
+
   test("testoPostiLiberi: nessuno, singolare e plurale", ()
   {
     expect(testoPostiLiberi(0), "Nessun posto libero");

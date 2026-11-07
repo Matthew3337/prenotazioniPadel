@@ -154,6 +154,7 @@ class _HomeAdminView extends StatelessWidget {
               _buildLivelloCampo(r),
               const SizedBox(height: 8),
               const BottoneEsci(),
+              const BottoneEliminaAccount(),
             ],
           ),
         ),

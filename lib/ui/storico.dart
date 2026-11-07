@@ -168,14 +168,38 @@ class _StoricoView extends StatelessWidget {
     return elementi;
   }
 
-  // Lo storico contiene solo partite gia' finite, quindi non serve guardare
-  // l'orario. Una partita rimasta "creata" non si e' mai giocata davvero
-  // (senza quattro giocatori viene annullata): li' non c'e' nulla da registrare.
-  bool _mancaRisultato(PartitaStorico partita) {
+  // Una partita rimasta "creata" non si e' mai giocata davvero (senza quattro
+  // giocatori viene annullata): li' non c'e' nulla da registrare.
+  bool _senzaRisultato(PartitaStorico partita) {
     if (partita.risultato != null) {
       return false;
     }
     return partita.stato == 'confermata' || partita.stato == 'giocata';
+  }
+
+  // Il risultato si puo' registrare solo dalla fine della partita alle 24 ore
+  // successive: e' la stessa regola che applica il server.
+  bool _mancaRisultato(PartitaStorico partita) {
+    if (!_senzaRisultato(partita)) {
+      return false;
+    }
+    final DateTime fine = fineDellaPartita(
+      partita.dataPartita,
+      partita.oraInizio,
+      partita.oraFine,
+    );
+    if (DateTime.now().isBefore(fine)) {
+      return false;
+    }
+    return !_termineScaduto(partita);
+  }
+
+  bool _termineScaduto(PartitaStorico partita) {
+    return termineRisultatoScaduto(
+      partita.dataPartita,
+      partita.oraInizio,
+      partita.oraFine,
+    );
   }
 
   List<Widget> _buildIntestazione(Responsive r, List<PartitaStorico> partite) {
@@ -346,6 +370,13 @@ class _StoricoView extends StatelessWidget {
         testo: 'Senza risultato',
         sfondo: Colori.arancioChiaro,
         colore: Colori.arancio,
+      );
+    }
+    if (_senzaRisultato(partita) && _termineScaduto(partita)) {
+      return const Pillola(
+        testo: 'Risultato non registrato',
+        sfondo: Colori.bordo,
+        colore: Colori.testoSecondario,
       );
     }
     if (partita.stato == 'giocata') {

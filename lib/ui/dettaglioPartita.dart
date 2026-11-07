@@ -321,8 +321,9 @@ class _DettaglioPartitaView extends StatelessWidget {
   List<String> _nomiDaConfermare(DettaglioPartita dettaglio) {
     final List<String> nomi = [];
     for (final posto in dettaglio.posti) {
-      // i giocatori del campo hanno sempre confermata false: non contano
-      if (posto.tipo == 'UTENTE' && !posto.confermata) {
+      // i giocatori del campo hanno sempre confermata false: non contano,
+      // e nemmeno chi ha eliminato l'account
+      if (posto.tipo == 'UTENTE' && !posto.eliminato && !posto.confermata) {
         nomi.add(posto.nome ?? '');
       }
     }
@@ -479,16 +480,14 @@ class _DettaglioPartitaView extends StatelessWidget {
   Widget _rigaPosto(
     Responsive r,
     PostoPartita posto,
-    String telefonoCreatore,
+    String? telefonoCreatore,
     bool conStato,
   ) {
-    String nome = '${posto.nome ?? ''} ${posto.cognome ?? ''}'.trim();
+    final String nome = nomeCompletoPosto(posto);
     String dettagli = '';
 
-    if (posto.tipo == 'CAMPO') {
-      nome = 'Giocatore del campo';
-    } else {
-      if (posto.telefono == telefonoCreatore) {
+    if (posto.tipo == 'UTENTE') {
+      if (eOrganizzatore(posto, telefonoCreatore)) {
         dettagli = 'Organizzatore · ';
       }
       if (posto.livello != null) {
@@ -497,7 +496,7 @@ class _DettaglioPartitaView extends StatelessWidget {
     }
 
     Widget? statoConferma;
-    if (conStato && posto.tipo == 'UTENTE') {
+    if (conStato && posto.tipo == 'UTENTE' && !posto.eliminato) {
       statoConferma = Text(
         posto.confermata ? 'Confermato' : 'Da confermare',
         style: stileTesto(
@@ -568,11 +567,7 @@ class _DettaglioPartitaView extends StatelessWidget {
     final List<String> nomi = [];
     for (final posto in dettaglio.posti) {
       if (posto.squadra == squadra) {
-        if (posto.tipo == 'CAMPO') {
-          nomi.add('Giocatore del campo');
-        } else {
-          nomi.add(posto.nome ?? '');
-        }
+        nomi.add(nomeBrevePosto(posto));
       }
     }
     if (nomi.isEmpty) {
@@ -690,7 +685,9 @@ class _DettaglioPartitaView extends StatelessWidget {
   PostoPartita? _mioPosto(DettaglioPartita dettaglio) {
     final String? mioTelefono = telefonoUtenteCorrente();
     for (final posto in dettaglio.posti) {
-      if (posto.tipo == 'UTENTE' && posto.telefono == mioTelefono) {
+      if (posto.tipo == 'UTENTE' &&
+          posto.telefono != null &&
+          posto.telefono == mioTelefono) {
         return posto;
       }
     }
@@ -700,24 +697,28 @@ class _DettaglioPartitaView extends StatelessWidget {
   // Lo stato diventa "giocata" solo con il risultato: una partita gia'
   // finita ma senza risultato la riconosciamo dall'orario di fine.
   bool _giaFinita(DettaglioPartita dettaglio) {
-    // una partita che finisce prima dell'ora d'inizio (23:00 - 00:30) finisce
-    // il giorno dopo la sua data
-    final int minutiInizio =
-        dettaglio.oraInizio.hour * 60 + dettaglio.oraInizio.minute;
-    final int minutiFine =
-        dettaglio.oraFine.hour * 60 + dettaglio.oraFine.minute;
-    final int giornoFine =
-        minutiFine <= minutiInizio
-            ? dettaglio.dataPartita.day + 1
-            : dettaglio.dataPartita.day;
-    final DateTime fine = DateTime(
-      dettaglio.dataPartita.year,
-      dettaglio.dataPartita.month,
-      giornoFine,
-      dettaglio.oraFine.hour,
-      dettaglio.oraFine.minute,
+    final DateTime fine = fineDellaPartita(
+      dettaglio.dataPartita,
+      dettaglio.oraInizio,
+      dettaglio.oraFine,
     );
     return dettaglio.stato == 'giocata' || !DateTime.now().isBefore(fine);
+  }
+
+  // Serve solo a spiegare perche' il bottone "Registra risultato" non c'e':
+  // se poi il server lo permette comunque, il bottone compare lo stesso.
+  bool _termineRisultatoPassato(DettaglioPartita dettaglio) {
+    if (dettaglio.stato != 'confermata' || dettaglio.risultato != null) {
+      return false;
+    }
+    if (dettaglio.azioni.puoRegistrareRisultato) {
+      return false;
+    }
+    return termineRisultatoScaduto(
+      dettaglio.dataPartita,
+      dettaglio.oraInizio,
+      dettaglio.oraFine,
+    );
   }
 
   // Cosa si puo' fare lo decide sempre il server. Il bottone di conferma c'e'
@@ -782,6 +783,18 @@ class _DettaglioPartitaView extends StatelessWidget {
           ),
         );
       }
+      figli.add(const SizedBox(height: 4));
+    }
+
+    if (mioPosto != null && _termineRisultatoPassato(dettaglio)) {
+      figli.add(
+        Text(
+          'Il termine per registrare il risultato (24 ore dalla fine) è '
+          "scaduto: può inserirlo l'amministratore.",
+          textAlign: TextAlign.center,
+          style: stileSecondario(r, base: 14),
+        ),
+      );
       figli.add(const SizedBox(height: 4));
     }
 
@@ -951,7 +964,9 @@ class _DettaglioPartitaView extends StatelessWidget {
     final String? mioTelefono = telefonoUtenteCorrente();
     final List<String> altri = [];
     for (final posto in dettaglio.posti) {
-      if (posto.tipo == 'UTENTE' && posto.telefono != mioTelefono) {
+      if (posto.tipo == 'UTENTE' &&
+          !posto.eliminato &&
+          posto.telefono != mioTelefono) {
         altri.add(posto.nome ?? '');
       }
     }

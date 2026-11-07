@@ -118,3 +118,120 @@ class _DialogEsci extends StatelessWidget {
     );
   }
 }
+
+// "Elimina account" sotto a "Esci": stessa idea, ma l'operazione e' definitiva
+// e quindi il link e il bottone di conferma sono rossi
+class BottoneEliminaAccount extends StatelessWidget {
+  const BottoneEliminaAccount({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: LinkTesto(
+        testo: 'Elimina account',
+        peso: FontWeight.w600,
+        colore: Colori.rosso,
+        onPressed: () {
+          showDialog<void>(
+            context: context,
+            barrierColor: Colori.testo.withValues(alpha: 0.55),
+            builder: (_) => const _DialogEliminaAccount(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DialogEliminaAccount extends StatelessWidget {
+  const _DialogEliminaAccount();
+
+  @override
+  Widget build(BuildContext context) {
+    final r = Responsive(context);
+
+    return BlocProvider<AuthBloc>(
+      create: (_) => sl<AuthBloc>(),
+      child: Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        insetPadding: const EdgeInsets.all(24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: BlocConsumer<AuthBloc, AuthState>(
+              listener: (context, state) {
+                // La SnackBar parte prima di cambiare pagina: lo
+                // ScaffoldMessenger e' quello dell'app, quindi resta visibile
+                // anche sulla pagina di login.
+                if (state is AccountEliminato) {
+                  mostraSnackBar(context, 'Account eliminato');
+                  tornaAllaVoce(context, const LoginPage());
+                }
+                // dietro al dialog la SnackBar resterebbe in ombra: prima lo
+                // chiudiamo
+                if (state is AuthErrore) {
+                  mostraSnackBar(context, state.messaggio);
+                  Navigator.pop(context);
+                }
+              },
+              builder: (context, state) {
+                final bool isLoading = state is AuthLoading;
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Eliminare l\'account?', style: stileNumero(r, 22)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Il tuo account e i tuoi dati personali verranno '
+                      'eliminati. Non si può annullare.',
+                      style: stileSecondario(r),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: BottonePieno(
+                            testo: 'Annulla',
+                            sfondo: Colori.sfondo,
+                            coloreTesto: Colori.testo,
+                            paddingOrizzontale: 8,
+                            onPressed:
+                                isLoading
+                                    ? null
+                                    : () {
+                                      Navigator.pop(context);
+                                    },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: BottonePieno(
+                            testo: 'Elimina',
+                            sfondo: Colori.rosso,
+                            paddingOrizzontale: 8,
+                            inCaricamento: isLoading,
+                            onPressed: () {
+                              context.read<AuthBloc>().add(
+                                EliminaAccountRichiesto(),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
