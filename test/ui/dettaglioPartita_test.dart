@@ -116,6 +116,86 @@ void main()
     expect(find.textContaining("Organizzatore"), findsNothing);
   });
 
+  testWidgets("creatore null e un posto eliminato: Utente eliminato, nessun Organizzatore e nessun errore", (tester) async
+  {
+    repo.risposta = dettaglioDiTest(telefonoCreatore: null, stato: "giocata", dataPartita: DateTime(adesso.year, adesso.month, adesso.day - 3), azioni: azioniDiTest(), posti: [
+      PostoPartita(idPosto: 21, tipo: "UTENTE", telefono: null, nome: null, cognome: null, livello: null, confermata: true, squadra: null, eliminato: true),
+      PostoPartita(idPosto: 22, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: null),
+      PostoPartita(idPosto: 23, tipo: "UTENTE", telefono: "3335550002", nome: "Anna", cognome: "Verdi", livello: 2.5, confermata: true, squadra: null),
+      PostoPartita(idPosto: 24, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null),
+    ]);
+    await apriPagina(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(find.text("Utente eliminato"), findsWidgets);
+    expect(find.text("Mario Rossi"), findsOneWidget);
+    expect(find.text("Anna Verdi"), findsOneWidget);
+    expect(find.text("Giocatore del campo"), findsOneWidget);
+    expect(find.textContaining("Organizzatore"), findsNothing);
+  });
+
+  testWidgets("posto eliminato in una partita da confermare: non compare tra chi deve confermare", (tester) async
+  {
+    repo.risposta = dettaglioDiTest(dataPartita: futura, azioni: azioniDiTest(), posti: [
+      PostoPartita(idPosto: 21, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: null),
+      PostoPartita(idPosto: 22, tipo: "UTENTE", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null, eliminato: true),
+      PostoPartita(idPosto: 23, tipo: "UTENTE", telefono: "3335550002", nome: "Anna", cognome: "Verdi", livello: 2.5, confermata: true, squadra: null),
+      PostoPartita(idPosto: 24, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null),
+    ]);
+    await apriPagina(tester);
+
+    expect(tester.takeException(), isNull);
+    //il posto eliminato non ha lo stato di conferma: due righe Confermato piu il mio bottone Confermato spento
+    expect(find.text("Giocatori, 4 su 4"), findsOneWidget);
+    expect(find.text("Da confermare"), findsNothing);
+    expect(find.text("Confermato"), findsNWidgets(3));
+    //4 posti e nessuno da confermare: niente pillola In attesa di conferma
+    expect(find.text("In attesa di conferma"), findsNothing);
+  });
+
+  group("termine per il risultato", ()
+  {
+    const String rigaTermine = "Il termine per registrare il risultato (24 ore dalla fine) è scaduto: può inserirlo l'amministratore.";
+
+    testWidgets("confermata senza risultato e termine scaduto: compare la riga, senza Registra risultato", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "confermata", posti: quattroPostiDiTest(), azioni: azioniDiTest(), dataPartita: DateTime(adesso.year, adesso.month, adesso.day - 3));
+      await apriPagina(tester);
+
+      expect(find.text(rigaTermine), findsOneWidget);
+      expect(find.text("Registra risultato"), findsNothing);
+    });
+
+    testWidgets("entro le 24 ore con puoRegistrareRisultato: niente riga, c'e Registra risultato", (tester) async
+    {
+      final inizio = adesso.subtract(const Duration(hours: 3));
+      final fine = adesso.subtract(const Duration(hours: 1));
+      repo.risposta = dettaglioDiTest(stato: "confermata", posti: quattroPostiDiTest(), azioni: azioniDiTest(puoRegistrareRisultato: true), dataPartita: DateTime(inizio.year, inizio.month, inizio.day), oraInizio: TimeOfDay.fromDateTime(inizio), oraFine: TimeOfDay.fromDateTime(fine));
+      await apriPagina(tester);
+
+      expect(find.text(rigaTermine), findsNothing);
+      expect(find.text("Registra risultato"), findsOneWidget);
+    });
+
+    testWidgets("chi non gioca la partita non vede la riga", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "confermata", azioni: azioniDiTest(), dataPartita: DateTime(adesso.year, adesso.month, adesso.day - 3), posti: [
+        PostoPartita(idPosto: 21, tipo: "UTENTE", telefono: "3335550001", nome: "Luca", cognome: "Bianchi", livello: 3.0, confermata: true, squadra: null),
+      ]);
+      await apriPagina(tester);
+
+      expect(find.text(rigaTermine), findsNothing);
+    });
+
+    testWidgets("con il risultato gia registrato la riga non c'e", (tester) async
+    {
+      repo.risposta = dettaglioDiTest(stato: "giocata", posti: quattroPostiDiTest(conSquadre: true), azioni: azioniDiTest(), risultato: risultatoDiTest(), dataPartita: DateTime(adesso.year, adesso.month, adesso.day - 3));
+      await apriPagina(tester);
+
+      expect(find.text(rigaTermine), findsNothing);
+    });
+  });
+
   group("stato della partita", ()
   {
     testWidgets("un solo posto libero: Manca un giocatore", (tester) async

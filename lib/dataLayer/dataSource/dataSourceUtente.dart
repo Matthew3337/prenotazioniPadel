@@ -53,6 +53,31 @@ class DataSourceUtente{
     await sl<SharedPreferences>().remove('cognome');
   }
 
+  Future<void> eliminaAccount() async
+  {
+    String token = sl<SharedPreferences>().getString("jwt")!;
+    dynamic res = await c.delete(elencoUrl.BaseUrl + elencoUrl.UtenteMe, token: token);
+
+    if(res == null) //risposta senza body (es. token scaduto), non c'e niente da leggere
+    {
+      throw ErroreGenericoServer();
+    }
+    else if(!res.containsKey("errore") && (res['status'] as int) == 204) //BUON FINE, il server non manda nessun body
+    {
+      //l'account non esiste piu: tolgo i dati salvati esattamente come quando si esce
+      await logout();
+      return;
+    }
+    else if(res.containsKey("errore") && (res['status'] as int) == 404) //UTENTE GIA ELIMINATO O INESISTENTE
+    {
+      throw UtenteNonTrovato(messaggio: res['errore']);
+    }
+    else
+    { //ALTRI ERRORI
+      throw ErroreGenericoServer();
+    }
+  }
+
   Future<int> registrazione(String nome, String cognome, String telefono, DateTime dataNascita, String password) async
   {
     String dataFormattata = "${dataNascita.year.toString().padLeft(4,'0')}-${dataNascita.month.toString().padLeft(2,'0')}-${dataNascita.day.toString().padLeft(2,'0')}";

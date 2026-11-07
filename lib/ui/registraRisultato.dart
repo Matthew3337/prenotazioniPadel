@@ -274,10 +274,7 @@ class _FormRisultatoState extends State<FormRisultato> {
   // ===== SQUADRE =====
 
   String _nomePosto(PostoPartita posto) {
-    if (posto.tipo == 'CAMPO') {
-      return 'Giocatore del campo';
-    }
-    return posto.nome ?? '';
+    return nomeBrevePosto(posto);
   }
 
   // il posto toccato si scambia con quello di fronte, cosi' le squadre

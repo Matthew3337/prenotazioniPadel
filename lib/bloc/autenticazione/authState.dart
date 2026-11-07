@@ -20,6 +20,8 @@ class RegistrazioneSuccess extends AuthState {
 
 class LogoutSuccess extends AuthState {}
 
+class AccountEliminato extends AuthState {}
+
 // Errore, generico va bene qui perché porta solo il messaggio e il campo a cui si riferisce
 class AuthErrore extends AuthState {
   final String messaggio;

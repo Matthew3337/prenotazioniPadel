@@ -288,13 +288,11 @@ class _DettaglioAdminView extends StatelessWidget {
     final bool conStato = dettaglio.stato == 'creata';
     final int? idPosto = posto.idPosto;
 
-    String nome = '${posto.nome ?? ''} ${posto.cognome ?? ''}'.trim();
+    final String nome = nomeCompletoPosto(posto);
     final List<String> dettagli = [];
 
-    if (posto.tipo == 'CAMPO') {
-      nome = 'Giocatore del campo';
-    } else {
-      if (posto.telefono == dettaglio.telefonoCreatore) {
+    if (posto.tipo == 'UTENTE') {
+      if (eOrganizzatore(posto, dettaglio.telefonoCreatore)) {
         dettagli.add('Organizzatore');
       }
       if (posto.livello != null) {
@@ -324,7 +322,7 @@ class _DettaglioAdminView extends StatelessWidget {
                 ],
               ),
             ),
-            if (conStato && posto.tipo == 'UTENTE') ...[
+            if (conStato && posto.tipo == 'UTENTE' && !posto.eliminato) ...[
               const SizedBox(width: 8),
               Text(
                 posto.confermata ? 'Confermato' : 'Da confermare',
@@ -364,11 +362,7 @@ class _DettaglioAdminView extends StatelessWidget {
     final List<String> nomi = [];
     for (final posto in dettaglio.posti) {
       if (posto.squadra == squadra) {
-        if (posto.tipo == 'CAMPO') {
-          nomi.add('Giocatore del campo');
-        } else {
-          nomi.add(posto.nome ?? '');
-        }
+        nomi.add(nomeBrevePosto(posto));
       }
     }
     if (nomi.isEmpty) {

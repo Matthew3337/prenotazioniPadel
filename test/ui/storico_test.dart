@@ -4,6 +4,7 @@ import 'package:thepadel/bloc/dettaglioPartita/dettaglioPartitaBloc.dart';
 import 'package:thepadel/bloc/storico/storicoBloc.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
+import 'package:thepadel/domainLayer/enetity/partitaStorico.dart';
 import 'package:thepadel/domainLayer/enetity/risultatoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/setPartita.dart';
 import 'package:thepadel/ui/dettaglioPartita.dart';
@@ -54,6 +55,24 @@ void main()
     return DateTime(oggi.year, oggi.month, oggi.day - 3);
   }
 
+  //partita iniziata 3 ore fa e finita un'ora fa: il risultato si puo ancora registrare.
+  //Se la fine cade dopo mezzanotte la data resta quella dell'inizio, come la manda il server
+  final DateTime inizioRecente = DateTime.now().subtract(const Duration(hours: 3));
+  final DateTime fineRecente = DateTime.now().subtract(const Duration(hours: 1));
+  final DateTime giornoRecente = DateTime(inizioRecente.year, inizioRecente.month, inizioRecente.day);
+
+  PartitaStorico partitaRecente({int id = 10, String nomeCampo = "Campo Centrale", String stato = "giocata"})
+  {
+    return partitaStoricoDiTest(
+      id: id,
+      nomeCampo: nomeCampo,
+      stato: stato,
+      dataPartita: giornoRecente,
+      oraInizio: TimeOfDay.fromDateTime(inizioRecente),
+      oraFine: TimeOfDay.fromDateTime(fineRecente),
+    );
+  }
+
   testWidgets("mostra la riga con data, orario e campo; nessuna partita e In programma", (tester) async
   {
     final data = giornoPassato();
@@ -80,22 +99,22 @@ void main()
     expect(find.byType(StoricoPage), findsOneWidget);
   });
 
-  testWidgets("giocata senza risultato: pillola Senza risultato e invito a registrarlo", (tester) async
+  testWidgets("giocata senza risultato entro le 24 ore: pillola Senza risultato e invito a registrarlo", (tester) async
   {
-    final data = giornoPassato();
-    repo.partiteStorico = [partitaStoricoDiTest(stato: "giocata", dataPartita: data)];
+    repo.partiteStorico = [partitaRecente(stato: "giocata")];
     await apriPagina(tester);
 
     expect(find.text("Senza risultato"), findsOneWidget);
-    expect(find.text("Manca il risultato di ${nomeGiorno(data)}"), findsOneWidget);
+    expect(find.text("Risultato non registrato"), findsNothing);
+    expect(find.text("Manca il risultato di ${nomeGiorno(giornoRecente)}"), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, "Registra risultato"), findsOneWidget);
   });
 
   testWidgets("confermata senza risultato: manca il risultato; creata senza risultato: niente da registrare", (tester) async
   {
     repo.partiteStorico = [
-      partitaStoricoDiTest(id: 10, nomeCampo: "Campo Uno", stato: "confermata", dataPartita: giornoPassato()),
-      partitaStoricoDiTest(id: 11, nomeCampo: "Campo Due", stato: "creata", dataPartita: giornoPassato()),
+      partitaRecente(id: 10, nomeCampo: "Campo Uno", stato: "confermata"),
+      partitaRecente(id: 11, nomeCampo: "Campo Due", stato: "creata"),
     ];
     await apriPagina(tester);
 
@@ -107,8 +126,8 @@ void main()
   testWidgets("con piu partite senza risultato ne propone una sola", (tester) async
   {
     repo.partiteStorico = [
-      partitaStoricoDiTest(id: 10, stato: "giocata", dataPartita: giornoPassato()),
-      partitaStoricoDiTest(id: 11, stato: "giocata", dataPartita: giornoPassato()),
+      partitaRecente(id: 10, stato: "giocata"),
+      partitaRecente(id: 11, stato: "giocata"),
     ];
     await apriPagina(tester);
 
@@ -118,7 +137,7 @@ void main()
 
   testWidgets("Registra risultato apre il dettaglio della partita", (tester) async
   {
-    repo.partiteStorico = [partitaStoricoDiTest(id: 12, stato: "giocata", dataPartita: giornoPassato())];
+    repo.partiteStorico = [partitaRecente(id: 12, stato: "giocata")];
     await apriPagina(tester);
 
     await tester.tap(find.text("Registra risultato"));
@@ -126,6 +145,49 @@ void main()
 
     expect(find.byType(DettaglioPartitaPage), findsOneWidget);
     expect(repo.idRicevuto, 12);
+  });
+
+  testWidgets("termine scaduto: pillola Risultato non registrato, nessun invito a registrarlo", (tester) async
+  {
+    repo.partiteStorico = [
+      partitaStoricoDiTest(id: 10, stato: "giocata", dataPartita: giornoPassato()),
+      partitaStoricoDiTest(id: 11, stato: "confermata", dataPartita: giornoPassato()),
+    ];
+    await apriPagina(tester);
+
+    expect(find.text("Risultato non registrato"), findsNWidgets(2));
+    expect(find.text("Senza risultato"), findsNothing);
+    expect(find.textContaining("Manca il risultato"), findsNothing);
+    expect(find.text("Registra risultato"), findsNothing);
+  });
+
+  testWidgets("partita creata e mai giocata col termine scaduto: niente pillola Risultato non registrato", (tester) async
+  {
+    repo.partiteStorico = [partitaStoricoDiTest(stato: "creata", dataPartita: giornoPassato())];
+    await apriPagina(tester);
+
+    expect(find.text("Risultato non registrato"), findsNothing);
+    expect(find.textContaining("Manca il risultato"), findsNothing);
+  });
+
+  testWidgets("partita finita dopo mezzanotte: il termine parte dalla fine del giorno dopo", (tester) async
+  {
+    //23:00 - 00:30 di ieri finisce oggi alle 00:30: il termine e domani alle 00:30, quindi non e scaduto.
+    //Se la fine fosse contata su ieri il termine sarebbe gia passato
+    final oggi = DateTime.now();
+    final ieri = DateTime(oggi.year, oggi.month, oggi.day - 1);
+    repo.partiteStorico = [
+      partitaStoricoDiTest(stato: "giocata", dataPartita: ieri, oraInizio: const TimeOfDay(hour: 23, minute: 0), oraFine: const TimeOfDay(hour: 0, minute: 30)),
+    ];
+    await apriPagina(tester);
+
+    expect(find.text("Risultato non registrato"), findsNothing);
+    //prima delle 00:30 la partita non e ancora finita e non c'e niente da registrare
+    if(oggi.isAfter(DateTime(oggi.year, oggi.month, oggi.day, 0, 30)))
+    {
+      expect(find.text("Senza risultato"), findsOneWidget);
+      expect(find.text("Manca il risultato di ${nomeGiorno(ieri)}"), findsOneWidget);
+    }
   });
 
   testWidgets("risultato con squadraUtente 1: set nel verso del server e pillola Vinta con i punti", (tester) async

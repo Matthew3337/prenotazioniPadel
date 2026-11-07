@@ -22,7 +22,7 @@ void main()
   setUp(()
   {
     repo = FakeUtenteRepo();
-    bloc = AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo), logoutUseCase: LogoutUseCase(repo: repo));
+    bloc = AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo), logoutUseCase: LogoutUseCase(repo: repo), eliminaAccountUseCase: EliminaAccountUseCase(repo: repo));
   });
 
   tearDown(() async
@@ -182,6 +182,41 @@ void main()
     {
       repo.erroreLogout = Exception("preferenze non scrivibili");
       bloc.add(LogoutRichiesto());
+
+      await expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), erroreCon(ErroreGenericoServer().messaggio, CampoErroreAuth.nessuno)]));
+    });
+  });
+
+  group("eliminazione dell'account", ()
+  {
+    test("successo: Loading poi AccountEliminato", () async
+    {
+      bloc.add(EliminaAccountRichiesto());
+
+      await expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), isA<AccountEliminato>()]));
+      expect(repo.chiamateEliminaAccount, 1);
+    });
+
+    test("utente non trovato: errore col messaggio del server", () async
+    {
+      repo.erroreEliminaAccount = UtenteNonTrovato(messaggio: "Utente non trovato");
+      bloc.add(EliminaAccountRichiesto());
+
+      await expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), erroreCon("Utente non trovato", CampoErroreAuth.nessuno)]));
+    });
+
+    test("errore del server: errore col messaggio generico", () async
+    {
+      repo.erroreEliminaAccount = ErroreGenericoServer();
+      bloc.add(EliminaAccountRichiesto());
+
+      await expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), erroreCon(ErroreGenericoServer().messaggio, CampoErroreAuth.nessuno)]));
+    });
+
+    test("timeout o rete assente: errore col messaggio generico", () async
+    {
+      repo.erroreEliminaAccount = Exception("timeout");
+      bloc.add(EliminaAccountRichiesto());
 
       await expectLater(bloc.stream, emitsInOrder([isA<AuthLoading>(), erroreCon(ErroreGenericoServer().messaggio, CampoErroreAuth.nessuno)]));
     });

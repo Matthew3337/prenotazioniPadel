@@ -203,6 +203,10 @@ class _BachecaInvitiView extends StatelessWidget {
     const List<Color> colori = [Colori.verde, Colori.rosso, Colori.arancio];
     final int tinta = partita.id % sfondi.length;
 
+    // il nome manca se il creatore ha eliminato l'account: la riga sparisce
+    final String creatore =
+        '${partita.nomeCreatore ?? ''} ${partita.cognomeCreatore ?? ''}'.trim();
+
     Widget azione = const SizedBox.shrink();
     if (voce.puoConfermare) {
       azione = BottonePieno(
@@ -232,34 +236,38 @@ class _BachecaInvitiView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              CerchioIniziali(
-                testo: inizialiDi(partita.nomeCreatore, partita.cognomeCreatore),
-                sfondo: sfondi[tinta],
-                colore: colori[tinta],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text:
-                            '${partita.nomeCreatore} ${partita.cognomeCreatore}',
-                        style: stileTesto(r, base: 16, peso: FontWeight.w700),
-                      ),
-                      TextSpan(
-                        text: ' ti ha invitato',
-                        style: stileSecondario(r),
-                      ),
-                    ],
+          if (creatore.isNotEmpty) ...[
+            Row(
+              children: [
+                CerchioIniziali(
+                  testo: inizialiDi(
+                    partita.nomeCreatore,
+                    partita.cognomeCreatore,
+                  ),
+                  sfondo: sfondi[tinta],
+                  colore: colori[tinta],
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: creatore,
+                          style: stileTesto(r, base: 16, peso: FontWeight.w700),
+                        ),
+                        TextSpan(
+                          text: ' ti ha invitato',
+                          style: stileSecondario(r),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
           Text(
             '${conMaiuscola(giornoRelativo(partita.dataPartita))}, '
             '${formattaOra(partita.oraInizio)}',

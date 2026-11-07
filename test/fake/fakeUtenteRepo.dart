@@ -37,6 +37,11 @@ class FakeUtenteRepo extends UtenteRepoImpl
   Completer<void>? attesaLogout;
   int chiamateLogout = 0;
 
+  //eliminazione dell'account: se l'errore e null l'operazione riesce
+  Exception? erroreEliminaAccount;
+  Completer<void>? attesaEliminaAccount;
+  int chiamateEliminaAccount = 0;
+
   //metodi
   FakeUtenteRepo() : super(dsUtente: DataSourceUtente(c: Client(c: MockClient((_) async => http.Response('', 500))), elencoUrl: urlDiTest()));
 
@@ -96,6 +101,21 @@ class FakeUtenteRepo extends UtenteRepoImpl
     if(erroreLogout != null)
     {
       throw erroreLogout!;
+    }
+  }
+
+  @override
+  Future<void> eliminaAccount() async
+  {
+    chiamateEliminaAccount++;
+
+    if(attesaEliminaAccount != null)
+    {
+      await attesaEliminaAccount!.future;
+    }
+    if(erroreEliminaAccount != null)
+    {
+      throw erroreEliminaAccount!;
     }
   }
 }

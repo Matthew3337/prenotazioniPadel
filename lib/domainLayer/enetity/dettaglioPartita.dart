@@ -13,7 +13,7 @@ class DettaglioPartita {
   final TimeOfDay oraFine;
   final String stato; //in minuscolo: creata, confermata, annullata, giocata
   final String tipo; //PUBBLICA o PRIVATA
-  final String telefonoCreatore;
+  final String? telefonoCreatore; //null se il creatore ha eliminato l'account e non c'era un admin a cui passarla
   final List<PostoPartita> posti; //solo i posti occupati: il creatore e il primo se gioca, un creatore admin non ha un posto
   final AzioniPartita azioni;
   final RisultatoPartita? risultato; //null finche nessuno lo ha registrato

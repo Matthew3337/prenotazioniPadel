@@ -18,3 +18,5 @@ class RegistrazioneRichiesta extends AuthEvent {
 }
 
 class LogoutRichiesto extends AuthEvent {}
+
+class EliminaAccountRichiesto extends AuthEvent {}

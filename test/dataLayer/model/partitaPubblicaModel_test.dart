@@ -45,4 +45,17 @@ void main()
       expect(partita.postiLiberi, 2);
     });
   });
+
+  test("nome e cognome del creatore null (account eliminato): restano null", ()
+  {
+    final json = partitaJson(null);
+    json["nomeCreatore"] = null;
+    json["cognomeCreatore"] = null;
+
+    final partita = PartitaPubblicaModel.fromJson(json);
+
+    expect(partita.nomeCreatore, isNull);
+    expect(partita.cognomeCreatore, isNull);
+    expect(partita.postiLiberi, 2);
+  });
 }

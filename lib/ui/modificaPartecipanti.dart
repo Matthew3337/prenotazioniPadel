@@ -13,6 +13,7 @@ import 'package:thepadel/domainLayer/enetity/dettaglioPartita.dart';
 import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 import 'package:thepadel/domainLayer/enetity/utenteAdmin.dart';
 
+import 'campoPadel.dart';
 import 'stileApp.dart';
 
 class ModificaPartecipantiPage extends StatelessWidget {
@@ -61,14 +62,19 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
 
   // Le modifiche restano qui finche' non si tocca "Salva". I posti del campo
   // non cambiano mai: li teniamo a parte e li contiamo per il limite di 4.
+  // Lo stesso vale per i posti di chi ha eliminato l'account: non hanno un
+  // telefono da inviare e non si possono togliere.
   final List<PostoPartita> _utenti = [];
   final List<PostoPartita> _postiCampo = [];
+  final List<PostoPartita> _postiEliminati = [];
 
   @override
   void initState() {
     super.initState();
     for (final posto in widget.dettaglio.posti) {
-      if (posto.tipo == 'UTENTE') {
+      if (posto.eliminato) {
+        _postiEliminati.add(posto);
+      } else if (posto.tipo == 'UTENTE') {
         _utenti.add(posto);
       } else {
         _postiCampo.add(posto);
@@ -103,11 +109,12 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
     );
   }
 
-  int get _postiOccupati => _utenti.length + _postiCampo.length;
+  int get _postiOccupati =>
+      _utenti.length + _postiCampo.length + _postiEliminati.length;
 
   bool _organizzatoreTraIPartecipanti() {
     for (final posto in _utenti) {
-      if (posto.telefono == widget.dettaglio.telefonoCreatore) {
+      if (eOrganizzatore(posto, widget.dettaglio.telefonoCreatore)) {
         return true;
       }
     }
@@ -251,6 +258,16 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
         ),
       );
     }
+    for (int i = 0; i < _postiEliminati.length; i++) {
+      righe.add(
+        _rigaPartecipante(
+          r,
+          nome: testoUtenteEliminato,
+          dettagli: null,
+          azione: null,
+        ),
+      );
+    }
 
     final List<Widget> figli = [];
     for (int i = 0; i < righe.length; i++) {
@@ -280,7 +297,7 @@ class _ModificaPartecipantiViewState extends State<_ModificaPartecipantiView> {
 
   Widget _rigaUtente(Responsive r, PostoPartita posto, bool isLoading) {
     Widget? etichetta;
-    if (posto.telefono == widget.dettaglio.telefonoCreatore) {
+    if (eOrganizzatore(posto, widget.dettaglio.telefonoCreatore)) {
       etichetta = const Pillola(
         testo: 'Organizzatore',
         sfondo: Colori.azzurroChiaro,

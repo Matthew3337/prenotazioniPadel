@@ -25,7 +25,8 @@ AzioniPartita azioniDiTest({bool puoInvitare = false, bool puoEliminare = false,
 }
 
 //partita con il creatore (Mario Rossi) e un giocatore del campo: restano 2 posti liberi
-DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata", RisultatoPartita? risultato, int id = 10, DateTime? dataPartita, String telefonoCreatore = "3331234567", String tipo = "PUBBLICA", TimeOfDay oraInizio = const TimeOfDay(hour: 18, minute: 30), TimeOfDay oraFine = const TimeOfDay(hour: 20, minute: 0)})
+//telefonoCreatore: null esplicito simula un creatore che ha eliminato l'account
+DettaglioPartita dettaglioDiTest({AzioniPartita? azioni, List<PostoPartita>? posti, String stato = "creata", RisultatoPartita? risultato, int id = 10, DateTime? dataPartita, String? telefonoCreatore = "3331234567", String tipo = "PUBBLICA", TimeOfDay oraInizio = const TimeOfDay(hour: 18, minute: 30), TimeOfDay oraFine = const TimeOfDay(hour: 20, minute: 0)})
 {
   return DettaglioPartita(
     id: id,
@@ -59,7 +60,8 @@ List<PostoPartita> quattroPostiDiTest({bool conSquadre = false})
 }
 
 //partita della bacheca pubbliche: di default e quella di dettaglioDiTest vista dalla bacheca
-PartitaPubblica partitaPubblicaDiTest({int id = 10, String nomeCampo = "Campo Centrale", int postiLiberi = 2, double? livelloCreatore = 2.5})
+//nomeCreatore e cognomeCreatore null espliciti: il creatore ha eliminato l'account
+PartitaPubblica partitaPubblicaDiTest({int id = 10, String nomeCampo = "Campo Centrale", int postiLiberi = 2, double? livelloCreatore = 2.5, String? nomeCreatore = "Mario", String? cognomeCreatore = "Rossi"})
 {
   return PartitaPubblica(
     id: id,
@@ -68,15 +70,15 @@ PartitaPubblica partitaPubblicaDiTest({int id = 10, String nomeCampo = "Campo Ce
     dataPartita: DateTime(2026, 11, 2),
     oraInizio: const TimeOfDay(hour: 18, minute: 30),
     oraFine: const TimeOfDay(hour: 20, minute: 0),
-    nomeCreatore: "Mario",
-    cognomeCreatore: "Rossi",
+    nomeCreatore: nomeCreatore,
+    cognomeCreatore: cognomeCreatore,
     livelloCreatore: livelloCreatore,
     postiLiberi: postiLiberi,
   );
 }
 
 //partita dello storico: di default e quella di dettaglioDiTest, ancora senza risultato
-PartitaStorico partitaStoricoDiTest({int id = 10, int idCampo = 3, String nomeCampo = "Campo Centrale", String stato = "creata", RisultatoPartita? risultato, DateTime? dataPartita, TimeOfDay oraInizio = const TimeOfDay(hour: 18, minute: 30)})
+PartitaStorico partitaStoricoDiTest({int id = 10, int idCampo = 3, String nomeCampo = "Campo Centrale", String stato = "creata", RisultatoPartita? risultato, DateTime? dataPartita, TimeOfDay oraInizio = const TimeOfDay(hour: 18, minute: 30), TimeOfDay oraFine = const TimeOfDay(hour: 20, minute: 0)})
 {
   return PartitaStorico(
     id: id,
@@ -84,7 +86,7 @@ PartitaStorico partitaStoricoDiTest({int id = 10, int idCampo = 3, String nomeCa
     nomeCampo: nomeCampo,
     dataPartita: dataPartita ?? DateTime(2026, 11, 2),
     oraInizio: oraInizio,
-    oraFine: const TimeOfDay(hour: 20, minute: 0),
+    oraFine: oraFine,
     stato: stato,
     tipo: "PUBBLICA",
     risultato: risultato,
@@ -112,7 +114,7 @@ UtenteInvitabile utenteInvitabileDiTest({String telefono = "3335550001", String 
 }
 
 //partita della bacheca inviti: di default e quella di dettaglioDiTest, creata da Mario Rossi
-PartitaInvito partitaInvitoDiTest({int id = 10, String nomeCampo = "Campo Centrale", String stato = "creata", String tipo = "PRIVATA"})
+PartitaInvito partitaInvitoDiTest({int id = 10, String nomeCampo = "Campo Centrale", String stato = "creata", String tipo = "PRIVATA", String? nomeCreatore = "Mario", String? cognomeCreatore = "Rossi"})
 {
   return PartitaInvito(
     id: id,
@@ -123,8 +125,8 @@ PartitaInvito partitaInvitoDiTest({int id = 10, String nomeCampo = "Campo Centra
     oraFine: const TimeOfDay(hour: 20, minute: 0),
     stato: stato,
     tipo: tipo,
-    nomeCreatore: "Mario",
-    cognomeCreatore: "Rossi",
+    nomeCreatore: nomeCreatore,
+    cognomeCreatore: cognomeCreatore,
   );
 }
 

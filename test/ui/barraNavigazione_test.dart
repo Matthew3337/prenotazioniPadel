@@ -75,6 +75,57 @@ void main()
     expect(classifica.dx, lessThan(320 - 8));
   });
 
+  //il rettangolo bianco arrotondato della barra
+  Rect rettangoloBarra(WidgetTester tester)
+  {
+    final contenitore = find.descendant(
+      of: find.byType(BarraNavigazione),
+      matching: find.byWidgetPredicate((w) => w is Container && w.decoration is BoxDecoration && (w.decoration as BoxDecoration).borderRadius == BorderRadius.circular(24)),
+    );
+    return tester.getRect(contenitore.first);
+  }
+
+  final schermi = <String, Size>{"telefono piccolo (320 px)": const Size(960, 1704), "telefono normale (390 px)": const Size(1170, 2532)};
+
+  schermi.forEach((nome, dimensione)
+  {
+    testWidgets("$nome: la distanza dal bordo basso e uguale a quella dai lati", (tester) async
+    {
+      tester.view.physicalSize = dimensione;
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(MaterialApp(theme: temaDiTest(), home: const Scaffold(bottomNavigationBar: BarraNavigazione(voceAttiva: VoceBarra.home))));
+      await tester.pumpAndSettle();
+
+      final barra = rettangoloBarra(tester);
+      final double larghezza = dimensione.width / 3;
+      final double altezza = dimensione.height / 3;
+      final double sinistra = barra.left;
+      final double destra = larghezza - barra.right;
+      final double basso = altezza - barra.bottom;
+
+      expect(sinistra, greaterThan(0));
+      expect(destra, sinistra);
+      expect(basso, sinistra);
+    });
+  });
+
+  testWidgets("anche con la barra della home di iPhone la distanza in basso resta quella dei lati", (tester) async
+  {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    tester.view.padding = const FakeViewPadding(bottom: 34 * 3);
+    tester.view.viewPadding = const FakeViewPadding(bottom: 34 * 3);
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(MaterialApp(theme: temaDiTest(), home: const Scaffold(bottomNavigationBar: BarraNavigazione(voceAttiva: VoceBarra.home))));
+    await tester.pumpAndSettle();
+
+    final barra = rettangoloBarra(tester);
+    expect(844 - barra.bottom, barra.left);
+  });
+
   testWidgets("la voce attiva ha sopra il cerchio di vetro, fatto con BackdropFilter", (tester) async
   {
     await apriBarra(tester, VoceBarra.classifica);

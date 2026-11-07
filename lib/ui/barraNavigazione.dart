@@ -108,67 +108,66 @@ class _BarraNavigazioneState extends State<BarraNavigazione> {
     // sui telefoni piccoli si recupera un po' di spazio per le sei voci
     final double margine = r.width < 360 ? 8 : 12;
 
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(margine, 0, margine, 8),
-        child: Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colori.bordo),
-            boxShadow: [
-              BoxShadow(
-                color: Colori.testo.withValues(alpha: 0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final double larghezzaVoce =
-                  constraints.maxWidth / _ordineVoci.length;
-              double diametro = larghezzaVoce - 2;
-              if (diametro > 56) {
-                diametro = 56;
-              }
+    // niente SafeArea: la distanza dal bordo basso del telefono e' la stessa
+    // dei lati, anche dove c'e' la barra della home di iPhone
+    return Padding(
+      padding: EdgeInsets.fromLTRB(margine, 0, margine, margine),
+      child: Container(
+        height: 64,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colori.bordo),
+          boxShadow: [
+            BoxShadow(
+              color: Colori.testo.withValues(alpha: 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final double larghezzaVoce =
+                constraints.maxWidth / _ordineVoci.length;
+            double diametro = larghezzaVoce - 2;
+            if (diametro > 56) {
+              diametro = 56;
+            }
 
-              final List<Widget> voci = [];
-              for (final voce in _ordineVoci) {
-                voci.add(_voce(context, r, voce));
-              }
+            final List<Widget> voci = [];
+            for (final voce in _ordineVoci) {
+              voci.add(_voce(context, r, voce));
+            }
 
-              return Stack(
-                children: [
-                  Row(children: voci),
-                  // il cerchio scivola dalla voce di prima a quella attuale
-                  TweenAnimationBuilder<double>(
-                    tween: Tween<double>(
-                      begin: _indicePartenza.toDouble(),
-                      end: _ordineVoci.indexOf(widget.voceAttiva).toDouble(),
-                    ),
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOut,
-                    builder: (context, indice, child) {
-                      return Positioned(
-                        left:
-                            indice * larghezzaVoce +
-                            (larghezzaVoce - diametro) / 2,
-                        top: (64 - 2 - diametro) / 2,
-                        width: diametro,
-                        height: diametro,
-                        child: child!,
-                      );
-                    },
-                    child: const _CerchioVetro(),
+            return Stack(
+              children: [
+                Row(children: voci),
+                // il cerchio scivola dalla voce di prima a quella attuale
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(
+                    begin: _indicePartenza.toDouble(),
+                    end: _ordineVoci.indexOf(widget.voceAttiva).toDouble(),
                   ),
-                ],
-              );
-            },
-          ),
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut,
+                  builder: (context, indice, child) {
+                    return Positioned(
+                      left:
+                          indice * larghezzaVoce +
+                          (larghezzaVoce - diametro) / 2,
+                      top: (64 - 2 - diametro) / 2,
+                      width: diametro,
+                      height: diametro,
+                      child: child!,
+                    );
+                  },
+                  child: const _CerchioVetro(),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -344,19 +343,27 @@ class _IconaVocePainter extends CustomPainter {
       canvas.drawLine(const Offset(9, 3), const Offset(9, 7), pennello);
       canvas.drawLine(const Offset(15, 3), const Offset(15, 7), pennello);
     }
-    // la bacheca: quattro riquadri come l'icona dashboard di Material
+    // la bacheca: una lente, perche' li' si cercano partite a cui unirsi
     if (voce == VoceBarra.partite) {
-      const Radius angolo = Radius.circular(1.5);
-      canvas.drawRRect(RRect.fromLTRBR(4, 4, 11, 13, angolo), pennello);
-      canvas.drawRRect(RRect.fromLTRBR(13, 4, 20, 9, angolo), pennello);
-      canvas.drawRRect(RRect.fromLTRBR(13, 11, 20, 20, angolo), pennello);
-      canvas.drawRRect(RRect.fromLTRBR(4, 15, 11, 20, angolo), pennello);
+      canvas.drawCircle(const Offset(10.5, 10.5), 6, pennello);
+      canvas.drawLine(const Offset(15, 15), const Offset(20, 20), pennello);
     }
-    // le mie partite: una racchetta da padel
+    // le mie partite: lo stesso calendario di Prenota con una spunta dentro,
+    // cioe' le partite in cui si e' gia' dentro e ancora da giocare
     if (voce == VoceBarra.miePartite) {
-      canvas.drawCircle(const Offset(10, 10), 6, pennello);
-      canvas.drawLine(const Offset(14.5, 14.5), const Offset(20, 20), pennello);
-      canvas.drawCircle(const Offset(10, 10), 0.8, pennello);
+      canvas.drawRRect(
+        RRect.fromLTRBR(4, 5, 20, 20, const Radius.circular(2)),
+        pennello,
+      );
+      canvas.drawLine(const Offset(4, 10), const Offset(20, 10), pennello);
+      canvas.drawLine(const Offset(9, 3), const Offset(9, 7), pennello);
+      canvas.drawLine(const Offset(15, 3), const Offset(15, 7), pennello);
+      final Path spunta =
+          Path()
+            ..moveTo(8.5, 15)
+            ..lineTo(11, 17.5)
+            ..lineTo(15.5, 12.8);
+      canvas.drawPath(spunta, pennello);
     }
     if (voce == VoceBarra.storico) {
       canvas.drawCircle(const Offset(12, 12), 8, pennello);

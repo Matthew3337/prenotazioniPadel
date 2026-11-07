@@ -21,6 +21,11 @@ class UtenteRepoImpl implements UtenteRepo{
   }
 
   @override
+  Future<void> eliminaAccount() {
+    return dsUtente.eliminaAccount();
+  }
+
+  @override
   Future<int> registrazione(String nome, String cognome, String telefono, DateTime dataNascita, String password) {
     return dsUtente.registrazione(nome, cognome, telefono, dataNascita, password);
   }

@@ -309,6 +309,32 @@ void main()
       expect(find.widgetWithText(TextButton, "Rimuovi"), findsNWidgets(3));
     });
 
+    testWidgets("creatore null e un posto eliminato: Utente eliminato senza Rimuovi, nessun Organizzatore", (tester) async
+    {
+      repoPartita.risposta = dettaglioDiTest(stato: "confermata", telefonoCreatore: null, posti: [
+        PostoPartita(idPosto: 11, tipo: "UTENTE", telefono: "3331234567", nome: "Mario", cognome: "Rossi", livello: 2.5, confermata: true, squadra: null),
+        PostoPartita(idPosto: 12, tipo: "UTENTE", telefono: null, nome: null, cognome: null, livello: null, confermata: true, squadra: null, eliminato: true),
+        PostoPartita(idPosto: 13, tipo: "UTENTE", telefono: "3335550002", nome: "Anna", cognome: "Verdi", livello: 2.5, confermata: true, squadra: null),
+        PostoPartita(idPosto: 14, tipo: "CAMPO", telefono: null, nome: null, cognome: null, livello: null, confermata: false, squadra: null),
+      ]);
+      repo.rispostaPartecipanti = dettaglioDiTest(stato: "confermata", telefonoCreatore: null);
+      await apriPagina(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text("Giocatori, 4 su 4"), findsOneWidget);
+      expect(find.text("Utente eliminato"), findsOneWidget);
+      expect(find.text("Organizzatore"), findsNothing);
+      expect(find.text(spiegazione), findsNothing);
+      //solo Mario e Anna si possono togliere
+      expect(find.widgetWithText(TextButton, "Rimuovi"), findsNWidgets(2));
+
+      await tester.tap(find.widgetWithText(ElevatedButton, "Salva"));
+      await tester.pumpAndSettle();
+
+      //il posto eliminato non ha un telefono da mandare
+      expect(repo.telefoniRicevuti, ["3331234567", "3335550002"]);
+    });
+
     testWidgets("togliendo il creatore e salvando i telefoni non lo contengono", (tester) async
     {
       repo.rispostaPartecipanti = dettaglioDiTest(stato: "confermata", telefonoCreatore: "3330000000", posti: [

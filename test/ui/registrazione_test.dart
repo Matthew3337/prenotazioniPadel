@@ -23,7 +23,7 @@ void main()
   {
     await sl.reset();
     repo = FakeUtenteRepo();
-    sl.registerFactory<AuthBloc>(() => AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo), logoutUseCase: LogoutUseCase(repo: repo)));
+    sl.registerFactory<AuthBloc>(() => AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo), logoutUseCase: LogoutUseCase(repo: repo), eliminaAccountUseCase: EliminaAccountUseCase(repo: repo)));
   });
 
   tearDown(() async

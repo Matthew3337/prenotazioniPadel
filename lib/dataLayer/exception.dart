@@ -16,6 +16,11 @@ class DataNonValida implements Exception{
   final String messaggio = "Questa data non esiste";
 }
 
+class UtenteNonTrovato implements Exception{ //404 sull'eliminazione dell'account: il telefono del token non esiste piu
+  final String messaggio;
+  UtenteNonTrovato({required this.messaggio});
+}
+
 //PRENOTAZIONE EXCEPTION
 //qui il messaggio non e fisso ma arriva dal campo "errore" del server, cosi l'utente vede la regola violata
 

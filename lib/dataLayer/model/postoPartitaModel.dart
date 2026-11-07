@@ -2,7 +2,7 @@ import 'package:thepadel/domainLayer/enetity/postoPartita.dart';
 
 class PostoPartitaModel extends PostoPartita{
 
-  PostoPartitaModel({required super.idPosto, required super.tipo, required super.telefono, required super.nome, required super.cognome, required super.livello, required super.confermata, required super.squadra});
+  PostoPartitaModel({required super.idPosto, required super.tipo, required super.telefono, required super.nome, required super.cognome, required super.livello, required super.confermata, required super.squadra, required super.eliminato});
 
   factory PostoPartitaModel.fromJson(Map<String, dynamic> json)
   {
@@ -22,7 +22,9 @@ class PostoPartitaModel extends PostoPartita{
       cognome: json['cognome'] as String?,
       livello: livello,
       confermata: json['confermata'] as bool,
-      squadra: json['squadra'] as int?
+      squadra: json['squadra'] as int?,
+      //il server lo manda solo da quando esiste l'eliminazione dell'account: se manca il posto non e eliminato
+      eliminato: json['eliminato'] as bool? ?? false
     );
   }
 }

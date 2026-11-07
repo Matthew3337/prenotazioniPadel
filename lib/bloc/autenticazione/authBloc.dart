@@ -14,12 +14,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LoginUseCase loginUseCase;
   final RegistrazioneUseCase registrazioneUseCase;
   final LogoutUseCase logoutUseCase;
+  final EliminaAccountUseCase eliminaAccountUseCase;
 
   //costruttire
-  AuthBloc({required this.loginUseCase, required this.registrazioneUseCase, required this.logoutUseCase}) : super(AuthInitial()) {//dichiaro lo stato iniziale
+  AuthBloc({required this.loginUseCase, required this.registrazioneUseCase, required this.logoutUseCase, required this.eliminaAccountUseCase}) : super(AuthInitial()) {//dichiaro lo stato iniziale
     on<LoginRichiesto>(_onLoginRichiesto); //registra una funzione che verra eseguita ogni qualvolta qualcuno fara add di un oggetto del Tipo tipizzato
     on<RegistrazioneRichiesta>(_onRegistrazioneRichiesta);
     on<LogoutRichiesto>(_onLogout);
+    on<EliminaAccountRichiesto>(_onEliminaAccount);
   }
 
 
@@ -79,6 +81,21 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try{
       await logoutUseCase.call();
       emit(LogoutSuccess());
+    } on Exception {
+      emit(AuthErrore(messaggio : ErroreGenericoServer().messaggio));
+    }
+  }
+
+  Future<void> _onEliminaAccount(EliminaAccountRichiesto evento, Emitter<AuthState> emit) async
+  {
+    emit(AuthLoading());
+    try{
+      await eliminaAccountUseCase.call();
+      emit(AccountEliminato());
+    } on UtenteNonTrovato catch (e) {
+      emit(AuthErrore(messaggio : e.messaggio));
+    } on ErroreGenericoServer catch (e) {
+      emit(AuthErrore(messaggio : e.messaggio));
     } on Exception {
       emit(AuthErrore(messaggio : ErroreGenericoServer().messaggio));
     }

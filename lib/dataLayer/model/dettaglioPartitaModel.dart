@@ -29,7 +29,7 @@ class DettaglioPartitaModel extends DettaglioPartita{
       oraFine: _parseTimeOfDay(json['oraFine']),
       stato: json['stato'] as String,
       tipo: json['tipo'] as String,
-      telefonoCreatore: json['telefonoCreatore'] as String,
+      telefonoCreatore: json['telefonoCreatore'] as String?,
       posti: posti,
       azioni: AzioniPartitaModel.fromJson(json['azioni'] as Map<String, dynamic>),
       risultato: risultato

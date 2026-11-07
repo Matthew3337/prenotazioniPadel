@@ -29,7 +29,7 @@ void main()
     await sl.reset();
     await registraPreferenzeDiTest();
     repo = FakeUtenteRepo();
-    sl.registerFactory<AuthBloc>(() => AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo), logoutUseCase: LogoutUseCase(repo: repo)));
+    sl.registerFactory<AuthBloc>(() => AuthBloc(loginUseCase: LoginUseCase(repo: repo), registrazioneUseCase: RegistrazioneUseCase(repo: repo), logoutUseCase: LogoutUseCase(repo: repo), eliminaAccountUseCase: EliminaAccountUseCase(repo: repo)));
     registraBlocDiTest(repoPartita: FakePartitaRepo(), repoCampo: FakeCampoRepo(), repoPrenotazione: FakePrenotazioneRepo(), repoUtente: repo);
   });
 
@@ -69,6 +69,15 @@ void main()
     await tester.ensureVisible(esci);
     await tester.pumpAndSettle();
     await tester.tap(esci);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> apriDialogElimina(WidgetTester tester) async
+  {
+    final elimina = find.widgetWithText(TextButton, "Elimina account");
+    await tester.ensureVisible(elimina);
+    await tester.pumpAndSettle();
+    await tester.tap(elimina);
     await tester.pumpAndSettle();
   }
 
@@ -125,7 +134,83 @@ void main()
         expect(navigator.canPop(), false);
         expect(tester.takeException(), isNull);
       });
+
+      testWidgets("Elimina account chiede conferma spiegando che e definitivo", (tester) async
+      {
+        await apriPagina(tester, pagina);
+        await apriDialogElimina(tester);
+
+        expect(find.text("Eliminare l'account?"), findsOneWidget);
+        expect(find.text("Il tuo account e i tuoi dati personali verranno eliminati. Non si può annullare."), findsOneWidget);
+        expect(repo.chiamateEliminaAccount, 0);
+      });
+
+      testWidgets("Elimina account: Annulla chiude il dialog senza eliminare", (tester) async
+      {
+        await apriPagina(tester, pagina);
+        await apriDialogElimina(tester);
+
+        await tester.tap(bottoneDelDialog("Annulla"));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.byType(pagina.runtimeType), findsOneWidget);
+        expect(repo.chiamateEliminaAccount, 0);
+      });
+
+      testWidgets("Elimina account: confermando torna al login con lo stack vuoto", (tester) async
+      {
+        await apriPagina(tester, pagina);
+        await apriDialogElimina(tester);
+
+        await tester.tap(bottoneDelDialog("Elimina"));
+        await tester.pumpAndSettle();
+
+        expect(repo.chiamateEliminaAccount, 1);
+        expect(find.byType(LoginPage), findsOneWidget);
+        expect(find.byType(pagina.runtimeType), findsNothing);
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.text("apri"), findsNothing);
+        expect(find.text("Account eliminato"), findsOneWidget);
+
+        final NavigatorState navigator = tester.state(find.byType(Navigator).first);
+        expect(navigator.canPop(), false);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets("Elimina account: con un errore il dialog si chiude e compare la SnackBar", (tester) async
+      {
+        repo.erroreEliminaAccount = UtenteNonTrovato(messaggio: "Utente non trovato");
+        await apriPagina(tester, pagina);
+        await apriDialogElimina(tester);
+
+        await tester.tap(bottoneDelDialog("Elimina"));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.descendant(of: find.byType(SnackBar), matching: find.text("Utente non trovato")), findsOneWidget);
+        expect(find.byType(pagina.runtimeType), findsOneWidget);
+        expect(find.byType(LoginPage), findsNothing);
+      });
     });
+  });
+
+  testWidgets("durante l'eliminazione Annulla e spento e c'e lo spinner", (tester) async
+  {
+    repo.attesaEliminaAccount = Completer<void>();
+    await apriPagina(tester, const HomePage());
+    await apriDialogElimina(tester);
+
+    await tester.tap(bottoneDelDialog("Elimina"));
+    await tester.pump();
+
+    expect(tester.widget<ElevatedButton>(bottoneDelDialog("Annulla")).onPressed, isNull);
+    expect(find.descendant(of: find.byType(Dialog), matching: find.byType(CircularProgressIndicator)), findsOneWidget);
+
+    repo.attesaEliminaAccount!.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LoginPage), findsOneWidget);
   });
 
   testWidgets("durante il logout Annulla e Esci sono spenti e c'e lo spinner", (tester) async
