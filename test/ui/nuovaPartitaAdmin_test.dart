@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:thepadel/core/di/depInjection.dart';
 import 'package:thepadel/dataLayer/exception.dart';
+import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 import 'package:thepadel/ui/dettaglioAdmin.dart';
 import 'package:thepadel/ui/nuovaPartitaAdmin.dart';
 import 'package:thepadel/ui/stileApp.dart';
@@ -366,6 +367,63 @@ void main()
       await tocca(tester, find.widgetWithText(ElevatedButton, "Crea partita"));
 
       expect(creaAttivo(tester), false);
+      expect(find.text("Tocca uno slot libero per sceglierlo"), findsOneWidget);
+    });
+  });
+
+  group("giorno e slot iniziali", ()
+  {
+    Future<void> apriConParametri(WidgetTester tester, {DateTime? giorno, SlotOrario? slot}) async
+    {
+      tester.view.physicalSize = const Size(390, 1500) * 3.0;
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(MaterialApp(theme: temaDiTest(), home: NuovaPartitaAdminPage(giornoIniziale: giorno, slotIniziale: slot)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets("senza parametri carica oggi e nessuno slot e scelto", (tester) async
+    {
+      await apriConParametri(tester);
+
+      expect(repoCampo.dateRicevute, [DateTime(adesso.year, adesso.month, adesso.day)]);
+      expect(find.text("Tocca uno slot libero per sceglierlo"), findsOneWidget);
+      expect(find.text("Scelto"), findsNothing);
+    });
+
+    testWidgets("con giorno e slot carica solo quel giorno e lo slot risulta gia scelto", (tester) async
+    {
+      await apriConParametri(tester, giorno: domani, slot: slotCampoDiTest());
+
+      expect(repoCampo.dateRicevute, [domani]);
+      expect(find.text("Scelto"), findsOneWidget);
+      expect(find.text("Campo Centrale, ${dataEstesa(domani)}, 18:30 - 20:00"), findsOneWidget);
+    });
+
+    testWidgets("con lo slot iniziale bastano tipo e utente e la partita parte con giorno e ora giusti", (tester) async
+    {
+      repo.rispostaCreaPartita = dettaglioDiTest(id: 33);
+      repoPartita.risposta = dettaglioDiTest(id: 33);
+      await apriConParametri(tester, giorno: domani, slot: slotCampoDiTest());
+
+      await tocca(tester, find.text("Pubblica"));
+      await tocca(tester, aggiungi().first);
+      expect(creaAttivo(tester), true);
+
+      await tocca(tester, find.widgetWithText(ElevatedButton, "Crea partita"));
+
+      expect(repo.idCampoCreaRicevuto, 3);
+      expect(repo.dataCreaRicevuta, domani);
+      expect(repo.oraCreaRicevuta, "18:30:00");
+    });
+
+    testWidgets("se lo slot iniziale nel frattempo e stato occupato non resta scelto", (tester) async
+    {
+      repoCampo.slots = [slotCampoDiTest(disponibile: false)];
+      await apriConParametri(tester, giorno: domani, slot: slotCampoDiTest());
+
+      expect(find.text("Scelto"), findsNothing);
       expect(find.text("Tocca uno slot libero per sceglierlo"), findsOneWidget);
     });
   });

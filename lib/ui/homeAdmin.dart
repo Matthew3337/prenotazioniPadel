@@ -7,7 +7,12 @@ import 'package:thepadel/bloc/bachecaAvvisi/bachecaAvvisiState.dart';
 import 'package:thepadel/bloc/livelloCampo/livelloCampoBloc.dart';
 import 'package:thepadel/bloc/livelloCampo/livelloCampoEvent.dart';
 import 'package:thepadel/bloc/livelloCampo/livelloCampoState.dart';
+import 'package:thepadel/bloc/prenota/prenotaBloc.dart';
+import 'package:thepadel/bloc/prenota/prenotaEvent.dart';
+import 'package:thepadel/bloc/prenota/prenotaState.dart';
 import 'package:thepadel/core/di/depInjection.dart';
+import 'package:thepadel/domainLayer/enetity/campo.dart';
+import 'package:thepadel/domainLayer/enetity/slotOrario.dart';
 
 import 'bachecaAvvisi.dart';
 import 'bottoneEsci.dart';
@@ -16,6 +21,7 @@ import 'gestioneLivelli.dart';
 import 'nuovaPartitaAdmin.dart';
 import 'partiteGiorno.dart';
 import 'stileApp.dart';
+import 'tabelloneSlot.dart';
 
 class HomeAdminPage extends StatelessWidget {
   const HomeAdminPage({super.key});
@@ -33,6 +39,11 @@ class HomeAdminPage extends StatelessWidget {
         BlocProvider<LivelloCampoBloc>(
           create:
               (_) => sl<LivelloCampoBloc>()..add(const LivelloCampoRichiesto()),
+        ),
+        // giorni, campi e slot sono gli stessi della pagina di prenotazione:
+        // l'admin non gioca, quindi le sue partite arrivano sempre vuote
+        BlocProvider<PrenotaBloc>(
+          create: (_) => sl<PrenotaBloc>()..add(const PrenotaRichiesta()),
         ),
       ],
       child: const _HomeAdminView(),
@@ -52,8 +63,8 @@ class _HomeAdminView extends StatelessWidget {
     return 'Ciao, $nome';
   }
 
-  // dalle altre pagine si puo' annullare una partita o cambiarne i posti, e
-  // il numero di avvisi cambia: al ritorno lo chiediamo sempre di nuovo
+  // dalle altre pagine si puo' creare o annullare una partita o cambiarne i
+  // posti: al ritorno chiediamo di nuovo sia gli avvisi sia gli slot liberi
   Future<void> _apri(BuildContext context, Widget pagina) async {
     await Navigator.push<void>(
       context,
@@ -62,6 +73,7 @@ class _HomeAdminView extends StatelessWidget {
 
     if (context.mounted) {
       context.read<BachecaAvvisiBloc>().add(const BachecaAvvisiRichiesta());
+      context.read<PrenotaBloc>().add(const PrenotaRichiesta());
     }
   }
 
@@ -112,6 +124,8 @@ class _HomeAdminView extends StatelessWidget {
                   _apri(context, const NuovaPartitaAdminPage());
                 },
               ),
+              const SizedBox(height: 12),
+              _buildSlotLiberi(context, r),
               const SizedBox(height: 12),
               _buildVoce(
                 r,
@@ -200,6 +214,229 @@ class _HomeAdminView extends StatelessWidget {
           child: BarraGrigia(larghezza: 130, altezza: 16),
         );
       },
+    );
+  }
+
+  // ===== SLOT LIBERI =====
+
+  Widget _buildSlotLiberi(BuildContext context, Responsive r) {
+    return BlocBuilder<PrenotaBloc, PrenotaState>(
+      builder: (context, state) {
+        return CardBianca(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Slot liberi', style: stileNumero(r, 18)),
+              const SizedBox(height: 2),
+              Text(
+                'Tocca un orario per creare una partita',
+                style: stileSecondario(r),
+              ),
+              const SizedBox(height: 12),
+              BarraGiorni(
+                state: state,
+                onGiornoScelto: (giorno) {
+                  context.read<PrenotaBloc>().add(
+                    PrenotaGiornoCambiato(giorno: giorno),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              _buildContenutoSlot(context, r, state),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildContenutoSlot(
+    BuildContext context,
+    Responsive r,
+    PrenotaState state,
+  ) {
+    // la sezione e' gia' dentro una card: l'errore non usa CardErrore per non
+    // mettere una card dentro l'altra
+    if (state is PrenotaErrore) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Non siamo riusciti a caricare gli slot di ${nomeGiorno(state.giorno)}',
+            style: stileTesto(r, peso: FontWeight.w600, colore: Colori.rosso),
+          ),
+          LinkTesto(
+            testo: 'Riprova',
+            onPressed: () {
+              context.read<PrenotaBloc>().add(const PrenotaRichiesta());
+            },
+          ),
+        ],
+      );
+    }
+
+    if (state is PrenotaCaricato) {
+      if (state.campi.isEmpty) {
+        return Text(
+          'Non ci sono campi. Puoi aggiungerli da Gestione campi.',
+          style: stileSecondario(r),
+        );
+      }
+
+      final DateTime adesso = DateTime.now();
+      final List<Widget> righe = [];
+      for (final campo in state.campi) {
+        if (righe.isNotEmpty) {
+          righe.add(const SizedBox(height: 8));
+        }
+        righe.add(
+          _rigaCampo(
+            context,
+            r,
+            state,
+            campo,
+            _slotLiberi(state, campo, adesso),
+          ),
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: righe,
+      );
+    }
+
+    return Column(
+      children: [
+        _rigaScheletroSlot(),
+        const SizedBox(height: 8),
+        _rigaScheletroSlot(),
+      ],
+    );
+  }
+
+  // il server segna come disponibili anche gli slot gia' iniziati: quelli
+  // vanno tolti a parte
+  List<SlotOrario> _slotLiberi(
+    PrenotaCaricato state,
+    Campo campo,
+    DateTime adesso,
+  ) {
+    final List<SlotOrario> liberi = [];
+    final List<SlotOrario> slots = state.slotPerCampo[campo.id] ?? [];
+    for (final slot in slots) {
+      if (slot.disponibile && !state.slotPassato(slot, adesso)) {
+        liberi.add(slot);
+      }
+    }
+    return liberi;
+  }
+
+  Widget _rigaScheletroSlot() {
+    const Widget spazio = SizedBox(width: 6);
+    const Widget casella = Expanded(
+      child: BarraGrigia(altezza: 44, raggio: 10),
+    );
+    return const Row(
+      children: [
+        SizedBox(width: 56, child: BarraGrigia(altezza: 16)),
+        SizedBox(width: 8),
+        casella,
+        spazio,
+        casella,
+        spazio,
+        casella,
+      ],
+    );
+  }
+
+  // come nella home dell'utente: il nome del campo resta fermo a sinistra e
+  // gli orari scorrono di lato se non entrano nella card. Un campo pieno resta
+  // in elenco con una scritta, cosi' l'admin vede che non e' stato dimenticato
+  Widget _rigaCampo(
+    BuildContext context,
+    Responsive r,
+    PrenotaCaricato state,
+    Campo campo,
+    List<SlotOrario> liberi,
+  ) {
+    Widget orari;
+    if (liberi.isEmpty) {
+      orari = Container(
+        constraints: const BoxConstraints(minHeight: 44),
+        alignment: Alignment.centerLeft,
+        child: Text('Nessuno slot libero', style: stileSecondario(r)),
+      );
+    } else {
+      final List<Widget> caselle = [];
+      for (int i = 0; i < liberi.length; i++) {
+        if (i > 0) {
+          caselle.add(const SizedBox(width: 6));
+        }
+        caselle.add(
+          SizedBox(
+            width: r.font(64),
+            child: _casellaSlot(context, r, state, liberi[i]),
+          ),
+        );
+      }
+      orari = SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: caselle),
+      );
+    }
+
+    return Row(
+      children: [
+        SizedBox(
+          width: r.font(64),
+          child: Text(
+            campo.nome,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: stileTesto(r, peso: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: orari),
+      ],
+    );
+  }
+
+  Widget _casellaSlot(
+    BuildContext context,
+    Responsive r,
+    PrenotaCaricato state,
+    SlotOrario slot,
+  ) {
+    return Semantics(
+      label: '${slot.nomeCampo}, ${oraBreve(slot.oraInizio)}, libero',
+      button: true,
+      child: Material(
+        color: Colori.verdeChiaro,
+        clipBehavior: Clip.antiAlias,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: () {
+            _apri(
+              context,
+              NuovaPartitaAdminPage(
+                giornoIniziale: state.giorno,
+                slotIniziale: slot,
+              ),
+            );
+          },
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            alignment: Alignment.center,
+            child: Text(
+              oraBreve(slot.oraInizio),
+              maxLines: 1,
+              style: stileTesto(r, peso: FontWeight.w700, colore: Colori.verde),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
